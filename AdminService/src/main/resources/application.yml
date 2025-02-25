@@ -1,0 +1,20 @@
+spring:
+  cloud:
+    nacos:
+      discovery:
+        service: AdminService
+        server-addr: localhost:8848
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    type: com.alibaba.druid.pool.DruidDataSource
+    url: jdbc:mysql://localhost:3306/my_blog_adminDB?serverTimezone=UTC # ?前面是数据库名
+    username: root
+    password: OYyj0715
+
+mybatis-plus:
+  configuration: #配置打印MyBatis日志
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+  mapper-locations: classpath*:mapper/*.xml
+server:
+  port: 8083
