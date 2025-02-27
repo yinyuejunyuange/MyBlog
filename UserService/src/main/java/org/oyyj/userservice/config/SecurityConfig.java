@@ -55,8 +55,9 @@ public class SecurityConfig {
                 // 允许匿名访问的url
                 .authorizeHttpRequests((requests)->{
                     requests.requestMatchers("myBlog/user/login","myBlog/user/register","/myBlog/user/blog/read",
-                                    "/myBlog/user/blog/file/upload","/myBlog/user/blog/file/download/**","http://localhost:8080/myBlog/user/blog/read/**",
-                                    "/myBlog/user/verify/getCode","myBlog/user/verify/checkCode").permitAll()// 允许匿名访问的资源
+                                    "/myBlog/user/blog/file/download/**","http://localhost:8080/myBlog/user/blog/read/**",
+                                    "/myBlog/user/verify/getCode","myBlog/user/verify/checkCode","/myBlog/user/getHead/**","/myBlog/user/getUserName",
+                                    "/myBlog/user/blog/getBlogList","/myBlog/user/blog/isUserStar**","/myBlog/user/blog/isUserKudos**").permitAll()// 允许匿名访问的资源
                             .anyRequest().authenticated(); // 此外的所有全部需要验证
                 })
                .exceptionHandling(exceptions->exceptions.authenticationEntryPoint(customAuthenticationEntryPoint))

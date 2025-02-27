@@ -47,7 +47,7 @@ public class VerifyController {
                 .setWidth(120)   //设置图片的宽度
                 .setHeight(35)   //设置图片的高度
                 .setSize(6)      //设置字符的个数
-                .setLines(10)    //设置干扰线的条数
+                .setLines(5)    //设置干扰线的条数
                 .setFontSize(25) //设置字体的大小
                 .setTilt(true)   //设置是否需要倾斜
                 .setBackgroundColor(Color.LIGHT_GRAY) //设置验证码的背景颜色
@@ -69,7 +69,7 @@ public class VerifyController {
         redisUtil.set(token, objs[0],60, TimeUnit.SECONDS); //保存 1分钟
 
         // 将token返回给前端
-        response.setHeader("verifyToken", token);
+        response.setHeader("verifytoken", token);
 
         // 将图片输出给浏览器
         BufferedImage image = (BufferedImage) objs[1];
@@ -108,7 +108,7 @@ public class VerifyController {
 
         System.out.println("验证码正确!");
         return ResultUtil.successMap(null,"验证码正确");
-        // 这里做具体业务相关
+
 
     }
 }

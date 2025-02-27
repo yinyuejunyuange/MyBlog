@@ -39,4 +39,13 @@ public class Blog {
     private List<String> typeList=new ArrayList<>();
     @TableField("introduce")
     private String introduce;
+    @TableField("kudos")
+    private Long kudos; // 点赞数
+    @TableField("star")
+    private Long star; // 收藏数
+    @TableField("watch")
+    private Long watch; // 阅读量
+    @TableField("comment_num")
+    private Long commentNum; // 博客总评论数
+
 }

@@ -1,4 +1,4 @@
-package org.oyyj.blogservice.dto;
+package org.oyyj.userservice.DTO;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,13 +18,9 @@ public class BlogDTO {
     private String context;
     private String userId;
     private String userName;
-    private String introduce;
+    private String Introduce;
     private Date createTime;
     private Date updateTime;
     private Integer status;
     private List<String> typeList;
-    private String kudos;
-    private String star;
-    private String watch;
-    private String commentNum;
 }

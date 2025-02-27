@@ -28,6 +28,9 @@ spring:
             allowed-headers:
               - "*"
             allow-credentials: true
+            exposed-headers:
+              - 'verifytoken'  # 允许暴露特定请求头 否则 前端无法获取
+              - 'token'
             max-age: 360000
 
 

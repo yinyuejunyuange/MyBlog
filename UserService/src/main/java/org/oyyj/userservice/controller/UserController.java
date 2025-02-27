@@ -3,6 +3,7 @@ package org.oyyj.userservice.controller;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
 import org.oyyj.blogservice.dto.BlogDTO;
@@ -14,6 +15,8 @@ import org.oyyj.userservice.pojo.LoginUser;
 import org.oyyj.userservice.pojo.User;
 import org.oyyj.userservice.service.IUserService;
 import org.oyyj.userservice.utils.ResultUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -28,16 +31,18 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/myBlog/user")
 public class UserController {
 
 
-
+    private static final Logger log = LoggerFactory.getLogger(UserController.class);
     @Autowired
     private IUserService userService;
     @Autowired
@@ -99,7 +104,7 @@ public class UserController {
     // 获取用户头像的方法
     @GetMapping("/getHead/{fileName}")
     public void getUserHead(@PathVariable("fileName") String fileName , HttpServletResponse response) throws IOException {
-        String filePath= ResourceUtils.getURL("classpath").getPath()+"static/image/"+fileName;
+        String filePath= ResourceUtils.getURL("classpath:").getPath()+"static/image/"+fileName;
         System.out.println("head path:"+filePath);
 
         File file=new File(filePath);
@@ -115,6 +120,21 @@ public class UserController {
         Files.copy(file.toPath(),response.getOutputStream());
         response.getOutputStream().flush();
     }
+
+    @GetMapping(value = "/getUserName")
+    public Map<Long,String> getAllUserName(HttpServletRequest request){
+        String source = request.getHeader("source");
+        //System.out.println(source+":================");
+        if(source==null||!source.equals("BLOGSERVICE")){
+            log.error("请求来源错误");
+            return null;
+        }
+        Map<Long,String> maps=userService.list().stream().collect(Collectors.toMap(User::getId, User::getName));
+        System.out.println(maps);
+        return userService.list().stream().collect(Collectors.toMap(User::getId, User::getName));
+    }
+
+
 
 
 }

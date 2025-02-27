@@ -37,6 +37,13 @@
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
+        <!--提供 @MppMultiId   处理复合主键-->
+        <dependency>
+            <groupId>com.github.jeffreyning</groupId>
+            <artifactId>mybatisplus-plus</artifactId>
+            <version>1.5.1-RELEASE</version>
+        </dependency>
+
         <!--导入 feign相关依赖-->
         <dependency>
             <groupId>org.springframework.cloud</groupId>

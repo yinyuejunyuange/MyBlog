@@ -41,9 +41,10 @@ public class JWTAuthenticationTokenFilter extends OncePerRequestFilter { // 原�
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 
         try {
-            if(!FROMWORD.equals(request.getHeader("from"))){
+            if(!FROMWORD.equals(request.getHeader("from"))&&request.getHeader("source").isEmpty()){
                 // 不是来自gateway转发而来的  报错抛出异常
                 //throw new RuntimeException("来源错误");
+                System.out.println(request.getHeader("source"));
                 throw new SourceException("来源错误");
             }
 

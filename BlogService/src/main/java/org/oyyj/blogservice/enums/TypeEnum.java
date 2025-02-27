@@ -1,5 +1,7 @@
 package org.oyyj.blogservice.enums;
 
+import java.util.Map;
+
 public enum TypeEnum {
     AFTER_END,//后端
     BEFORE_END,

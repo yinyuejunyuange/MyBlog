@@ -20,7 +20,7 @@ public interface BlogFeign {
     Map<String,Object> writeBlog(@RequestBody BlogDTO blogDTO);
 
     @GetMapping("/blog/read")
-    Map<String,Object> readBlog(@RequestParam String id);
+    Map<String,Object> readBlog(@RequestParam("blogId") String id,@RequestParam(value ="userInfoKey",required = false ) String userInfoKey);
 
     @PostMapping(value = "/blog/file/upload",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -31,5 +31,15 @@ public interface BlogFeign {
 
     @GetMapping("/blog/file/download/{fileName}")
     Response getFile(@PathVariable() String fileName);
+
+    @GetMapping("/blog/list")
+    Map<String,Object> getBlogListByPage(@RequestParam int pageNow ,@RequestParam(required = false) String type);
+
+
+    @PutMapping("/blog/blogKudos")
+    Boolean blogKudos(@RequestParam("blogId")String blogId);
+
+    @PutMapping("/blog/cancelKudos")
+    Boolean cancelKudos(@RequestParam("blogId")String blogId);
 
 }

@@ -14,11 +14,18 @@ import java.util.List;
 @Builder
 public class ReadDTO {
     private String id; // 博客id
-    private Long userId;
+    private String userId;
+    private String userName;
     private String title;
     private String Introduce;
     private String context;
     private List<String> typeList;
     private Date createTime;
     private Date updateTime;
+    private String star;
+    private String kudos;
+    private String watch;
+    private String commentNum;
+    private Boolean isUserKudos=false;
+    private Boolean isUserStar=false;
 }

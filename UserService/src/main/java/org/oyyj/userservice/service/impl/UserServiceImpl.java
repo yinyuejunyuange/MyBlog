@@ -13,6 +13,8 @@ import org.oyyj.userservice.mapper.UserMapper;
 import org.oyyj.userservice.pojo.JWTUser;
 import org.oyyj.userservice.pojo.LoginUser;
 import org.oyyj.userservice.pojo.User;
+import org.oyyj.userservice.pojo.UserKudos;
+import org.oyyj.userservice.service.IUserKudosService;
 import org.oyyj.userservice.service.IUserService;
 import org.oyyj.userservice.utils.RedisUtil;
 import org.oyyj.userservice.utils.ResultUtil;
@@ -57,6 +59,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     @Autowired
     private ServletContext servletContext; // 应用上下文环境
 
+    @Autowired
+    private IUserKudosService userKudosService;
+
     @Override // 返回相关结果
     public JWTUser login(String username, String password) throws JsonProcessingException {
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(username, password);
@@ -75,6 +80,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         return JWTUser.builder()
                 .id(String.valueOf(loginUser.getUser().getId()))
                 .username(loginUser.getUsername())
+                .imageUrl(loginUser.getUser().getImageUrl())
                 .token(token)
                 .isValid(true)
                 .build();
@@ -165,7 +171,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         LoginUser principal = (LoginUser) authentication.getPrincipal();
         Long id = principal.getUser().getId();
-        blogDTO.setUserId(id);
+        blogDTO.setUserId(String.valueOf(id));
         if(Objects.isNull(blogDTO.getStatus())){
             blogDTO.setStatus(1); // 设置为保存
             // 第一次编写的博客文档 全部都设置成为 保存
@@ -175,8 +181,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     }
 
     @Override
-    public Map<String, Object> readBlog(String blogId) {
-        return blogFeign.readBlog(blogId);
+    public Map<String, Object> readBlog(String blogId,String userInfoKey) {
+
+        return blogFeign.readBlog(blogId,userInfoKey);
     }
 
     @Override
@@ -187,5 +194,26 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     @Override
     public void downloadFile(String fileName, HttpServletResponse response) {
         blogFeign.download(fileName,response);
+    }
+
+    @Override
+    public boolean userKudos(String blogId) {
+
+        // 获取当前用户---用户登录后才可以点赞和收藏
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        Long userId = principal.getUser().getId();
+
+        System.out.println(blogId);
+
+        boolean save = userKudosService.save(UserKudos.builder()
+                .userId(userId)
+                .blogId(Long.valueOf(blogId))
+                .build());
+        if(save){
+            return save;
+        }else{
+            return false;
+        }
     }
 }

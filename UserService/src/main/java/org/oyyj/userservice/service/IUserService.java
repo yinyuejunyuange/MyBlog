@@ -24,9 +24,11 @@ public interface IUserService extends IService<User> {
 
     Map<String,Object> saveBlog(BlogDTO blogDTO);
 
-    Map<String,Object> readBlog(String blogId);
+    Map<String,Object> readBlog(String blogId,String userInfoKey);
 
     Object uploadPict(MultipartFile file);
 
     void downloadFile(String fileName, HttpServletResponse response);
+
+    boolean userKudos(String blogId);
 }
