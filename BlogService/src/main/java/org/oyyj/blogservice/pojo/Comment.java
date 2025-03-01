@@ -1,5 +1,9 @@
 package org.oyyj.blogservice.pojo;
 
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,14 +16,25 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
+@TableName("blog_comment")
 public class Comment {
+    @TableId("id")
     private Long id; // 评论id
+    @TableField("user_id")
     private Long userId;
+    @TableField("blog_id")
     private Long blogId; // 关联的博客id
-    private String content;
-    private List<Reply> replytList;
+    @TableField("context")
+    private String context;
+    @TableField("kudos")
+    private Long kudos;
+    @TableField("create_time")
     private Date createTime;
+    @TableField("update_time")
     private Date updateTime;
+    @TableField("is_delete")
+    @TableLogic
     private Integer isDelete;
-    private Integer status; // 当前评论状态
+    @TableField("is_visible")
+    private Integer isVisible; // 当前评论状态
 }

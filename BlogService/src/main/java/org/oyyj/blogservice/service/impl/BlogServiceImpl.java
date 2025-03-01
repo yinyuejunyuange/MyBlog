@@ -4,22 +4,22 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import org.oyyj.blogservice.dto.BlogDTO;
-import org.oyyj.blogservice.dto.PageDTO;
-import org.oyyj.blogservice.dto.ReadDTO;
+import org.apache.ibatis.annotations.Mapper;
+import org.oyyj.blogservice.dto.*;
 import org.oyyj.blogservice.feign.UserFeign;
 import org.oyyj.blogservice.mapper.BlogMapper;
 import org.oyyj.blogservice.mapper.TypeTableMapper;
-import org.oyyj.blogservice.pojo.Blog;
-import org.oyyj.blogservice.pojo.BlogType;
-import org.oyyj.blogservice.pojo.TypeTable;
+import org.oyyj.blogservice.pojo.*;
 import org.oyyj.blogservice.service.IBlogService;
 import org.oyyj.blogservice.service.IBlogTypeService;
+import org.oyyj.blogservice.service.ICommentService;
+import org.oyyj.blogservice.service.IReplyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.xml.transform.Result;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +36,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     @Autowired
     private UserFeign userFeign;
+
+    @Autowired
+    private ICommentService commentService;
+
+    @Autowired
+    private IReplyService replyService;
 
 
     @Override
@@ -113,6 +119,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         return readDTO;
     }
 
+
     @Override
     public PageDTO<BlogDTO> getBlogByPage(int current, int pageSize, String type) {
         IPage<Blog> page = new Page<>(current,pageSize);
@@ -188,4 +195,129 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             }
         }
     }
+
+
+
+    // 获取评论
+    @Override
+    public List<ReadCommentDTO> getBlogComment(String blogId,String userInfoKey) {
+        List<Comment> list = commentService.list(Wrappers.<Comment>lambdaQuery()
+                .eq(Comment::getBlogId, Long.valueOf(blogId))
+        );
+        if(list.isEmpty()){
+            return null;
+        }
+        // 获取用户id集合
+        List<String> userIds = list.stream().map(i -> {
+            Long userId = i.getUserId();
+            return String.valueOf(userId);
+        }).toList();
+
+        Map<Long, String> nameInIds = userFeign.getNameInIds(userIds);
+        Map<Long, String> imageInIds = userFeign.getImageInIds(userIds);
+
+        // 通过list 获取回复的集合
+        List<Long> commentIds = list.stream().map(Comment::getId).toList();
+
+        List<Reply> replyList=replyService.list(Wrappers.<Reply>lambdaQuery()
+                .in(Reply::getCommentId,commentIds)
+        );
+        List<String> replyUserIds = replyList.stream().map(i -> {
+            Long userid = i.getUserId();
+            return String.valueOf(userid);
+        }).toList();
+
+        // 获得评论中的用户名和用户头像
+        Map<Long, String> replyNameInIds = userFeign.getNameInIds(replyUserIds);
+        Map<Long, String> replyImageInIds = userFeign.getImageInIds(replyUserIds);
+
+        List<ReadCommentDTO> readCommentDTOS = list.stream().map(i -> ReadCommentDTO.builder()
+                .id(String.valueOf(i.getId()))
+                .userId(String.valueOf(i.getUserId()))
+                .userName(nameInIds.get(i.getUserId()))
+                .UserImage("http://localhost:8080/myBlog/user/getHead/"+imageInIds.get(i.getUserId()))
+                .context(i.getContext())
+                .replyList(
+                        replyService.list(Wrappers.<Reply>lambdaQuery()
+                                .eq(Reply::getCommentId, i.getId()))
+                                .stream()
+                                .map(x -> ReadReplyDTO.builder()
+                                        .id(String.valueOf(x.getId()))
+                                        .userId(String.valueOf(x.getUserId()))
+                                        .userName(replyNameInIds.get(x.getUserId()))
+                                        .userImage("http://localhost:8080/myBlog/user/getHead/"+replyImageInIds.get(x.getUserId()))
+                                        .context(x.getContext())
+                                        .updateTime(x.getUpdateTime())
+                                        .kudos(String.valueOf(x.getKudos()))
+                                        .isUserKudos(userFeign.getUserKudosReply(String.valueOf(x.getId()),userInfoKey))
+                                .build()).toList())
+                .updateTime(i.getUpdateTime())
+                .kudos(String.valueOf(i.getKudos()))
+                .isUserKudos(userFeign.getUserKudosComment(String.valueOf(i.getId()),userInfoKey))
+                .build()
+        ).toList();
+
+        System.out.println("查询成功:"+readCommentDTOS);
+        return readCommentDTOS;
+    }
+
+
+
+    // 评论点赞数加一或者减一
+    @Override
+    @Transactional
+    public Boolean changeCommentKudos(Long commentId, Byte bytes) {
+        Comment forUpdate = commentService.getOne(Wrappers.<Comment>lambdaQuery()
+                .eq(Comment::getId, commentId)
+                .last("for update")
+        );
+        if(bytes==1){
+            // 1代表增加点赞数
+            boolean update = commentService.update(Wrappers.<Comment>lambdaUpdate()
+                    .eq(Comment::getId, commentId)
+                    .set(Comment::getKudos, forUpdate.getKudos() + 1)
+            );
+            System.out.println(update);
+            return update;
+        }else if(bytes==2){
+            boolean update = commentService.update(Wrappers.<Comment>lambdaUpdate()
+                    .eq(Comment::getId, commentId)
+                    .set(Comment::getKudos, forUpdate.getKudos() -1)
+            );
+            System.out.println(update);
+            return update;
+        }else{
+            log.error("改变类型错误");
+            return null;
+        }
+    }
+
+    // 回复点赞数加一或者减一
+    @Override
+    public Boolean changeReplyKudos(Long replyId, Byte bytes) {
+        Reply forUpdate = replyService.getOne(Wrappers.<Reply>lambdaQuery()
+                .eq(Reply::getId, replyId)
+                .last("for update") // 悲观锁
+        );
+        if(bytes==1){
+            // 1代表增加点赞数
+            boolean update = replyService.update(Wrappers.<Reply>lambdaUpdate()
+                    .eq(Reply::getId, replyId)
+                    .set(Reply::getKudos, forUpdate.getKudos() + 1));
+            System.out.println(update);
+            return update;
+        }else if(bytes==2){
+            boolean update = replyService.update(Wrappers.<Reply>lambdaUpdate()
+                    .eq(Reply::getId, replyId)
+                    .set(Reply::getKudos, forUpdate.getKudos() - 1));
+            System.out.println(update);
+            return update;
+        }else{
+            log.error("改变类型错误");
+            return null;
+        }
+
+    }
+
+
 }

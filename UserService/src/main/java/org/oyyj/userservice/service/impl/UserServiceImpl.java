@@ -5,17 +5,16 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletResponse;
+import org.bouncycastle.jcajce.provider.symmetric.AES;
 import org.oyyj.blogservice.dto.BlogDTO;
+import org.oyyj.userservice.DTO.CommentDTO;
 import org.oyyj.userservice.DTO.RegisterDTO;
+import org.oyyj.userservice.DTO.ReplyDTO;
 import org.oyyj.userservice.Feign.BlogFeign;
 import org.oyyj.userservice.mapper.SysRoleMapper;
 import org.oyyj.userservice.mapper.UserMapper;
-import org.oyyj.userservice.pojo.JWTUser;
-import org.oyyj.userservice.pojo.LoginUser;
-import org.oyyj.userservice.pojo.User;
-import org.oyyj.userservice.pojo.UserKudos;
-import org.oyyj.userservice.service.IUserKudosService;
-import org.oyyj.userservice.service.IUserService;
+import org.oyyj.userservice.pojo.*;
+import org.oyyj.userservice.service.*;
 import org.oyyj.userservice.utils.RedisUtil;
 import org.oyyj.userservice.utils.ResultUtil;
 import org.oyyj.userservice.utils.TokenProvider;
@@ -61,6 +60,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Autowired
     private IUserKudosService userKudosService;
+
+    @Autowired
+    private IUserStarService userStarService;
+
+    @Autowired
+    private IUserCommentService userCommentService;
+
+    @Autowired
+    private IUserReplyService userReplyService;
 
     @Override // 返回相关结果
     public JWTUser login(String username, String password) throws JsonProcessingException {
@@ -213,6 +221,143 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         if(save){
             return save;
         }else{
+            return false;
+        }
+    }
+
+    @Override
+    public boolean userStar(String blogId) {
+        // 获取当前用户---用户登录后才可以点赞和收藏
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        Long userId = principal.getUser().getId();
+
+        System.out.println(blogId);
+
+        return userStarService.save(UserStar.builder()
+                .blogId(Long.valueOf(blogId))
+                .userId(userId)
+                .build());
+
+    }
+
+    @Override
+    public Long addComment(CommentDTO commentDTO) {
+        Long commentId = blogFeign.writeComment(Long.valueOf(commentDTO.getUserId()), Long.valueOf(commentDTO.getBlogId()), commentDTO.getContext());
+        if(!Objects.isNull(commentId)){
+            // 博客服务添加成功
+            return commentId;
+        }
+        // 博客评论添加失败 撤回
+        return null;
+    }
+
+    @Override
+    public Long addReply(ReplyDTO replyDTO) {
+        Long replyId = blogFeign.replyComment(Long.valueOf(replyDTO.getUserId()), Long.valueOf(replyDTO.getCommentId()), replyDTO.getContext());
+        if(!Objects.isNull(replyId)){
+            return replyId;
+        }
+
+        return null;
+    }
+
+    @Override
+    @Transactional // 原子性 保证回滚
+    public Boolean kudosComment(String commentId,Byte bytes) {
+        // 获取当前用户---用户登录后才可以点赞和收藏
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        Long userId = principal.getUser().getId();
+
+        if(bytes==1){
+            UserComment userComment=new UserComment();
+            userComment.setCommentId(Long.valueOf(commentId));
+            userComment.setUserId(userId);
+            boolean save = userCommentService.save(userComment);
+            if(save){
+                // 评论点赞数加一
+                Boolean b = blogFeign.changCommentKudos(Long.valueOf(commentId), bytes);
+                if(b){
+                    return b;
+                }else{
+                    // 评论点赞数添加失败
+                    throw new RuntimeException("博客评论增加异常");
+                }
+            }else{
+                return false;
+            }
+        }else if(bytes==2){
+
+
+            boolean remove = userCommentService.remove(Wrappers.<UserComment>lambdaQuery()
+                    .eq(UserComment::getCommentId, Long.valueOf(commentId))
+                    .eq(UserComment::getUserId, userId)
+            );
+
+            if(remove){
+                // 评论点赞数加一
+                Boolean b = blogFeign.changCommentKudos(Long.valueOf(commentId), bytes);
+                if(b){
+                    return b;
+                }else{
+                    // 评论点赞数添加失败
+                    throw new RuntimeException("博客评论减少异常");
+                }
+            }else{
+                return false;
+            }
+        }else{
+            return false;
+        }
+
+    }
+
+    @Transactional
+    public Boolean kudosReply(String replyId,Byte bytes) {
+        // 获取当前用户---用户登录后才可以点赞和收藏
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        Long userId = principal.getUser().getId();
+
+
+        if(bytes==1){
+            UserReply build = UserReply.builder()
+                    .userId(userId)
+                    .replyId(Long.valueOf(replyId))
+                    .build();
+            boolean save = userReplyService.save(build);
+            if(save){
+                Boolean b = blogFeign.changReplyKudos(Long.valueOf(replyId), bytes);
+                if(b){
+                    return b;
+                }else{
+                    // 抛出异常 让事务回滚
+                    throw new RuntimeException("博客评论点赞数增加异常");
+
+                }
+            }else{
+                return false;
+            }
+        } else if (bytes==2) {
+            boolean remove = userReplyService.remove(Wrappers.<UserReply>lambdaQuery()
+                    .eq(UserReply::getReplyId, Long.valueOf(replyId))
+                    .eq(UserReply::getUserId, userId)
+            );
+
+            if(remove){
+                Boolean b = blogFeign.changReplyKudos(Long.valueOf(replyId), bytes);
+                if(b){
+                    return b;
+                }else{
+
+                    throw new RuntimeException("博客评论点赞数减少异常");
+                }
+            }else{
+                return false;
+            }
+        }else{
+
             return false;
         }
     }

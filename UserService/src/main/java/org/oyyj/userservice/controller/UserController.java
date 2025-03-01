@@ -32,6 +32,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -133,6 +134,54 @@ public class UserController {
         System.out.println(maps);
         return userService.list().stream().collect(Collectors.toMap(User::getId, User::getName));
     }
+
+    //给其他服务调用以获取用户名
+
+    @GetMapping("/getNameInIds")
+    public Map<Long,String> getUserNameInIds(@RequestParam("ids") List<String>ids, HttpServletRequest request){
+        String source = request.getHeader("source");
+        //System.out.println(source+":================");
+        if(source==null||!source.equals("BLOGSERVICE")){
+            log.error("请求来源错误");
+            return null;
+        }
+        if(ids.isEmpty()){
+            return null;
+        }
+        Map<Long, String> collect = userService.list(Wrappers.<User>lambdaQuery()
+                        .in(User::getId, ids.stream().map(Long::valueOf).toList()))
+                .stream().collect(Collectors.toMap(User::getId, User::getName));
+
+        System.out.println(collect);
+        return collect;
+    }
+
+    /**
+     * 给其他服务调用 以获取用户头像
+     * @param ids
+     * @param request
+     * @return
+     */
+    @GetMapping("/getImageInIds")
+    public Map<Long,String> getUserImageInIds(@RequestParam("ids") List<String>ids, HttpServletRequest request){
+        String source = request.getHeader("source");
+        //System.out.println(source+":================");
+        if(source==null||!source.equals("BLOGSERVICE")){
+            log.error("请求来源错误");
+            return null;
+        }
+        if(ids.isEmpty()){
+            return null;
+        }
+
+        Map<Long, String> collect = userService.list(Wrappers.<User>lambdaQuery()
+                        .in(User::getId, ids.stream().map(Long::valueOf).toList()))
+                .stream().collect(Collectors.toMap(User::getId, User::getImageUrl));
+
+        System.out.println(collect);
+        return collect;
+    }
+
 
 
 

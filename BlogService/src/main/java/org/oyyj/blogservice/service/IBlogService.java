@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.oyyj.blogservice.dto.BlogDTO;
 import org.oyyj.blogservice.dto.PageDTO;
+import org.oyyj.blogservice.dto.ReadCommentDTO;
 import org.oyyj.blogservice.dto.ReadDTO;
 import org.oyyj.blogservice.pojo.Blog;
 import org.springframework.data.domain.Page;
@@ -17,4 +18,10 @@ public interface IBlogService extends IService<Blog> {
     ReadDTO ReadBlog(Long id,String UserInfoKey);
 
     PageDTO<BlogDTO> getBlogByPage(int current, int pageSizem, String type);
+
+    List<ReadCommentDTO> getBlogComment(String blogId,String userInfoKey);
+
+    Boolean changeCommentKudos(Long commentId,Byte bytes);
+
+    Boolean changeReplyKudos(Long replyId,Byte bytes);
 }

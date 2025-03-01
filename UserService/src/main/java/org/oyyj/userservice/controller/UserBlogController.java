@@ -8,13 +8,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.IOUtils;
 import org.oyyj.blogservice.dto.BlogDTO;
+import org.oyyj.userservice.DTO.CommentDTO;
+import org.oyyj.userservice.DTO.ReplyDTO;
 import org.oyyj.userservice.Feign.BlogFeign;
-import org.oyyj.userservice.pojo.LoginUser;
-import org.oyyj.userservice.pojo.UserKudos;
-import org.oyyj.userservice.pojo.UserStar;
-import org.oyyj.userservice.service.IUserKudosService;
-import org.oyyj.userservice.service.IUserService;
-import org.oyyj.userservice.service.IUserStarService;
+import org.oyyj.userservice.pojo.*;
+import org.oyyj.userservice.service.*;
 import org.oyyj.userservice.utils.RedisUtil;
 import org.oyyj.userservice.utils.ResultUtil;
 import org.slf4j.Logger;
@@ -55,6 +53,12 @@ public class UserBlogController {
 
     @Autowired
     private RedisUtil redisUtil;
+
+    @Autowired
+    private IUserCommentService userCommentService;
+
+    @Autowired
+    private IUserReplyService userReplyService;
 
 
     // 用户查找
@@ -150,15 +154,21 @@ public class UserBlogController {
 
 
     // 用户取消点赞
+    @PutMapping("/cancelKudos")
     public Map<String,Object> cancelKudos(@RequestParam("blogId") String blogId){
         // 将用户点赞表中的数据删除----删除操作指挥存在用户本人不存在并发情况
         UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
         LoginUser principal = (LoginUser) authentication.getPrincipal();
 
-        boolean user = userKudosService.deleteByMultiId(UserKudos.builder()
-                .blogId(Long.valueOf(blogId))
-                .userId(principal.getUser().getId())
-                .build());
+//        boolean user = userKudosService.deleteByMultiId(UserKudos.builder()
+//                .blogId(Long.valueOf(blogId))
+//                .userId(principal.getUser().getId())
+//                .build());
+
+        boolean user = userKudosService.remove(Wrappers.<UserKudos>lambdaQuery()
+                .eq(UserKudos::getUserId, principal.getUser().getId())
+                .eq(UserKudos::getBlogId, Long.valueOf(blogId))
+        );
 
         // 对应博客的点赞数减一
         Boolean blog = blogFeign.cancelKudos(blogId);
@@ -199,6 +209,48 @@ public class UserBlogController {
     }
 
     // 用户收藏
+    @PutMapping("/userStar")
+    public Map<String,Object> userStar(@RequestParam("blogId") String blogId){
+        // 用户收藏表中添加对应的用户博客id；
+        boolean userStar = userService.userStar(blogId);
+        // 修改博客信息中star加一
+        Boolean blogStar = blogFeign.blogStar(blogId);
+
+        if(userStar&&blogStar){
+            return ResultUtil.successMap(true,"收藏成功");
+        }else{
+            return ResultUtil.failMap("收藏失败");
+        }
+    }
+
+    // 用户取消收藏
+    @PutMapping("/cancelStar")
+    public Map<String,Object> cancelStar(@RequestParam("blogId") String blogId){
+        // 将用户点赞表中的数据删除----删除操作指挥存在用户本人不存在并发情况
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+
+//        boolean user = userKudosService.remove(Wrappers.<UserKudos>lambdaQuery()
+//                .eq(UserKudos::getUserId, principal.getUser().getId())
+//                .eq(UserKudos::getBlogId, Long.valueOf(blogId))
+//        );
+
+        boolean user = userStarService.remove(Wrappers.<UserStar>lambdaQuery()
+                .eq(UserStar::getUserId, principal.getUser().getId())
+                .eq(UserStar::getBlogId, Long.valueOf(blogId))
+        );
+
+        // 对应博客的点赞数减一
+        Boolean blog = blogFeign.cancelStar(blogId);
+
+        if(user&&blog){
+            return ResultUtil.successMap(true,"取消成功");
+        }else{
+            return ResultUtil.failMap("取消失败");
+        }
+
+
+    }
 
     // 判断当前用户是否收藏
     @GetMapping("/isUserStar")
@@ -224,5 +276,152 @@ public class UserBlogController {
             return false;
         }
     }
+
+    // 用户添加评论
+    @PostMapping("/addComment")
+    public Map<String,Object> writeComment(@RequestBody CommentDTO commentDTO){
+        if(Objects.isNull(commentDTO)){
+            return ResultUtil.failMap("参数不可为空");
+        }
+
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                .getContext().getAuthentication();
+        boolean authenticated = authentication.isAuthenticated();
+        if(!authenticated){
+            return ResultUtil.failMap("未授权 请重新登录");
+        }
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        commentDTO.setUserId(String.valueOf(principal.getUser().getId()));
+
+        Long b = userService.addComment(commentDTO);
+        if(!Objects.isNull(b)){
+
+            return ResultUtil.successMap(String.valueOf(b),"评论添加成功");
+        }else{
+            return ResultUtil.failMap("评论添加失败");
+        }
+    }
+
+    // 用户回复评论
+    @PostMapping("/replyComment")
+    public Map<String,Object> replyComment(@RequestBody ReplyDTO replyDTO){
+        if(Objects.isNull(replyDTO)){
+            return ResultUtil.failMap("参数不可为空");
+        }
+
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                .getContext().getAuthentication();
+        boolean authenticated = authentication.isAuthenticated();
+        if(!authenticated){
+            return ResultUtil.failMap("未授权 请重新登录");
+        }
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        replyDTO.setUserId(String.valueOf(principal.getUser().getId()));
+
+        Long b = userService.addReply(replyDTO);
+        if(!Objects.isNull(b)){
+            return ResultUtil.successMap(String.valueOf(b),"回复添加成功");
+        }else{
+            return ResultUtil.failMap("回复添加失败");
+        }
+    }
+
+    // 用户获取评论
+
+    @GetMapping("/getComment")
+    public Map<String,Object> getComment(@RequestParam("blogId")String blogId){
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        // 获得临时uuid
+        String uuid = UUID.randomUUID().toString();
+        redisUtil.set(uuid,principal.getUser().getId(),1,TimeUnit.MINUTES);
+        return blogFeign.getComment(blogId,uuid);
+    }
+
+    // 用户点赞评论
+    @GetMapping("/kudosComment")
+    public Map<String,Object> kudosComment(@RequestParam("commentId")String commentId,@RequestParam("bytes")Byte bytes){
+
+        if(bytes!=1&&bytes!=2){
+            log.error("bytes 参数错误："+bytes);
+            return ResultUtil.failMap("参数错误");
+        }
+
+        Boolean b = userService.kudosComment(commentId,bytes);
+        if(b){
+            return ResultUtil.successMap(true,"操作成功");
+        }else{
+            return ResultUtil.failMap("操作失败");
+        }
+
+    }
+    // 用户点赞回复
+    @GetMapping("/kudosReply")
+    public Map<String,Object> kudosReply(@RequestParam("replyId")String replyId,@RequestParam("bytes")Byte bytes){
+
+        if(bytes!=1&&bytes!=2){
+            log.error("bytes 参数错误："+bytes);
+            return ResultUtil.failMap("参数错误");
+        }
+        Boolean b = userService.kudosReply(replyId, bytes);
+
+        if(b){
+            return ResultUtil.successMap(true,"操作成功");
+        }else{
+            return ResultUtil.failMap("操作失败");
+        }
+    }
+
+    // 判断用户是否点赞评论
+    @GetMapping("/getUserKudosComment")
+    public Boolean getUserKudosComment(@RequestParam("commentId")String commentId,@RequestParam("userInfoKey")String userInfoKey,HttpServletRequest request){
+        try {
+            String source = request.getHeader("source");
+            if(source==null||!source.equals("BLOGSERVICE")){
+                throw new AuthenticationException("请求来源不正确");
+            }
+
+            // 获取用户id
+            String s = String.valueOf(redisUtil.get(userInfoKey));
+            Long userId = Long.valueOf(s);
+
+            // 判断 用户是否点赞此评论
+            UserComment one = userCommentService.getOne(Wrappers.<UserComment>lambdaQuery()
+                    .eq(UserComment::getCommentId, Long.valueOf(commentId))
+                    .eq(UserComment::getUserId, userId)
+            );
+
+            return !Objects.isNull(one);
+        } catch (AuthenticationException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // 判断用户是否点赞回复
+    @GetMapping("/getUserKudosReply")
+    public Boolean getUserKudosReply(@RequestParam("replyId")String replyId,@RequestParam("userInfoKey")String userInfoKey,HttpServletRequest request){
+        try {
+            String source = request.getHeader("source");
+            if(source==null||!source.equals("BLOGSERVICE")){
+                throw new AuthenticationException("请求来源不正确");
+            }
+
+            // 获取用户id
+            String s = String.valueOf(redisUtil.get(userInfoKey));
+            Long userId = Long.valueOf(s);
+
+            // 判断 用户是否点赞此评论
+            UserReply one = userReplyService.getOne(Wrappers.<UserReply>lambdaQuery()
+                    .eq(UserReply::getReplyId, Long.valueOf(replyId))
+                    .eq(UserReply::getUserId, userId)
+            );
+
+            return !Objects.isNull(one);
+        } catch (AuthenticationException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
 
 }

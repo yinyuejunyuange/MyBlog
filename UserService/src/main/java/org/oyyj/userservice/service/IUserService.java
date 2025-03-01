@@ -4,7 +4,9 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.oyyj.blogservice.dto.BlogDTO;
+import org.oyyj.userservice.DTO.CommentDTO;
 import org.oyyj.userservice.DTO.RegisterDTO;
+import org.oyyj.userservice.DTO.ReplyDTO;
 import org.oyyj.userservice.pojo.JWTUser;
 import org.oyyj.userservice.pojo.User;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,4 +33,14 @@ public interface IUserService extends IService<User> {
     void downloadFile(String fileName, HttpServletResponse response);
 
     boolean userKudos(String blogId);
+
+    boolean userStar(String blogId);
+
+    Long addComment(CommentDTO commentDTO);
+
+    Long addReply(ReplyDTO replyDTO);
+
+    Boolean kudosComment(String commentId,Byte bytes);
+
+    Boolean kudosReply(String replyId,Byte bytes);
 }

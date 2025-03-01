@@ -42,4 +42,38 @@ public interface BlogFeign {
     @PutMapping("/blog/cancelKudos")
     Boolean cancelKudos(@RequestParam("blogId")String blogId);
 
+    @PutMapping("/blog/blogStar")
+    Boolean blogStar(@RequestParam("blogId")String blogId);
+
+    @PutMapping("/blog/cancelStar")
+    Boolean cancelStar(@RequestParam("blogId")String blogId);
+
+    @PutMapping("/blog/writeComment")
+    Long writeComment(@RequestParam("userId") Long userId,
+                         @RequestParam("blogId")Long blogId,
+                         @RequestParam("context")String context);
+
+    @PutMapping("/blog/replyComment")
+    Long replyComment(@RequestParam("userId")Long userId,
+                         @RequestParam("commentId")Long commentId,
+                         @RequestParam("context")String context);
+
+    @DeleteMapping("/blog/removeComment")
+    Boolean removeComment(@RequestParam("commentId")Long commentId);
+
+    @DeleteMapping("/blog/removeReply")
+    Boolean removeReply(@RequestParam("replyId")Long replyId);
+
+    @GetMapping("/blog/getComment")
+    Map<String,Object> getComment(@RequestParam("BlogId")String blogId,@RequestParam("userInfoKey")String userInfoKey);
+
+
+    // 改变评论点赞数
+    @PutMapping("/blog/changCommentKudos")
+    Boolean changCommentKudos(@RequestParam("commentId")Long commentId,@RequestParam("bytes") Byte bytes);
+    // 改变回复点赞数
+    @PutMapping("/blog/changReplyKudos")
+    Boolean changReplyKudos(@RequestParam("replyId")Long replyId,@RequestParam("bytes") Byte bytes);
+
+
 }

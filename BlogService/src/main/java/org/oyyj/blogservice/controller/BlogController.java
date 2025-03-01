@@ -6,14 +6,18 @@ import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
-import org.oyyj.blogservice.dto.BlogDTO;
-import org.oyyj.blogservice.dto.ImageResultDTO;
-import org.oyyj.blogservice.dto.PageDTO;
-import org.oyyj.blogservice.dto.ReadDTO;
+import org.oyyj.blogservice.dto.*;
 import org.oyyj.blogservice.pojo.Blog;
+import org.oyyj.blogservice.pojo.Comment;
+import org.oyyj.blogservice.pojo.Reply;
 import org.oyyj.blogservice.service.IBlogService;
+import org.oyyj.blogservice.service.ICommentService;
+import org.oyyj.blogservice.service.IReplyService;
 import org.oyyj.blogservice.util.ResultUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.connection.ReactiveRedisConnection;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +36,7 @@ import java.util.*;
 @RequestMapping("/blog")
 public class BlogController {
 
+    private static final Logger log = LoggerFactory.getLogger(BlogController.class);
     private final int PAGE_SIZE = 6;
 
     @Autowired
@@ -39,6 +44,12 @@ public class BlogController {
 
     @Autowired
     private ServletContext servletContext; // 应用上下文
+
+    @Autowired
+    private ICommentService commentService;
+
+    @Autowired
+    private IReplyService replyService;
 
     @CrossOrigin // 允许此方法跨域
     @PostMapping("/write")
@@ -152,6 +163,12 @@ public class BlogController {
                 .eq(Blog::getId, Long.valueOf(blogId))
                 .last("for update")  // 悲观锁
         );
+
+        if(one.getKudos()==0){
+            log.error("点赞数为0 出现异常");
+            return false;
+        }
+
         boolean update = blogService.update(Wrappers.<Blog>lambdaUpdate()
                 .eq(Blog::getId, Long.valueOf(blogId))
                 .set(Blog::getKudos, one.getKudos() - 1)
@@ -159,6 +176,132 @@ public class BlogController {
         return update;
     }
 
+    // 用户收藏博客 博客 收藏数加一
+
+    @PutMapping("/blogStar")
+    @Transactional // 作为一个事物提交
+    public Boolean blogStar(@RequestParam("blogId")String blogId){
+        Blog one = blogService.getOne(Wrappers.<Blog>lambdaQuery()
+                .eq(Blog::getId, Long.valueOf(blogId))
+                .last("for update") // 使用悲观锁 确认数据的一致性
+        );
+        boolean update = blogService.update(Wrappers.<Blog>lambdaUpdate()
+                .eq(Blog::getId, Long.valueOf(blogId))
+                .set(Blog::getStar, one.getStar() + 1)
+        );
+
+        return update;
+    }
+
+    @PutMapping("/cancelStar")
+    @Transactional
+    public Boolean cancelStar(@RequestParam("blogId")String blogId){
+        Blog one = blogService.getOne(Wrappers.<Blog>lambdaQuery()
+                .eq(Blog::getId, Long.valueOf(blogId))
+                .last("for update") // 使用悲观锁 确认数据的一致性
+        );
+
+        if(one.getStar()==0){
+            log.error("收藏数为0 出现异常");
+            return false;
+        }
+        boolean update = blogService.update(Wrappers.<Blog>lambdaUpdate()
+                .eq(Blog::getId, Long.valueOf(blogId))
+                .set(Blog::getStar, one.getStar() - 1)
+        );
+
+        return update;
+    }
+
+    // 编写评论
+    @PutMapping("/writeComment")
+    @Transactional
+    public Long writeComment(@RequestParam("userId") Long userId,
+                                @RequestParam("blogId")Long blogId,
+                                @RequestParam("context")String context){
+        Date date = new Date();
+
+        Comment build = Comment.builder()
+                .blogId(blogId)
+                .userId(userId)
+                .context(context)
+                .createTime(date)
+                .updateTime(date)
+                .isDelete(0)
+                .isVisible(0)
+                .build();
+        boolean save = commentService.save(build);
+        if(save){
+            Blog one = blogService.getOne(Wrappers.<Blog>lambdaQuery()
+                    .eq(Blog::getId, blogId)
+                    .last("for update") // 悲观锁
+            );
+
+            blogService.update(Wrappers.<Blog>lambdaUpdate().eq(Blog::getId,blogId).set(Blog::getCommentNum,one.getCommentNum()+1));
+            return build.getId(); // 返回评论id
+        }else{
+            log.warn("评论添加失败");
+            return null;
+        }
+    }
+    // 删除评论
+    @DeleteMapping("/removeComment")
+    public Boolean removeComment(@RequestParam("commentId")Long commentId){
+        return commentService.remove(Wrappers.<Comment>lambdaQuery().eq(Comment::getId, commentId));
+
+    }
 
 
+    // 回复评论
+    @PutMapping("/replyComment")
+    @Transactional // 原子性
+    public Long replyComment(@RequestParam("userId")Long userId,
+                                @RequestParam("commentId")Long commentId,
+                                @RequestParam("context")String context){
+        Date date=new Date();
+
+        Reply build = Reply.builder()
+                .commentId(commentId)
+                .userId(userId)
+                .context(context)
+                .kudos(0L)
+                .createTime(date)
+                .updateTime(date)
+                .isDelete(0)
+                .isVisible(0)
+                .build();
+        boolean save = replyService.save(build);
+        if(save){
+            return build.getId();
+        }else{
+            return null;
+        }
+    }
+
+    // 删除回复
+    @DeleteMapping("/removeReply")
+    public Boolean removeReply(@RequestParam("replyId")Long replyId){
+        return replyService.remove(Wrappers.<Reply>lambdaQuery().eq(Reply::getId, replyId));
+
+    }
+
+    // 获得回复
+
+    @GetMapping("/getComment")
+    public Map<String,Object> getComment(@RequestParam("BlogId")String blogId,@RequestParam("userInfoKey")String userInfoKey){
+        List<ReadCommentDTO> blogComment = blogService.getBlogComment(blogId,userInfoKey);
+        return ResultUtil.successMap(blogComment,"评论查询成功");
+    }
+
+    // 改变评论点赞数
+    @PutMapping("/changCommentKudos")
+    public Boolean changCommentKudos(@RequestParam("commentId")Long commentId,@RequestParam("bytes") Byte bytes){
+        return blogService.changeCommentKudos(commentId,bytes);
+    }
+
+    // 改变回复点赞数
+    @PutMapping("/changReplyKudos")
+    public Boolean changReplyKudos(@RequestParam("replyId")Long replyId,@RequestParam("bytes") Byte bytes){
+        return blogService.changeReplyKudos(replyId,bytes);
+    }
 }
