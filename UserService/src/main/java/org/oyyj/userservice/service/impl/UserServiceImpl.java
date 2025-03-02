@@ -7,6 +7,7 @@ import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletResponse;
 import org.bouncycastle.jcajce.provider.symmetric.AES;
 import org.oyyj.blogservice.dto.BlogDTO;
+import org.oyyj.userservice.DTO.BlogUserInfoDTO;
 import org.oyyj.userservice.DTO.CommentDTO;
 import org.oyyj.userservice.DTO.RegisterDTO;
 import org.oyyj.userservice.DTO.ReplyDTO;
@@ -33,6 +34,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.rmi.RemoteException;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -69,6 +71,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Autowired
     private IUserReplyService userReplyService;
+
+    @Autowired
+    private IUserAttentionService userAttentionService;
 
     @Override // 返回相关结果
     public JWTUser login(String username, String password) throws JsonProcessingException {
@@ -360,5 +365,139 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
             return false;
         }
+    }
+
+    @Override
+    //  获取博客作者信息（博客粉丝数 博客创建时间 博客简介 博客原作数  博客访问量）
+    public BlogUserInfoDTO getBlogUserInfo(String userId){
+
+        Long id = Long.valueOf(userId);
+        // 获取用户粉丝数 简介 注册时间
+        User one = getOne(Wrappers.<User>lambdaQuery().eq(User::getId, id));
+        if(Objects.isNull(one)){
+            return null;
+        }
+        // 获取用户 博客数 博客总访问量 博客总点赞量
+        List<Long> blogUserInfo = blogFeign.getBlogUserInfo(id);
+        BlogUserInfoDTO blogUserInfoDTO = new BlogUserInfoDTO();
+        if(!blogUserInfo.isEmpty()){
+            blogUserInfoDTO.setBlogNum(blogUserInfo.getFirst());
+            blogUserInfoDTO.setVisitedNum(blogUserInfo.get(1));
+            blogUserInfoDTO.setKudosNum(blogUserInfo.get(2));
+            blogUserInfoDTO.setUserName(one.getName());
+            blogUserInfoDTO.setImageUrl("http://localhost:8080/myBlog/user/getHead/"+one.getImageUrl());
+            blogUserInfoDTO.setUserId(userId);
+            blogUserInfoDTO.setStarNum(one.getStar());
+            blogUserInfoDTO.setCreateTime(one.getCreateTime());
+            blogUserInfoDTO.setIntroduction(one.getIntroduce());
+        }else{
+            blogUserInfoDTO.setUserName(one.getName());
+            blogUserInfoDTO.setImageUrl(one.getImageUrl());
+            blogUserInfoDTO.setUserId(userId);
+            blogUserInfoDTO.setStarNum(one.getStar());
+            blogUserInfoDTO.setCreateTime(one.getCreateTime());
+            blogUserInfoDTO.setIntroduction(one.getIntroduce());
+        }
+
+        // 判断当前用户是否登录
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if(authentication.isAuthenticated()){
+            // 用户登录
+            UsernamePasswordAuthenticationToken authenticationToken = (UsernamePasswordAuthenticationToken) authentication;
+            LoginUser principal = (LoginUser) authenticationToken.getPrincipal();
+            Long currentUserId = principal.getUser().getId();
+
+            // 判断当前用户是否关注此作者
+            UserAttention userAttention = userAttentionService.getOne(Wrappers.<UserAttention>lambdaQuery()
+                    .eq(UserAttention::getUserId, currentUserId)
+                    .eq(UserAttention::getAttentionId, Long.valueOf(userId))
+            );
+
+            if(Objects.isNull(userAttention)){
+                blogUserInfoDTO.setIsUserStar(false);
+            }else{
+                blogUserInfoDTO.setIsUserStar(true);
+            }
+
+        }else{
+            blogUserInfoDTO.setIsUserStar(false);
+        }
+        return blogUserInfoDTO;
+    }
+
+    @Override
+    @Transactional
+    public Boolean starBlogAuthor(String authorId) {
+
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        Long userId = principal.getUser().getId();
+
+        Long attentionId = Long.valueOf(authorId);
+
+        boolean save = userAttentionService.save(UserAttention.builder()
+                .userId(userId)
+                .attentionId(attentionId)
+                .build());
+        if(save){
+
+            User one = getOne(Wrappers.<User>lambdaQuery()
+                    .eq(User::getId, attentionId)
+                    .last("for update") // 悲观锁
+            );
+
+            if(Objects.isNull(one)){
+                return false;
+            }
+
+            return update(Wrappers.<User>lambdaUpdate()
+                    .eq(User::getId, attentionId)
+                    .set(User::getStar, one.getStar() + 1)
+            );
+        }else{
+            return false;
+        }
+    }
+
+    @Override
+    @Transactional
+    public Boolean cancelStarBlogAuthor(String authorId) {
+
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        Long userId = principal.getUser().getId();
+
+        Long attentionId = Long.valueOf(authorId);
+
+        UserAttention userAttention = userAttentionService.getOne(Wrappers.<UserAttention>lambdaQuery()
+                .eq(UserAttention::getUserId, userId)
+                .eq(UserAttention::getAttentionId, attentionId)
+        );
+
+        if(Objects.isNull(userAttention)){
+            log.error("操作错误");
+            return false;
+        }
+
+        boolean remove = userAttentionService.remove(Wrappers.<UserAttention>lambdaQuery().eq(UserAttention::getUserId, userId)
+                .eq(UserAttention::getAttentionId, attentionId));
+        if(remove){
+            User one = getOne(Wrappers.<User>lambdaQuery()
+                    .eq(User::getId, attentionId)
+                    .last("for update") // 悲观锁
+            );
+
+            if(Objects.isNull(one)){
+                return false;
+            }
+
+            return update(Wrappers.<User>lambdaUpdate()
+                    .eq(User::getId, attentionId)
+                    .set(User::getStar, one.getStar() - 1)
+            );
+        }
+
+        return false;
+
     }
 }

@@ -24,4 +24,12 @@ public interface IBlogService extends IService<Blog> {
     Boolean changeCommentKudos(Long commentId,Byte bytes);
 
     Boolean changeReplyKudos(Long replyId,Byte bytes);
+
+    List<Long> getUserBlogNum(Long userId);
+
+    PageDTO<BlogDTO> getBlogByName(int current,int pageSize,String blogName);
+
+    PageDTO<BlogDTO> getBlogByUserId(int current,int pageSize,Long userId);
+
+    PageDTO<BlogDTO> getBlogByTypeList(int current,int pageSize,List<String> typeList);
 }

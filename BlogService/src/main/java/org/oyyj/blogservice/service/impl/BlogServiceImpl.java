@@ -231,34 +231,65 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         Map<Long, String> replyNameInIds = userFeign.getNameInIds(replyUserIds);
         Map<Long, String> replyImageInIds = userFeign.getImageInIds(replyUserIds);
 
-        List<ReadCommentDTO> readCommentDTOS = list.stream().map(i -> ReadCommentDTO.builder()
-                .id(String.valueOf(i.getId()))
-                .userId(String.valueOf(i.getUserId()))
-                .userName(nameInIds.get(i.getUserId()))
-                .UserImage("http://localhost:8080/myBlog/user/getHead/"+imageInIds.get(i.getUserId()))
-                .context(i.getContext())
-                .replyList(
-                        replyService.list(Wrappers.<Reply>lambdaQuery()
-                                .eq(Reply::getCommentId, i.getId()))
-                                .stream()
-                                .map(x -> ReadReplyDTO.builder()
-                                        .id(String.valueOf(x.getId()))
-                                        .userId(String.valueOf(x.getUserId()))
-                                        .userName(replyNameInIds.get(x.getUserId()))
-                                        .userImage("http://localhost:8080/myBlog/user/getHead/"+replyImageInIds.get(x.getUserId()))
-                                        .context(x.getContext())
-                                        .updateTime(x.getUpdateTime())
-                                        .kudos(String.valueOf(x.getKudos()))
-                                        .isUserKudos(userFeign.getUserKudosReply(String.valueOf(x.getId()),userInfoKey))
-                                .build()).toList())
-                .updateTime(i.getUpdateTime())
-                .kudos(String.valueOf(i.getKudos()))
-                .isUserKudos(userFeign.getUserKudosComment(String.valueOf(i.getId()),userInfoKey))
-                .build()
-        ).toList();
+        if(!Objects.isNull(userInfoKey)){
+            List<ReadCommentDTO> readCommentDTOS = list.stream().map(i -> ReadCommentDTO.builder()
+                    .id(String.valueOf(i.getId()))
+                    .userId(String.valueOf(i.getUserId()))
+                    .userName(nameInIds.get(i.getUserId()))
+                    .UserImage("http://localhost:8080/myBlog/user/getHead/"+imageInIds.get(i.getUserId()))
+                    .context(i.getContext())
+                    .replyList(
+                            replyService.list(Wrappers.<Reply>lambdaQuery()
+                                            .eq(Reply::getCommentId, i.getId()))
+                                    .stream()
+                                    .map(x -> ReadReplyDTO.builder()
+                                            .id(String.valueOf(x.getId()))
+                                            .userId(String.valueOf(x.getUserId()))
+                                            .userName(replyNameInIds.get(x.getUserId()))
+                                            .userImage("http://localhost:8080/myBlog/user/getHead/"+replyImageInIds.get(x.getUserId()))
+                                            .context(x.getContext())
+                                            .updateTime(x.getUpdateTime())
+                                            .kudos(String.valueOf(x.getKudos()))
+                                            .isUserKudos(userFeign.getUserKudosReply(String.valueOf(x.getId()),userInfoKey))
+                                            .build()).toList())
+                    .updateTime(i.getUpdateTime())
+                    .kudos(String.valueOf(i.getKudos()))
+                    .isUserKudos(userFeign.getUserKudosComment(String.valueOf(i.getId()),userInfoKey))
+                    .build()
+            ).toList();
 
-        System.out.println("查询成功:"+readCommentDTOS);
-        return readCommentDTOS;
+            System.out.println("查询成功:"+readCommentDTOS);
+            return readCommentDTOS;
+        }else{
+            List<ReadCommentDTO> readCommentDTOS = list.stream().map(i -> ReadCommentDTO.builder()
+                    .id(String.valueOf(i.getId()))
+                    .userId(String.valueOf(i.getUserId()))
+                    .userName(nameInIds.get(i.getUserId()))
+                    .UserImage("http://localhost:8080/myBlog/user/getHead/"+imageInIds.get(i.getUserId()))
+                    .context(i.getContext())
+                    .replyList(
+                            replyService.list(Wrappers.<Reply>lambdaQuery()
+                                            .eq(Reply::getCommentId, i.getId()))
+                                    .stream()
+                                    .map(x -> ReadReplyDTO.builder()
+                                            .id(String.valueOf(x.getId()))
+                                            .userId(String.valueOf(x.getUserId()))
+                                            .userName(replyNameInIds.get(x.getUserId()))
+                                            .userImage("http://localhost:8080/myBlog/user/getHead/"+replyImageInIds.get(x.getUserId()))
+                                            .context(x.getContext())
+                                            .updateTime(x.getUpdateTime())
+                                            .kudos(String.valueOf(x.getKudos()))
+                                            .isUserKudos(false)
+                                            .build()).toList())
+                    .updateTime(i.getUpdateTime())
+                    .kudos(String.valueOf(i.getKudos()))
+                    .isUserKudos(false)
+                    .build()
+            ).toList();
+
+            System.out.println("查询成功:"+readCommentDTOS);
+            return readCommentDTOS;
+        }
     }
 
 
@@ -317,6 +348,175 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             return null;
         }
 
+    }
+
+    /**
+     * 获取用户的博客原创和所有的访问数数
+     * @param userId 用户id
+     * @return 数量集合 1是原创数 2 是访问数 3 总访问数
+     */
+    @Override
+    public List<Long> getUserBlogNum(Long userId){
+        List<Blog> list = list(Wrappers.<Blog>lambdaQuery()
+                .eq(Blog::getUserId, userId));
+
+        if(list.isEmpty()){
+            return null;
+        }
+        List<Long> resultList=new ArrayList<>();
+        long sumKudos = list.stream().mapToLong(Blog::getKudos).sum(); // 总点赞数
+        long sumWatch = list.stream().mapToLong(Blog::getWatch).sum();
+        resultList.add((long) list.size());
+        resultList.add(sumWatch);
+        resultList.add(sumKudos);
+
+        return resultList;
+
+
+    }
+
+    @Override
+    public PageDTO<BlogDTO> getBlogByName(int current, int pageSize, String blogName) {
+
+
+
+        if(Objects.isNull(blogName)){
+            blogName=" ";
+        }
+        IPage<Blog> page=new Page<>(current,pageSize);
+        List<Blog> list = list(page, Wrappers.<Blog>lambdaQuery().like(Blog::getTitle, blogName));
+        List<Long> userIdList = list.stream().map(Blog::getUserId).toList();
+        List<String> userIds = userIdList.stream().map(String::valueOf).toList();
+
+        // 获取用户信息
+        Map<Long, String> nameInIds = userFeign.getNameInIds(userIds);
+        List<BlogDTO> blogDTOS = list.stream().map(i -> BlogDTO.builder()
+                .id(String.valueOf(i.getId()))
+                .title(i.getTitle())
+                .context(i.getContext())
+                .userId(String.valueOf(i.getUserId()))
+                .userName(nameInIds.get(i.getUserId()))
+                .introduce(i.getIntroduce())
+                .createTime(i.getCreateTime())
+                .updateTime(i.getUpdateTime())
+                .status(i.getStatus())
+                .typeList(blogTypeService.list(Wrappers.<BlogType>lambdaQuery().eq(BlogType::getBlogId, i.getId()))
+                        .stream().map(j -> {
+                            TypeTable typeTables = typeTableMapper.selectOne(Wrappers.<TypeTable>lambdaQuery().eq(TypeTable::getId, j.getTypeId()));
+                            return typeTables.getName();
+                        }).toList())
+                .kudos(String.valueOf(i.getKudos()))
+                .star(String.valueOf(i.getStar()))
+                .watch(String.valueOf(i.getWatch()))
+                .commentNum(String.valueOf(i.getCommentNum()))
+                .build()
+        ).toList();
+
+        PageDTO<BlogDTO> blogDTOPageDTO = new PageDTO<>();
+        blogDTOPageDTO.setPageList(blogDTOS);
+        blogDTOPageDTO.setPageSize(pageSize);
+        blogDTOPageDTO.setPageNow(current);
+        blogDTOPageDTO.setTotal(Integer.valueOf(String.valueOf(page.getTotal())));
+        return blogDTOPageDTO;
+
+    }
+
+    @Override
+    public PageDTO<BlogDTO> getBlogByUserId(int current, int pageSize, Long userId) {
+
+        if(Objects.isNull(userId)){
+            return null;
+        }
+        IPage<Blog> page=new Page<>(current,pageSize);
+        List<Blog> list = list(page, Wrappers.<Blog>lambdaQuery().eq(Blog::getUserId, userId));
+        List<Long> userIdList = list.stream().map(Blog::getUserId).toList();
+        List<String> userIds = userIdList.stream().map(String::valueOf).toList();
+
+        // 获取用户信息
+        Map<Long, String> nameInIds = userFeign.getNameInIds(userIds);
+        List<BlogDTO> blogDTOS = list.stream().map(i -> BlogDTO.builder()
+                .id(String.valueOf(i.getId()))
+                .title(i.getTitle())
+                .context(i.getContext())
+                .userId(String.valueOf(i.getUserId()))
+                .userName(nameInIds.get(i.getUserId()))
+                .introduce(i.getIntroduce())
+                .createTime(i.getCreateTime())
+                .updateTime(i.getUpdateTime())
+                .status(i.getStatus())
+                .typeList(blogTypeService.list(Wrappers.<BlogType>lambdaQuery().eq(BlogType::getBlogId, i.getId()))
+                        .stream().map(j -> {
+                            TypeTable typeTables = typeTableMapper.selectOne(Wrappers.<TypeTable>lambdaQuery().eq(TypeTable::getId, j.getTypeId()));
+                            return typeTables.getName();
+                        }).toList())
+                .kudos(String.valueOf(i.getKudos()))
+                .star(String.valueOf(i.getStar()))
+                .watch(String.valueOf(i.getWatch()))
+                .commentNum(String.valueOf(i.getCommentNum()))
+                .build()
+        ).toList();
+
+        PageDTO<BlogDTO> blogDTOPageDTO = new PageDTO<>();
+        blogDTOPageDTO.setPageList(blogDTOS);
+        blogDTOPageDTO.setPageSize(pageSize);
+        blogDTOPageDTO.setPageNow(current);
+        blogDTOPageDTO.setTotal(Integer.valueOf(String.valueOf(page.getTotal())));
+        return blogDTOPageDTO;
+    }
+
+    @Override
+    public PageDTO<BlogDTO> getBlogByTypeList(int current, int pageSize, List<String> typeList) {
+        if(Objects.isNull(typeList)){
+            return null;
+        }
+        IPage<Blog> page=new Page<>(current,pageSize);
+
+        List<TypeTable> typeTableList = typeTableMapper.selectList(Wrappers.<TypeTable>lambdaQuery().in(TypeTable::getName, typeList));
+        if(typeTableList.isEmpty()){
+            return null;
+        }
+        List<Long> typeIds = typeTableList.stream().map(TypeTable::getId).toList();
+
+
+        List<BlogType> blogTypeList = blogTypeService.list(Wrappers.<BlogType>lambdaQuery().in(BlogType::getTypeId, typeIds));
+        List<Long> blogIds = blogTypeList.stream().map(BlogType::getBlogId).toList();
+        if(blogIds.isEmpty()){
+            return null;
+        }
+        List<Blog> list = list(page, Wrappers.<Blog>lambdaQuery().in(Blog::getId, blogIds));
+        List<Long> userIdList = list.stream().map(Blog::getUserId).toList();
+        List<String> userIds = userIdList.stream().map(String::valueOf).toList();
+
+        // 获取用户信息
+        Map<Long, String> nameInIds = userFeign.getNameInIds(userIds);
+        List<BlogDTO> blogDTOS = list.stream().map(i -> BlogDTO.builder()
+                .id(String.valueOf(i.getId()))
+                .title(i.getTitle())
+                .context(i.getContext())
+                .userId(String.valueOf(i.getUserId()))
+                .userName(nameInIds.get(i.getUserId()))
+                .introduce(i.getIntroduce())
+                .createTime(i.getCreateTime())
+                .updateTime(i.getUpdateTime())
+                .status(i.getStatus())
+                .typeList(blogTypeService.list(Wrappers.<BlogType>lambdaQuery().eq(BlogType::getBlogId, i.getId()))
+                        .stream().map(j -> {
+                            TypeTable typeTables = typeTableMapper.selectOne(Wrappers.<TypeTable>lambdaQuery().eq(TypeTable::getId, j.getTypeId()));
+                            return typeTables.getName();
+                        }).toList())
+                .kudos(String.valueOf(i.getKudos()))
+                .star(String.valueOf(i.getStar()))
+                .watch(String.valueOf(i.getWatch()))
+                .commentNum(String.valueOf(i.getCommentNum()))
+                .build()
+        ).toList();
+
+        PageDTO<BlogDTO> blogDTOPageDTO = new PageDTO<>();
+        blogDTOPageDTO.setPageList(blogDTOS);
+        blogDTOPageDTO.setPageSize(pageSize);
+        blogDTOPageDTO.setPageNow(current);
+        blogDTOPageDTO.setTotal(Integer.valueOf(String.valueOf(page.getTotal())));
+        return blogDTOPageDTO;
     }
 
 

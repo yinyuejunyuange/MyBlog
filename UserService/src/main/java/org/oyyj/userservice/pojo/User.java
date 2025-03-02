@@ -38,4 +38,8 @@ public class User {
     private Integer isDelete;
     @TableField("is_freeze")
     private Integer isFreeze;
+    @TableField("star")
+    private Long star;
+    @TableField("introduce")
+    private String introduce;
 }

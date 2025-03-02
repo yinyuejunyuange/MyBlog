@@ -330,12 +330,19 @@ public class UserBlogController {
 
     @GetMapping("/getComment")
     public Map<String,Object> getComment(@RequestParam("blogId")String blogId){
-        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-        // 获得临时uuid
-        String uuid = UUID.randomUUID().toString();
-        redisUtil.set(uuid,principal.getUser().getId(),1,TimeUnit.MINUTES);
-        return blogFeign.getComment(blogId,uuid);
+        Authentication authentications = SecurityContextHolder.getContext().getAuthentication();
+        if(authentications.isAuthenticated()){
+            // 用户已经登录
+            UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+            LoginUser principal = (LoginUser) authentication.getPrincipal();
+            // 获得临时uuid
+            String uuid = UUID.randomUUID().toString();
+            redisUtil.set(uuid,principal.getUser().getId(),1,TimeUnit.MINUTES);
+            return blogFeign.getComment(blogId,uuid);
+        }
+        // 用户没有登录
+
+        return blogFeign.getComment(blogId,null);
     }
 
     // 用户点赞评论
@@ -420,6 +427,29 @@ public class UserBlogController {
         } catch (AuthenticationException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    // 搜索博客 名称模糊搜做
+
+    @GetMapping("/getBlogByName")
+    public Map<String,Object> getBlogByName(@RequestParam("blogName") String blogName
+            ,@RequestParam("current")int current){
+        return blogFeign.GetBlogByName(blogName,current);
+    }
+
+    // 类型搜索
+
+    @GetMapping("/getBlogByTypeList")
+    public Map<String,Object> getBlogByTypeList(@RequestParam("typeList") List<String> typeList
+            ,@RequestParam("current")int current){
+        log.info("123123123");
+        return blogFeign.GetBlogByTypeList(typeList,current);
+    }
+    // 作者搜索
+    @GetMapping("/getBlogByUserId")
+    public Map<String,Object> getBlogByUserId(@RequestParam("userId") String userId
+            ,@RequestParam("current")int current){
+        return blogFeign.GetBlogByUserId(Long.valueOf(userId),current);
     }
 
 

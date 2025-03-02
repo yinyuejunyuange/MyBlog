@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
 import org.oyyj.blogservice.dto.BlogDTO;
+import org.oyyj.userservice.DTO.BlogUserInfoDTO;
 import org.oyyj.userservice.DTO.RegisterDTO;
 import org.oyyj.userservice.DTO.UserDTO;
 import org.oyyj.userservice.Feign.BlogFeign;
@@ -183,7 +184,36 @@ public class UserController {
     }
 
 
+    @GetMapping("/getBlogUserInfo")
+    public Map<String,Object> getBlogUserInfo(@RequestParam("userId")String userId){
+        BlogUserInfoDTO blogUserInfo = userService.getBlogUserInfo(userId);
+        if(blogUserInfo==null){
+            return ResultUtil.failMap("参数不合法");
+        }
+        return ResultUtil.successMap(blogUserInfo,"数据查询成功");
+    }
 
+    // 用户关注作者
+    @PutMapping("/starBlogAuthor")
+    public Map<String,Object> starBlogAuthor(@RequestParam("authorId")String authorId){
 
+        Boolean b = userService.starBlogAuthor(authorId);
+        if(b){
+            return ResultUtil.successMap(b,"关注成功");
+        }else{
+            return ResultUtil.failMap("关注失败");
+        }
+    }
+
+    @PutMapping("/cancelStarBlogAuthor")
+    public Map<String,Object> cancelStarBlogAuthor(@RequestParam("authorId")String authorId){
+
+        Boolean b = userService.cancelStarBlogAuthor(authorId);
+        if(b){
+            return ResultUtil.successMap(b,"取消关注成功");
+        }else{
+            return ResultUtil.failMap("操作失败");
+        }
+    }
 
 }

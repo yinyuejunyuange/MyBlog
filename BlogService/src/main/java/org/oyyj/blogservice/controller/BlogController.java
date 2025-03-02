@@ -288,7 +288,7 @@ public class BlogController {
     // 获得回复
 
     @GetMapping("/getComment")
-    public Map<String,Object> getComment(@RequestParam("BlogId")String blogId,@RequestParam("userInfoKey")String userInfoKey){
+    public Map<String,Object> getComment(@RequestParam("BlogId")String blogId,@RequestParam(value = "userInfoKey",required = false)String userInfoKey){
         List<ReadCommentDTO> blogComment = blogService.getBlogComment(blogId,userInfoKey);
         return ResultUtil.successMap(blogComment,"评论查询成功");
     }
@@ -304,4 +304,43 @@ public class BlogController {
     public Boolean changReplyKudos(@RequestParam("replyId")Long replyId,@RequestParam("bytes") Byte bytes){
         return blogService.changeReplyKudos(replyId,bytes);
     }
+
+    // 获取博客作者的创作信息
+    @GetMapping("/getBlogUserInfo")
+    public List<Long> getBlogUserInfo(@RequestParam("userId") Long userId ){
+        return blogService.getUserBlogNum(userId);
+    }
+
+    @GetMapping("/getBlogByName")
+    public Map<String,Object> GetBlogByName(@RequestParam("blogName") String blogName
+            ,@RequestParam("current")int current){
+        PageDTO<BlogDTO> blogByName = blogService.getBlogByName(current, PAGE_SIZE, blogName);
+        if(Objects.isNull(blogByName)){
+            return ResultUtil.failMap("参数不合法");
+        }
+        return ResultUtil.successMap(blogByName,"查询成功");
+    }
+
+    @GetMapping("/getBlogByTypeList")
+    public Map<String,Object> GetBlogByTypeList(@RequestParam("typeList") List<String> typeList
+            ,@RequestParam("current")int current){
+        PageDTO<BlogDTO> blogByName = blogService.getBlogByTypeList(current, PAGE_SIZE, typeList);
+        if(Objects.isNull(blogByName)){
+            return ResultUtil.failMap("参数不合法");
+        }
+        return ResultUtil.successMap(blogByName,"查询成功");
+    }
+
+    @GetMapping("/getBlogByUserId")
+    public Map<String,Object> GetBlogByUserId(@RequestParam("userId") Long userId
+            ,@RequestParam("current")int current){
+        PageDTO<BlogDTO> blogByName = blogService.getBlogByUserId(current, PAGE_SIZE, userId);
+        if(Objects.isNull(blogByName)){
+            return ResultUtil.failMap("参数不合法");
+        }
+        return ResultUtil.successMap(blogByName,"查询成功");
+    }
+
+
 }
+

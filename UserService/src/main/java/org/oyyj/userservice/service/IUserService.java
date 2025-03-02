@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.oyyj.blogservice.dto.BlogDTO;
+import org.oyyj.userservice.DTO.BlogUserInfoDTO;
 import org.oyyj.userservice.DTO.CommentDTO;
 import org.oyyj.userservice.DTO.RegisterDTO;
 import org.oyyj.userservice.DTO.ReplyDTO;
@@ -43,4 +44,10 @@ public interface IUserService extends IService<User> {
     Boolean kudosComment(String commentId,Byte bytes);
 
     Boolean kudosReply(String replyId,Byte bytes);
+
+    BlogUserInfoDTO getBlogUserInfo(String userId);
+
+    Boolean starBlogAuthor(String authorId);
+
+    Boolean cancelStarBlogAuthor(String authorId);
 }
