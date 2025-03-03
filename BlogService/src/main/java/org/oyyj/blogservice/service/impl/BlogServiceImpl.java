@@ -519,5 +519,48 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         return blogDTOPageDTO;
     }
 
+    @Override
+    public PageDTO<BlogDTO> getBlogByIds(int current, int pageSize, List<Long> blogs){
+
+        if(Objects.isNull(blogs)){
+            return null;
+        }
+        IPage<Blog> blogIPage=new Page<>(current,pageSize);
+        List<Blog> blogList = list(blogIPage, Wrappers.<Blog>lambdaQuery().in(Blog::getId, blogs));
+
+        List<Long> userList = blogList.stream().map(Blog::getUserId).toList(); // 获得用户信息
+        List<String> users = userList.stream().map(String::valueOf).toList();
+        Map<Long, String> nameInIds = userFeign.getNameInIds(users);// 获取用户名称
+
+        List<BlogDTO> resultList = blogList.stream().map(i -> BlogDTO.builder()
+                .id(String.valueOf(i.getId()))
+                .title(i.getTitle())
+                .context(i.getContext())
+                .userId(String.valueOf(i.getUserId()))
+                .userName(nameInIds.get(i.getUserId()))
+                .introduce(i.getIntroduce())
+                .createTime(i.getCreateTime())
+                .updateTime(i.getUpdateTime())
+                .status(i.getStatus())
+                .typeList(blogTypeService.list(Wrappers.<BlogType>lambdaQuery().eq(BlogType::getBlogId, i.getId()))
+                        .stream().map(j -> {
+                            TypeTable typeTables = typeTableMapper.selectOne(Wrappers.<TypeTable>lambdaQuery().eq(TypeTable::getId, j.getTypeId()));
+                            return typeTables.getName();
+                        }).toList())
+                .kudos(String.valueOf(i.getKudos()))
+                .star(String.valueOf(i.getStar()))
+                .watch(String.valueOf(i.getWatch()))
+                .commentNum(String.valueOf(i.getCommentNum()))
+                .build()).toList();
+
+        PageDTO<BlogDTO> blogDTOPageDTO = new PageDTO<>();
+        blogDTOPageDTO.setPageList(resultList);
+        blogDTOPageDTO.setPageSize(pageSize);
+        blogDTOPageDTO.setPageNow(current);
+        blogDTOPageDTO.setTotal(Integer.valueOf(String.valueOf(blogIPage.getTotal())));
+        return blogDTOPageDTO;
+    }
+
+
 
 }

@@ -90,4 +90,8 @@ public interface BlogFeign {
     @GetMapping("/blog/getBlogByUserId")
    Map<String,Object> GetBlogByUserId(@RequestParam("userId") Long userId
             ,@RequestParam("current")int current);
+
+    @GetMapping("/blog/getUserStarBlog")
+   Map<String,Object> getUserStarBlog(@RequestParam("blogs") List<Long> blogs
+            ,@RequestParam("current")int current);
 }

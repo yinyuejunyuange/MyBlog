@@ -18,6 +18,7 @@
         <module>UserService</module>
         <module>AdminService</module>
         <module>BlogService</module>
+        <module>AIChatDemo</module>
     </modules>
     <url/>
     <licenses>

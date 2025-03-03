@@ -312,7 +312,7 @@ public class BlogController {
     }
 
     @GetMapping("/getBlogByName")
-    public Map<String,Object> GetBlogByName(@RequestParam("blogName") String blogName
+    public Map<String,Object> getBlogByName(@RequestParam("blogName") String blogName
             ,@RequestParam("current")int current){
         PageDTO<BlogDTO> blogByName = blogService.getBlogByName(current, PAGE_SIZE, blogName);
         if(Objects.isNull(blogByName)){
@@ -322,7 +322,7 @@ public class BlogController {
     }
 
     @GetMapping("/getBlogByTypeList")
-    public Map<String,Object> GetBlogByTypeList(@RequestParam("typeList") List<String> typeList
+    public Map<String,Object> getBlogByTypeList(@RequestParam("typeList") List<String> typeList
             ,@RequestParam("current")int current){
         PageDTO<BlogDTO> blogByName = blogService.getBlogByTypeList(current, PAGE_SIZE, typeList);
         if(Objects.isNull(blogByName)){
@@ -332,13 +332,24 @@ public class BlogController {
     }
 
     @GetMapping("/getBlogByUserId")
-    public Map<String,Object> GetBlogByUserId(@RequestParam("userId") Long userId
+    public Map<String,Object> getBlogByUserId(@RequestParam("userId") Long userId
             ,@RequestParam("current")int current){
         PageDTO<BlogDTO> blogByName = blogService.getBlogByUserId(current, PAGE_SIZE, userId);
         if(Objects.isNull(blogByName)){
             return ResultUtil.failMap("参数不合法");
         }
         return ResultUtil.successMap(blogByName,"查询成功");
+    }
+
+    @GetMapping("/getUserStarBlog")
+    public Map<String,Object> getUserStarBlog(@RequestParam("blogs") List<Long> blogs
+            ,@RequestParam("current")int current){
+        PageDTO<BlogDTO> blogByIds = blogService.getBlogByIds(current, PAGE_SIZE, blogs);
+        if(Objects.isNull(blogByIds)){
+            return ResultUtil.failMap("参数不合法");
+        }
+
+        return ResultUtil.successMap(blogByIds,"查询成功");
     }
 
 

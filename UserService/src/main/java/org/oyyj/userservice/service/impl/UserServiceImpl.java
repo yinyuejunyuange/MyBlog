@@ -1,16 +1,15 @@
 package org.oyyj.userservice.service.impl;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletResponse;
 import org.bouncycastle.jcajce.provider.symmetric.AES;
 import org.oyyj.blogservice.dto.BlogDTO;
-import org.oyyj.userservice.DTO.BlogUserInfoDTO;
-import org.oyyj.userservice.DTO.CommentDTO;
-import org.oyyj.userservice.DTO.RegisterDTO;
-import org.oyyj.userservice.DTO.ReplyDTO;
+import org.oyyj.userservice.DTO.*;
 import org.oyyj.userservice.Feign.BlogFeign;
 import org.oyyj.userservice.mapper.SysRoleMapper;
 import org.oyyj.userservice.mapper.UserMapper;
@@ -22,6 +21,7 @@ import org.oyyj.userservice.utils.TokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -41,6 +41,8 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
+
+    private Integer PAGE_SIZE=6;
 
     @Autowired
     private BlogFeign blogFeign;
@@ -499,5 +501,89 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
         return false;
 
+    }
+
+    @Override
+    public Map<String, Object> getUserStarBlog(String userId, int current) {
+
+        List<UserStar> userStars = userStarService.list(Wrappers.<UserStar>lambdaQuery().eq(UserStar::getUserId, Long.valueOf(userId)));
+
+        if(Objects.isNull(userStars)){
+            return ResultUtil.failMap("用户没有收藏的文章");
+        }
+        List<Long> blogs = userStars.stream().map(UserStar::getBlogId).toList();
+        //
+        return blogFeign.getUserStarBlog(blogs, current);
+
+
+    }
+
+    @Override
+    public PageDTO<BlogUserInfoDTO> getUserStarBlogAuthor(String userId, int current) {
+
+        IPage<UserAttention> userAttentionIPage=new Page<>(current,PAGE_SIZE);
+
+        // 查询用户关注的博客作者
+        List<UserAttention> userAttentions = userAttentionService.list(userAttentionIPage, Wrappers.<UserAttention>lambdaQuery()
+                .eq(UserAttention::getUserId, Long.valueOf(userId))
+        );
+        if(Objects.isNull(userAttentions)||userAttentions.isEmpty()){
+            log.error("用户没有关注对象");
+            return null;
+        }
+
+        List<Long> authorIds = userAttentions.stream().map(UserAttention::getAttentionId).toList();
+        List<BlogUserInfoDTO> list = list(Wrappers.<User>lambdaQuery().in(User::getId, authorIds)).stream().map(i -> BlogUserInfoDTO.builder()
+                .userId(String.valueOf(i.getId()))
+                .userName(i.getName())
+                .imageUrl("http://localhost:8080/myBlog/user/getHead/" + i.getImageUrl())
+                .createTime(i.getCreateTime())
+                .introduction(i.getIntroduce())
+                .blogNum(blogFeign.getBlogUserInfo(i.getId()).getFirst())
+                .visitedNum(blogFeign.getBlogUserInfo(i.getId()).get(1))
+                .starNum(i.getStar())
+                .kudosNum(blogFeign.getBlogUserInfo(i.getId()).get(2))
+                .isUserStar(true)
+                .build()).toList();
+
+        PageDTO<BlogUserInfoDTO> blogUserInfoDTOPageDTO=new PageDTO<>();
+        blogUserInfoDTOPageDTO.setPageList(list);
+        blogUserInfoDTOPageDTO.setTotal(Integer.valueOf(String.valueOf(userAttentionIPage.getTotal())));
+        blogUserInfoDTOPageDTO.setPageNow(current);
+        blogUserInfoDTOPageDTO.setPageSize(PAGE_SIZE);
+
+        return blogUserInfoDTOPageDTO;
+    }
+    @Override
+    public Map<String,Object> getUsersBlog(Long userId,int current){
+        return blogFeign.GetBlogByUserId(userId, current);
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> changeUserInfo(ChangeUserDTO changeUserDTO) {
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+
+        User one = getOne(Wrappers.<User>lambdaQuery()
+                .eq(User::getId, principal.getUser().getId())
+                .last("for update") // 加锁悲观锁
+        );
+
+        if(!Objects.isNull(changeUserDTO.getUserName())&&!changeUserDTO.getUserName().isEmpty()){
+            one.setName(changeUserDTO.getUserName());
+        }
+        if(!Objects.isNull(changeUserDTO.getEmail())&&!changeUserDTO.getEmail().isEmpty()){
+            one.setEmail(changeUserDTO.getEmail());
+        }
+        if(!Objects.isNull(changeUserDTO.getSex())){
+            one.setSex(changeUserDTO.getSex());
+        }
+        if(!Objects.isNull(changeUserDTO.getIntroduce())&&!changeUserDTO.getIntroduce().isEmpty()){
+            one.setIntroduce(changeUserDTO.getIntroduce());
+        }
+
+        boolean b = saveOrUpdate(one);
+        return ResultUtil.successMap(b,"修改成功");
     }
 }

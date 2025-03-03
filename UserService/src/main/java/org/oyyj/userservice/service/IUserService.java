@@ -4,12 +4,11 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.oyyj.blogservice.dto.BlogDTO;
-import org.oyyj.userservice.DTO.BlogUserInfoDTO;
-import org.oyyj.userservice.DTO.CommentDTO;
-import org.oyyj.userservice.DTO.RegisterDTO;
-import org.oyyj.userservice.DTO.ReplyDTO;
+import org.oyyj.userservice.DTO.*;
 import org.oyyj.userservice.pojo.JWTUser;
 import org.oyyj.userservice.pojo.User;
+import org.springframework.data.domain.Page;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -50,4 +49,12 @@ public interface IUserService extends IService<User> {
     Boolean starBlogAuthor(String authorId);
 
     Boolean cancelStarBlogAuthor(String authorId);
+
+    Map<String,Object> getUserStarBlog(String userId,int current);
+
+    PageDTO<BlogUserInfoDTO> getUserStarBlogAuthor(String userId, int current);
+
+    Map<String,Object> getUsersBlog(Long userId,int current);
+
+    Map<String,Object> changeUserInfo(ChangeUserDTO changeUserDTO);
 }

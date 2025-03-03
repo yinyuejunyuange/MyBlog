@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
 import org.oyyj.blogservice.dto.BlogDTO;
 import org.oyyj.userservice.DTO.BlogUserInfoDTO;
+import org.oyyj.userservice.DTO.ChangeUserDTO;
 import org.oyyj.userservice.DTO.RegisterDTO;
 import org.oyyj.userservice.DTO.UserDTO;
 import org.oyyj.userservice.Feign.BlogFeign;
@@ -31,6 +32,8 @@ import java.awt.*;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Collections;
 import java.util.List;
@@ -95,7 +98,7 @@ public class UserController {
         boolean update = userService.update(Wrappers.<User>lambdaUpdate().eq(User::getId,principal.getUser().getId())
                 .set(User::getImageUrl, fileName));// 存储用户头像
         if(update){
-            return ResultUtil.successMap(null,"存储成功");
+            return ResultUtil.successMap("http://localhost:8080/myBlog/user/getHead/"+fileName,"存储成功");
         }
 
         return ResultUtil.failMap("存储失败");
@@ -107,6 +110,7 @@ public class UserController {
     @GetMapping("/getHead/{fileName}")
     public void getUserHead(@PathVariable("fileName") String fileName , HttpServletResponse response) throws IOException {
         String filePath= ResourceUtils.getURL("classpath:").getPath()+"static/image/"+fileName;
+        String encodedFileName = URLEncoder.encode(filePath, StandardCharsets.UTF_8); // 避免有中文名 设置字符
         System.out.println("head path:"+filePath);
 
         File file=new File(filePath);
@@ -117,7 +121,7 @@ public class UserController {
 
         // 设置响应头
         response.setContentType(MediaType.APPLICATION_OCTET_STREAM_VALUE);
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename=\""+filePath+"\"");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename=\""+encodedFileName+"\"");
 
         Files.copy(file.toPath(),response.getOutputStream());
         response.getOutputStream().flush();
@@ -214,6 +218,13 @@ public class UserController {
         }else{
             return ResultUtil.failMap("操作失败");
         }
+    }
+
+//    // 用户改变个人信息
+//
+    @PostMapping("/changeUserInfo")
+    public Map<String,Object> changeUserInfo(@RequestBody ChangeUserDTO changeUserDTO){
+        return userService.changeUserInfo(changeUserDTO);
     }
 
 }

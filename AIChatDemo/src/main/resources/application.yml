@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: AIChatDemo
+
+  cloud:
+    nacos:
+      discovery:
+        service: AIChatDemo
+        server-addr: localhost:8848
+
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        model: deepseek-r1  # 与本地模型名称对应
+
+  servlet:
+    multipart:
+      max-request-size: 10MB
+      max-file-size: 10MB
+
+server:
+  port: 8084

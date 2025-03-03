@@ -8,7 +8,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.IOUtils;
 import org.oyyj.blogservice.dto.BlogDTO;
+import org.oyyj.userservice.DTO.BlogUserInfoDTO;
 import org.oyyj.userservice.DTO.CommentDTO;
+import org.oyyj.userservice.DTO.PageDTO;
 import org.oyyj.userservice.DTO.ReplyDTO;
 import org.oyyj.userservice.Feign.BlogFeign;
 import org.oyyj.userservice.pojo.*;
@@ -450,6 +452,38 @@ public class UserBlogController {
     public Map<String,Object> getBlogByUserId(@RequestParam("userId") String userId
             ,@RequestParam("current")int current){
         return blogFeign.GetBlogByUserId(Long.valueOf(userId),current);
+    }
+
+
+    // 获取用户收藏的博客
+    @GetMapping("/getUserStarBlog")
+    public Map<String,Object> getUserStarBlog(@RequestParam("userId") String userId,
+                                              @RequestParam("current")int current){
+        return userService.getUserStarBlog(userId,current);
+    }
+
+    // 获取用户关注的博客作者
+
+    @GetMapping("/getUserStarAuthor")
+    public Map<String,Object> getUserStarAuthor(@RequestParam("current")int current){
+
+
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        PageDTO<BlogUserInfoDTO> userStarBlogAuthor = userService.getUserStarBlogAuthor(String.valueOf(principal.getUser().getId()), current);
+        if(Objects.isNull(userStarBlogAuthor)){
+            return ResultUtil.successMap(null,"此用户没有关注的对象");
+        }
+        return ResultUtil.successMap(userStarBlogAuthor,"查询成功");
+    }
+
+    // 获取用户自己的博客
+    @GetMapping("/getUsersBlog")
+    public Map<String,Object> getUsersBlog(@RequestParam("current") int current){
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        
+        return userService.getUsersBlog(principal.getUser().getId(),current);
     }
 
 
