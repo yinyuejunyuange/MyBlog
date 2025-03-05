@@ -5,11 +5,13 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletResponse;
 import org.bouncycastle.jcajce.provider.symmetric.AES;
 import org.oyyj.blogservice.dto.BlogDTO;
 import org.oyyj.userservice.DTO.*;
+import org.oyyj.userservice.Feign.AIChatFeign;
 import org.oyyj.userservice.Feign.BlogFeign;
 import org.oyyj.userservice.mapper.SysRoleMapper;
 import org.oyyj.userservice.mapper.UserMapper;
@@ -19,9 +21,12 @@ import org.oyyj.userservice.utils.RedisUtil;
 import org.oyyj.userservice.utils.ResultUtil;
 import org.oyyj.userservice.utils.TokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -31,7 +36,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.rmi.RemoteException;
 import java.util.Date;
 import java.util.List;
@@ -43,6 +51,7 @@ import java.util.concurrent.TimeUnit;
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
 
     private Integer PAGE_SIZE=6;
+
 
     @Autowired
     private BlogFeign blogFeign;
@@ -76,6 +85,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Autowired
     private IUserAttentionService userAttentionService;
+
+    @Autowired
+    private AIChatFeign aiChatFeign;
+
+    @Autowired
+    private IAsyncService asyncService;;
 
     @Override // 返回相关结果
     public JWTUser login(String username, String password) throws JsonProcessingException {
@@ -123,9 +138,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
         String resourcePath;
         if(registerDTO.getSex()==1){
-            resourcePath="image/man.jpg";
+            resourcePath="man.jpg";
         }else{
-            resourcePath="image/woman.jpg";
+            resourcePath="woman.jpg";
         }
         String imageUrl = servletContext.getContextPath()+"/"+ resourcePath; // 获取资源路径
         Date date = new Date();
@@ -192,7 +207,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             // 第一次编写的博客文档 全部都设置成为 保存
         }
 
-        return blogFeign.writeBlog(blogDTO);
+        Map<String, Object> map = blogFeign.writeBlog(blogDTO);
+        if((int)map.get("code")==200){
+//            upLoadBlogToAI(blogDTO); // 异步执行上传文件
+            asyncService.upLoadBlogToAI(blogDTO);
+        }
+        return map;
     }
 
     @Override
@@ -585,5 +605,54 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
         boolean b = saveOrUpdate(one);
         return ResultUtil.successMap(b,"修改成功");
+    }
+
+    @Async("asyncTaskExecutor")
+    @Override
+    public void upLoadBlogToAI(BlogDTO blogDTO) {
+
+        // 将用户生成的文档转换成txt格式的文件存储下来并上传到ai中
+        String filePath="H:/MyBlogFiles/";
+
+        String fileName=blogDTO.getTitle().replaceAll(" ","_")+".txt";
+        File file=new File(filePath,fileName); // 生成一个本地文件
+
+        // 向文件中写数据
+        try {
+            FileWriter writer=new FileWriter(file);
+
+            writer.write("博客标题\n"+blogDTO.getTitle()+"\n\n");
+            writer.write("博客作者\n"+blogDTO.getUserName()+"\n\n");
+            writer.write("博客简介\n"+blogDTO.getIntroduce()+"\n\n");
+            writer.write("博客内容\n"+blogDTO.getText()+"\n\n");
+
+            writer.flush(); // 让所有缓存全部存储到文件中
+
+            writer.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        // 将File转换成Multipartfile
+        try {
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            MockMultipartFile multiPartFile = new MockMultipartFile("file", bytes);
+
+            AIFileDTO build = AIFileDTO.builder()
+                    .fileAddress(filePath + fileName)
+                    .isUpload(0)
+                    .isDelete(0)
+                    .build();
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            String s = objectMapper.writeValueAsString(build);
+
+            // 调用接口 上传文件到工作区
+            aiChatFeign.uploadFileToWorkShape(multiPartFile,"myllm",s);
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
     }
 }

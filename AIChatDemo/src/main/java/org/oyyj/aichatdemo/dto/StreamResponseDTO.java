@@ -12,12 +12,13 @@ import java.util.List;
 @NoArgsConstructor
 @Builder
 public class StreamResponseDTO {
+    private String id;
     private String uuid;
     private List<Source> sources;
     private String type;
     private String textResponse;
     private Boolean close;
-    private Boolean error;
+    private String error;
     private Long chatId;
     private Metrics metrics;
 

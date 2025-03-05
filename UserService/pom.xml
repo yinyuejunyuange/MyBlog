@@ -125,6 +125,11 @@
 <!--            <version>3.0.4</version>-->
 <!--        </dependency>-->
 
+        <!--引入此依赖 添加 MultipartFile的实现类-->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
+        </dependency>
 
 
         <dependency>

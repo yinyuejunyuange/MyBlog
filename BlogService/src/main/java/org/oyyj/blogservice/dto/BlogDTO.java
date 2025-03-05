@@ -16,6 +16,7 @@ public class BlogDTO {
     private String id;
     private String title;
     private String context;
+    private String text;  // 纯文本 博客内容
     private String userId;
     private String userName;
     private String introduce;

@@ -57,4 +57,6 @@ public interface IUserService extends IService<User> {
     Map<String,Object> getUsersBlog(Long userId,int current);
 
     Map<String,Object> changeUserInfo(ChangeUserDTO changeUserDTO);
+
+    void upLoadBlogToAI(BlogDTO blogDTO);
 }

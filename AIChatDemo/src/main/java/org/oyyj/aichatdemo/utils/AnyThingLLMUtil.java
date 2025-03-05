@@ -3,6 +3,8 @@ package org.oyyj.aichatdemo.utils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.oyyj.aichatdemo.dto.*;
+import org.oyyj.aichatdemo.pojo.AIFile;
+import org.oyyj.aichatdemo.service.IAIFileService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +12,7 @@ import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.BodyInserters;
@@ -29,9 +32,14 @@ public class AnyThingLLMUtil {
     private final RestTemplate restTemplate;
 
     private static final Logger logger = LoggerFactory.getLogger(AnyThingLLMUtil.class);
+
+
+    private final IAIFileService aiFileService;
+
     @Autowired
-    public AnyThingLLMUtil(RestTemplateBuilder restTemplateBuilder) {
+    public AnyThingLLMUtil(RestTemplateBuilder restTemplateBuilder,IAIFileService aiFileService) {
         this.restTemplate = restTemplateBuilder.build();
+        this.aiFileService = aiFileService; // 通过构造函数注入
 
     }
 
@@ -171,10 +179,17 @@ public class AnyThingLLMUtil {
 
     }
 
-    public Mono<UploadEmbeddingsResponseDTO> addAnythingLLMWithRestTempLate(MultipartFile file, String slug) {
+    @Transactional
+    public Mono<UploadEmbeddingsResponseDTO> addAnythingLLMWithRestTempLate(MultipartFile file, String slug, AIFile aiFile) {
         ObjectMapper objectMapper = new ObjectMapper();
         String url = "http://localhost:3001/api/v1/workspace/" + slug + "/update-embeddings";
 
+        // 将aiFile 的信息 存储到数据库中
+        boolean save = aiFileService.save(aiFile);
+        if(!save){
+            logger.error("文件上传失败");
+            return Mono.error(new RuntimeException("文件上传失败"));
+        }
         return uploadToAnythingLLMWithStream(file)
                 .flatMap(fileLocation -> {
                     try {
@@ -189,7 +204,7 @@ public class AnyThingLLMUtil {
 
                         // 创建更新嵌入的DTO
                         UpdateEmbeddingsDTO updateEmbeddingsDTO = new UpdateEmbeddingsDTO();
-                        updateEmbeddingsDTO.setAdds(Collections.singletonList(fileLocation));
+                        updateEmbeddingsDTO.setAdds(Collections.singletonList(fileLocation)); //生成一个list集合 多一个或者少一个都不行
                         updateEmbeddingsDTO.setDeletes(Collections.emptyList());
 
                         // 创建请求实体
@@ -208,6 +223,10 @@ public class AnyThingLLMUtil {
                         if (response.getStatusCode().is2xxSuccessful()) {
                             UploadEmbeddingsResponseDTO uploadEmbeddingsResponseDTO =
                                     objectMapper.readValue(response.getBody(), UploadEmbeddingsResponseDTO.class);
+
+                            aiFile.setIsUpload(1); // 修改 数据库设置文件上传成功
+                            aiFile.setFileNameJson(fileLocation);
+                            aiFileService.saveOrUpdate(aiFile);
 
                             logger.info("文件添加工作区成功：{}", uploadEmbeddingsResponseDTO);
                             return Mono.just(uploadEmbeddingsResponseDTO);
