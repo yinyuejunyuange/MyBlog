@@ -227,4 +227,46 @@ public class UserController {
         return userService.changeUserInfo(changeUserDTO);
     }
 
+
+    /**
+     * 热门搜索
+     */
+    @GetMapping("/getHotSearch")
+    public Map<String,Object> getHotSearch(){
+        return userService.getHotSearch();
+    }
+
+    /**
+     * 用户的搜索
+     */
+    @GetMapping("/getUserSearch")
+    public Map<String,Object> getUserSearch(){
+        List<String> userSearch = userService.getUserSearch();
+        return ResultUtil.successMap(userSearch,"查询成功");
+    }
+
+    // 用户删除自己的搜索记录
+    @DeleteMapping("deleteUserSearchByName")
+    public Map<String,Object> deleteUserSearchByName( @RequestParam("name") String name){
+        boolean b = userService.deleteUserSearchByName(name);
+        if(b){
+            return ResultUtil.successMap(null,"删除成功");
+        }else{
+            return ResultUtil.failMap("删除失败");
+        }
+    }
+
+    @DeleteMapping("deleteUserAllSearch")
+    public Map<String,Object> deleteUserAllSearch( ){
+        boolean b = userService.deleteUserAllSearch();
+        if(b){
+            return ResultUtil.successMap(null,"删除成功");
+        }else{
+            return ResultUtil.failMap("删除失败");
+        }
+    }
+
+
+
+
 }

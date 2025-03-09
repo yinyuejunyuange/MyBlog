@@ -436,11 +436,25 @@ public class UserBlogController {
     @GetMapping("/getBlogByName")
     public Map<String,Object> getBlogByName(@RequestParam("blogName") String blogName
             ,@RequestParam("current")int current){
+
+        // 判断当前用户是否登录
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if(authentication.isAuthenticated()){
+            // 将用户的搜索添加到表中
+            List<String> names=new ArrayList<>();
+            names.add(blogName);
+            boolean b = userService.addUserSearch(names);
+
+            if(!b){
+                log.error("用户记录保存失败");
+            }
+        }
+
         return blogFeign.GetBlogByName(blogName,current);
     }
 
     // 类型搜索
-
     @GetMapping("/getBlogByTypeList")
     public Map<String,Object> getBlogByTypeList(@RequestParam("typeList") List<String> typeList
             ,@RequestParam("current")int current){
@@ -482,9 +496,15 @@ public class UserBlogController {
     public Map<String,Object> getUsersBlog(@RequestParam("current") int current){
         UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
         LoginUser principal = (LoginUser) authentication.getPrincipal();
-        
+
         return userService.getUsersBlog(principal.getUser().getId(),current);
     }
+
+    @GetMapping("/getHotBlog")
+    public Map<String,Object> getHotBlog(){
+        return blogFeign.getHotBlog();
+    }
+
 
 
 

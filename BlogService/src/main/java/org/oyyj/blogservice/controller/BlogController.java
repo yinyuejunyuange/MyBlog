@@ -1,6 +1,7 @@
 package org.oyyj.blogservice.controller;
 
 import ch.qos.logback.core.util.FileUtil;
+import com.alibaba.nacos.api.model.v2.Result;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
@@ -352,6 +353,18 @@ public class BlogController {
         return ResultUtil.successMap(blogByIds,"查询成功");
     }
 
+    @GetMapping("/getHotBlog")
+    public Map<String,Object> getHotBlog(){
+        try {
+            List<BlogDTO> hotBlogs = blogService.getHotBlogs();
+            System.out.println(hotBlogs);
+
+            return ResultUtil.successMap(hotBlogs,"查询成功");
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return ResultUtil.failMap("查询失败");
+        }
+    }
 
 }
 

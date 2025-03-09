@@ -94,4 +94,7 @@ public interface BlogFeign {
     @GetMapping("/blog/getUserStarBlog")
    Map<String,Object> getUserStarBlog(@RequestParam("blogs") List<Long> blogs
             ,@RequestParam("current")int current);
+
+    @GetMapping("/blog/getHotBlog")
+    Map<String,Object> getHotBlog();
 }

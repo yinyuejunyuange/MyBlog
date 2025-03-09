@@ -34,4 +34,6 @@ public interface IBlogService extends IService<Blog> {
     PageDTO<BlogDTO> getBlogByTypeList(int current,int pageSize,List<String> typeList);
 
     PageDTO<BlogDTO> getBlogByIds(int current, int pageSize, List<Long> blogs);
+
+    List<BlogDTO> getHotBlogs();
 }

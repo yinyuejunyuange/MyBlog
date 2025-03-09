@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 @Service
 public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IBlogService {
@@ -42,6 +43,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     @Autowired
     private IReplyService replyService;
+
+    @Autowired
+    private BlogMapper blogMapper;
 
 
     @Override
@@ -561,6 +565,36 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         return blogDTOPageDTO;
     }
 
+    @Override
+    public List<BlogDTO> getHotBlogs() {
+
+        List<Blog> hotBlog = blogMapper.getHotBlog();
+
+        List<String> list = hotBlog.stream().map(Blog::getUserId).map(String::valueOf).toList();
+
+        Map<Long, String> nameInIds = userFeign.getNameInIds(list);
+
+        return hotBlog.stream().map(i -> BlogDTO.builder()
+                .id(String.valueOf(i.getId()))
+                .title(i.getTitle())
+                .context(i.getContext())
+                .userId(String.valueOf(i.getUserId()))
+                .userName(nameInIds.get(i.getUserId()))
+                .introduce(i.getIntroduce())
+                .createTime(i.getCreateTime())
+                .updateTime(i.getUpdateTime())
+                .status(i.getStatus())
+                .kudos(String.valueOf(i.getKudos()))
+                .star(String.valueOf(i.getStar()))
+                .watch(String.valueOf(i.getWatch()))
+                .commentNum(String.valueOf(i.getCommentNum()))
+                .typeList(blogTypeService.list(Wrappers.<BlogType>lambdaQuery().eq(BlogType::getBlogId, i.getId()))
+                        .stream().map(j -> {
+                            TypeTable typeTables = typeTableMapper.selectOne(Wrappers.<TypeTable>lambdaQuery().eq(TypeTable::getId, j.getTypeId()));
+                            return typeTables.getName();
+                        }).toList())
+                .build()).toList();
+    }
 
 
 }

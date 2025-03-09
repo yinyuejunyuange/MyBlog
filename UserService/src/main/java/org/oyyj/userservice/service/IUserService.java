@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 
@@ -59,4 +60,16 @@ public interface IUserService extends IService<User> {
     Map<String,Object> changeUserInfo(ChangeUserDTO changeUserDTO);
 
     void upLoadBlogToAI(BlogDTO blogDTO);
+
+    Map<String,Object> getHotSearch();
+
+    List<String> getUserSearch();
+
+    boolean addUserSearch(List<String> names);
+
+    boolean deleteUserSearchByName(String name);
+
+
+    boolean deleteUserAllSearch();
+
 }

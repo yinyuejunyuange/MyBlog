@@ -60,7 +60,7 @@ public class SecurityConfig {
                                     "/myBlog/user/blog/getBlogList","/myBlog/user/blog/isUserStar**","/myBlog/user/blog/isUserKudos**",
                                     "/myBlog/user/getImageInIds**","/myBlog/user/getNameInIds**","/myBlog/user/blog/getUserKudosReply**",
                                     "/myBlog/user/blog/getUserKudosComment**","/myBlog/user/getBlogUserInfo**","/myBlog/user/blog/getBlogByName**",
-                                    "/myBlog/user/blog/getBlogByTypeList**","/myBlog/user/blog/getBlogByUserId**").permitAll()// 允许匿名访问的资源
+                                    "/myBlog/user/blog/getBlogByTypeList**","/myBlog/user/blog/getBlogByUserId**","/myBlog/user/blog/getHotBlog").permitAll()// 允许匿名访问的资源
                             .anyRequest().authenticated(); // 此外的所有全部需要验证
                 })
                .exceptionHandling(exceptions->exceptions.authenticationEntryPoint(customAuthenticationEntryPoint))

@@ -41,10 +41,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.rmi.RemoteException;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -90,7 +87,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     private AIChatFeign aiChatFeign;
 
     @Autowired
-    private IAsyncService asyncService;;
+    private IAsyncService asyncService;
+
+    @Autowired
+    private ISearchService searchService;
 
     @Override // 返回相关结果
     public JWTUser login(String username, String password) throws JsonProcessingException {
@@ -181,6 +181,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
             String token = TokenProvider.createToken(principal, "web", "USER");
             redisUtil.set(String.valueOf(build.getId()),token,24,TimeUnit.HOURS);
+
+            // 将用户的搜索记录添加到数据库中
+            boolean b = addUserSearch(registerDTO.getSearchs());
+            if(!b){
+                log.error("用户搜索记录添加失败");
+            }
+
             return JWTUser.builder()
                     .id(String.valueOf(build.getId()))
                     .isValid(true)
@@ -654,5 +661,97 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             throw new RuntimeException(e);
         }
 
+    }
+
+    @Override
+    public Map<String, Object> getHotSearch() {
+        List<HotSearchDTO> hotSearch = searchService.getHotSearch();
+        List<String> list = hotSearch.stream().map(HotSearchDTO::getContent).toList();
+        return ResultUtil.successMap(list,"查询成功");
+    }
+
+    @Override
+    public List<String> getUserSearch() {
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        User user = principal.getUser();
+
+        return searchService.list(Wrappers.<Search>lambdaQuery()
+                .eq(Search::getUserId, user.getId())
+                .orderByDesc(Search::getLatelyTime) // 按照最近时间排序
+        ).stream().map(Search::getContent).toList();
+
+
+    }
+
+    @Override
+    @Transactional
+    public boolean addUserSearch(List<String> names) {
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        User user = principal.getUser();
+
+        Date date=new Date();
+
+        // 获取用户搜索记录
+        List<String> list = searchService.list(Wrappers.<Search>lambdaQuery().eq(Search::getUserId, user.getId())).stream().map(Search::getContent).toList();
+
+
+        List<Search> searches=new ArrayList<>();
+        for (String name : names) {
+            name=name.trim();
+            if(name.isEmpty()||list.contains(name)){
+                continue; // 为空的记录可以跳过
+            }
+
+            Search build = Search.builder()
+                    .userId(user.getId())
+                    .content(name)
+                    .createTime(date)
+                    .updateTime(date)
+                    .latelyTime(date)
+                    .isUserDelete(0)
+                    .isDelete(0)
+                    .build();
+            searches.add(build);
+        }
+
+        return searchService.saveBatch(searches);
+
+
+    }
+
+    @Override
+    public boolean deleteUserSearchByName(String name) {
+
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        User user = principal.getUser();
+
+
+        if(name.trim().isEmpty()){
+            log.error("参数为空");
+            return false;
+        }
+
+        return searchService.update(Wrappers.<Search>lambdaUpdate()
+                .eq(Search::getUserId, user.getId())
+                .eq(Search::getContent, name)
+                .set(Search::getIsUserDelete, 1)
+        );
+
+    }
+
+    @Override
+    public boolean deleteUserAllSearch() {
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        User user = principal.getUser();
+
+
+        return searchService.update(Wrappers.<Search>lambdaUpdate()
+                .eq(Search::getUserId, user.getId())
+                .set(Search::getIsUserDelete, 1)
+        );
     }
 }
