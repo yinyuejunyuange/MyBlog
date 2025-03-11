@@ -1,4 +1,4 @@
-package org.oyyj.userservice.utils;
+package org.oyyj.adminservice.util;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -35,6 +35,11 @@ public class RedisUtil {
     // 设置键值对并指定过期时间
     public void set(String key, Object value, long seconds) {
         redisTemplate.opsForValue().set(key, value, seconds, TimeUnit.SECONDS);
+    }
+
+    // 以分钟为单位 获取键对应的过期时间
+    public Long getExpire(String key){
+        return redisTemplate.getExpire(key, TimeUnit.MINUTES);
     }
 
     // 获取值
@@ -74,7 +79,6 @@ public class RedisUtil {
     }
 
     // 不存在返回true，存在则删除
-    // 分布式锁的释放逻辑
     public Boolean releaseLock(String lockKey, String requestId){
         DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>();
         redisScript.setScriptText(RELEASE_SCRIPT);
