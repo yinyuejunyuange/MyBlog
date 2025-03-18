@@ -16,6 +16,10 @@ spring:
           uri: lb://AIChatDemoService
           predicates:
             - Path=/llm/**
+        - id: AdminService
+          uri: lb://AdminService
+          predicates:
+            - Path=/admin/**
 
       globalcors:
         add-to-simple-url-handler-mapping: true # 解决options请求被拦截问题
@@ -23,6 +27,7 @@ spring:
           '[/**]':         # 匹配所有请求
             allowed-origins:
               - "http://localhost:5173" # 允许区域
+              - "http://localhost:8079" # 允许区域
             allowed-methods:
               - "GET"
               - "POST"

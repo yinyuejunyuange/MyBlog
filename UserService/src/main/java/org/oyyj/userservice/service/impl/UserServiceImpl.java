@@ -217,6 +217,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         Map<String, Object> map = blogFeign.writeBlog(blogDTO);
         if((int)map.get("code")==200){
 //            upLoadBlogToAI(blogDTO); // 异步执行上传文件
+            blogDTO.setId(String.valueOf(map.get("data")) );
             asyncService.upLoadBlogToAI(blogDTO);
         }
         return map;

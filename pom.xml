@@ -19,6 +19,7 @@
         <module>AdminService</module>
         <module>BlogService</module>
         <module>AIChatDemo</module>
+        <module>TaskService</module>
     </modules>
     <url/>
     <licenses>

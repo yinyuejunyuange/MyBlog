@@ -54,6 +54,7 @@ public class AsyncServiceImpl implements IAsyncService {
             MockMultipartFile multiPartFile = new MockMultipartFile("file", bytes);
 
             AIFileDTO build = AIFileDTO.builder()
+                    .blogId(Long.valueOf(blogDTO.getId()))
                     .fileAddress(filePath + fileName)
                     .isUpload(0)
                     .isDelete(0)

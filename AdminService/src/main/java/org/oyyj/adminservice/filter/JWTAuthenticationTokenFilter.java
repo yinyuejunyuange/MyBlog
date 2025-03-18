@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.oyyj.adminservice.exception.SourceNotLegitimateException;
 import org.oyyj.adminservice.pojo.LoginAdmin;
 import org.oyyj.adminservice.util.RedisUtil;
+import org.oyyj.adminservice.util.ResultUtil;
 import org.oyyj.adminservice.util.TokenProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +23,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import javax.security.sasl.AuthenticationException;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
@@ -40,46 +42,85 @@ public class JWTAuthenticationTokenFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        if(!FROMWORD.equalsIgnoreCase(request.getHeader("from"))&&request.getHeader("source").isEmpty()){
-            log.error("请求来源不合法");
-            throw new SourceNotLegitimateException("请求来源不合法"); // 使用自定义异常
+        try {
+            if(!FROMWORD.equalsIgnoreCase(request.getHeader("from"))&&!StringUtils.hasText(request.getHeader("source"))){
+                log.error("请求来源不合法");
+                throw new SourceNotLegitimateException("请求来源不合法"); // 使用自定义异常
+            }
+
+            String token = request.getHeader("token");
+            if(!StringUtils.hasText(token)){
+                // token 为空 无法解析
+                filterChain.doFilter(request, response);// 放行
+                return; // 结束 避免回来后执行后续的代码
+            }
+
+            // 解析token
+            ObjectMapper objectMapper=new ObjectMapper();
+            objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,false);
+
+            LoginAdmin loginAdmin = TokenProvider.parseTokenAndGetUserId(token);
+            if(Objects.isNull(loginAdmin)){
+                // token 不合法
+                log.error("请求token不合法");
+                throw new InsufficientAuthenticationException("无效用户信息 请重新登录");
+            }
+
+            String redisToken= (String)redisUtil.get(String.valueOf(loginAdmin.getAdmin().getId())+"admin");
+            if(!token.equals(redisToken)){
+                // token已经过期
+                log.error("请求用户 token过期");
+                throw new InsufficientAuthenticationException("无效用户信息 请重新登录");
+            }
+
+            Long expire = redisUtil.getExpire(String.valueOf(loginAdmin.getAdmin().getId())+"admin");
+            if(expire<=30){
+                // 距离过期时间小于30分钟 重新设置
+                redisUtil.set(String.valueOf(loginAdmin.getAdmin().getId())+"admin",token,24, TimeUnit.HOURS);
+            }
+            // 将用户信息存入SecurityContextHolder中 便于后面的过滤器获取信息 三个参数的构造方法会将类中的某个验证是否通过的boolean设置为true
+            UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(loginAdmin, null, loginAdmin.getAuthorities());
+            SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+
+            // 放行
+            filterChain.doFilter(request, response);
+        } catch (SourceNotLegitimateException e) {
+            ObjectMapper mapper=new ObjectMapper();
+            // token 无效获取 或者 token 过期
+            String message=e.getMessage();
+            Map<String, Object> map = ResultUtil.failMap(403, message);
+            String mapStr = mapper.writeValueAsString(map);
+
+            response.setContentType("application/json;charset=utf-8");
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.getWriter().write(mapStr);
+            log.error(message);
+            e.printStackTrace();
+
+        } catch (IOException | ServletException e) {
+            ObjectMapper mapper=new ObjectMapper();
+            // token 无效获取 或者 token 过期
+            String message=e.getMessage();
+            Map<String, Object> map = ResultUtil.failMap(400, message);
+            String mapStr = mapper.writeValueAsString(map);
+
+            response.setContentType("application/json;charset=utf-8");
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            response.getWriter().write(mapStr);
+            log.error(message);
+            e.printStackTrace();
+        } catch (InsufficientAuthenticationException e) {
+            ObjectMapper mapper=new ObjectMapper();
+            // token 无效获取 或者 token 过期
+            String message=e.getMessage();
+            Map<String, Object> map = ResultUtil.failMap(401, message);
+            String mapStr = mapper.writeValueAsString(map);
+
+            response.setContentType("application/json;charset=utf-8");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write(mapStr);
+            log.error(message);
+            e.printStackTrace();
         }
-
-        String token = request.getHeader("token");
-        if(!StringUtils.hasText(token)){
-            // token 为空 无法解析
-            filterChain.doFilter(request, response);// 放行
-            return; // 结束 避免回来后执行后续的代码
-        }
-
-        // 解析token
-        ObjectMapper objectMapper=new ObjectMapper();
-        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,false);
-
-        LoginAdmin loginAdmin = TokenProvider.parseTokenAndGetUserId(token);
-        if(Objects.isNull(loginAdmin)){
-            // token 不合法
-            log.error("请求token不合法");
-            throw new InsufficientAuthenticationException("无效用户信息 请重新登录");
-        }
-
-        String redisToken= (String)redisUtil.get(String.valueOf(loginAdmin.getAdmin().getId()));
-        if(!token.equals(redisToken)){
-            // token已经过期
-            log.error("请求用户 token过期");
-            throw new InsufficientAuthenticationException("无效用户信息 请重新登录");
-        }
-
-        Long expire = redisUtil.getExpire(String.valueOf(loginAdmin.getAdmin().getId()));
-        if(expire<=30){
-            // 距离过期时间小于30分钟 重新设置
-            redisUtil.set(String.valueOf(loginAdmin.getAdmin().getId()),token,24, TimeUnit.HOURS);
-        }
-        // 将用户信息存入SecurityContextHolder中 便于后面的过滤器获取信息 三个参数的构造方法会将类中的某个验证是否通过的boolean设置为true
-        UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(loginAdmin, null, loginAdmin.getAuthorities());
-        SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-
-        // 放行
-        filterChain.doFilter(request, response);
     }
 }

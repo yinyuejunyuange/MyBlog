@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class AIFileDTO {
     private Long id;
+    private Long blogId;
     private String fileAddress;
     private String fileNameJson;
     private Integer isUpload;

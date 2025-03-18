@@ -2,7 +2,9 @@ package org.oyyj.blogservice.controller;
 
 import ch.qos.logback.core.util.FileUtil;
 import com.alibaba.nacos.api.model.v2.Result;
+import com.alibaba.nacos.api.naming.pojo.healthcheck.impl.Http;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -19,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.connection.ReactiveRedisConnection;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +30,7 @@ import org.springframework.util.ResourceUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.security.sasl.AuthenticationException;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -70,7 +74,7 @@ public class BlogController {
                 .build();
 
         blogService.saveBlog(build);
-        return ResultUtil.successMap(null,"博客保存成功");
+        return ResultUtil.successMap(build.getId(),"博客保存成功");
     }
 
     @GetMapping("/read")
@@ -93,7 +97,8 @@ public class BlogController {
         String fileName = UUID.randomUUID().toString().substring(0,10)+file.getOriginalFilename(); //生成文件名称 确保不重复
 
 
-        String uploadPath= ResourceUtils.getURL("classpath:").getPath()+"static/image/"+fileName;
+        //String uploadPath= ResourceUtils.getURL("classpath:").getPath()+"static/image/"+fileName;
+        String uploadPath= "H:/10516/Test/BlogImage/"+fileName;
 
         // 下载图片
         FileUtils.copyInputStreamToFile(file.getInputStream(),new File(servletContext.getContextPath()+"/"+uploadPath));
@@ -113,7 +118,8 @@ public class BlogController {
     @GetMapping("/file/download/{fileName}")
     public void downloadFile(@PathVariable("fileName")String fileName, HttpServletResponse response) throws IOException {
         // 获取真实的文件路径
-        String filePath= ResourceUtils.getURL("classpath:").getPath()+"static/image/"+fileName;
+        //String filePath= ResourceUtils.getURL("classpath:").getPath()+"static/image/"+fileName;
+        String filePath= "H:/10516/Test/BlogImage/"+fileName;
         System.out.println("filePath:"+filePath);
 
         File file=new File(filePath); //获取文件数据
@@ -365,6 +371,124 @@ public class BlogController {
             return ResultUtil.failMap("查询失败");
         }
     }
+
+    @GetMapping("/getIncreaseBlog")
+    public Map<String,Long> getIncreaseBlog(HttpServletRequest request) throws AuthenticationException {
+
+        String source="ADMINSERVICE";
+
+        if(!source.equals(request.getHeader("source"))){
+            throw new AuthenticationException("来源不正确");
+        }
+
+        return blogService.getIncreaseBlog();
+    }
+
+    @GetMapping("/getAllTypeNum")
+    public Map<String,Long> getAllTypeNum(HttpServletRequest request) throws AuthenticationException {
+
+        String source="ADMINSERVICE";
+
+        if(!source.equals(request.getHeader("source"))){
+            throw new AuthenticationException("来源不正确");
+        }
+        return blogService.getAllTypeNum();
+    }
+
+    @GetMapping("/getAllMessage")
+    public Long getAllMessage(HttpServletRequest request) throws AuthenticationException {
+
+
+        String source="ADMINSERVICE";
+
+        if(!source.equals(request.getHeader("source"))){
+            throw new AuthenticationException("来源不正确");
+        }
+
+        long commentNum = (long)commentService.list().size();
+        long replyNum = (long)replyService.list().size();
+
+        return commentNum+replyNum;
+    }
+
+    @GetMapping("/getBlogNum")
+    public Long getBlogNum(HttpServletRequest request) throws AuthenticationException {
+
+
+        String source="ADMINSERVICE";
+
+        if(!source.equals(request.getHeader("source"))){
+            throw new AuthenticationException("来源不正确");
+        }
+
+        return (long)blogService.list().size();
+    }
+
+
+    @GetMapping("/getBlogListByAdmin") // 将json传递过去
+    public String getBlogListAdmin(@RequestParam(value = "blogName",required = false) String blogName,
+                                   @RequestParam(value = "authorName",required = false) String authorName,
+                                   @RequestParam(value = "startDate",required = false)@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Date startDate,
+                                   @RequestParam(value = "endDate",required = false)@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Date endDate,  // spring框架默认是不支持前端 date的iso类型  所以要设置
+                                   @RequestParam(value = "status",required = false) String status,
+                                   @RequestParam(value = "currentPage") Integer currentPage,
+                                   HttpServletRequest request) throws AuthenticationException, JsonProcessingException {
+
+        String source="ADMINSERVICE";
+
+        if(!source.equals(request.getHeader("source"))){
+            throw new AuthenticationException("来源不正确");
+        }
+
+        return  blogService.getBlogListByAdmin(blogName, authorName, startDate, endDate, status, currentPage);
+    }
+
+    @PutMapping("/updateBlogStatus")
+    public Boolean updateBlogStatus(@RequestBody Map<String,Object> map,HttpServletRequest request) throws AuthenticationException {
+        String source="ADMINSERVICE";
+
+        if(!source.equals(request.getHeader("source"))){
+            throw new AuthenticationException("来源不正确");
+        }
+
+        String blogIds=map.get("blogId").toString();
+        String status = (String) map.get("status");
+        int statusNum;
+        switch(status){
+            case "保存中":
+                statusNum=1;
+                break;
+            case "发布":
+                statusNum=2;
+                break;
+            case "审核中":
+                statusNum=3;
+                break;
+            case "禁止查看":
+                statusNum=4;
+                break;
+            default:
+                log.error("请求参数不正确"+status);
+                throw new AuthenticationException("参数不正确");
+        }
+
+        return blogService.update(Wrappers.<Blog>lambdaUpdate().eq(Blog::getId, blogIds)
+                .set(Blog::getStatus, statusNum));
+
+    }
+
+    @DeleteMapping("/deleteBlog")
+    public Boolean deleteBlog(@RequestParam("blogId") Long blogId, HttpServletRequest request) throws AuthenticationException {
+
+        String source="ADMINSERVICE";
+
+        if(!source.equals(request.getHeader("source"))){
+            throw new AuthenticationException("来源不正确");
+        }
+
+        return blogService.remove(Wrappers.<Blog>lambdaQuery().eq(Blog::getId,blogId));
+    }
+
 
 }
 

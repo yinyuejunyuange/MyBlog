@@ -16,6 +16,8 @@ import lombok.NoArgsConstructor;
 public class AIFile {
     @TableId("id")
     private Long id;
+    @TableField("blog_id")
+    private Long blogId;
     @TableField("file_address")
     private String fileAddress;
     @TableField("file_name_json")

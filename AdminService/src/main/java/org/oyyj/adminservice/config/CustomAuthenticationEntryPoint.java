@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.authentication.www.BasicAuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
@@ -50,6 +51,17 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
 
             response.setContentType("application/json;charset=utf-8");
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.getWriter().write(mapStr);
+
+            log.error(message);
+        }if(authException instanceof UsernameNotFoundException){
+            // 请求来源不正确
+            message=authException.getMessage();
+            Map<String, Object> map = ResultUtil.failMap(401, message);
+            String mapStr = mapper.writeValueAsString(map);
+
+            response.setContentType("application/json;charset=utf-8");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write(mapStr);
 
             log.error(message);

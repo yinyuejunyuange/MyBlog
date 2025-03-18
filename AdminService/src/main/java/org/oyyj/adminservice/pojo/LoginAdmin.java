@@ -1,6 +1,7 @@
 package org.oyyj.adminservice.pojo;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,6 +10,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -16,6 +18,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class LoginAdmin implements UserDetails {
 
     private Admin admin;
@@ -23,7 +26,7 @@ public class LoginAdmin implements UserDetails {
     private List<String> permissions;
 
     @JsonIgnore // 集合中的类属于抽象类 不好实现反序列化 所以忽略
-    private List<SimpleGrantedAuthority> authorities; // 不可以让getAuthorities方法返回空
+    private List<SimpleGrantedAuthority> authorities=new ArrayList<>(); // 不可以让getAuthorities方法返回空
 
     public LoginAdmin(Admin admin, List<String> permissions) {
         this.admin = admin;

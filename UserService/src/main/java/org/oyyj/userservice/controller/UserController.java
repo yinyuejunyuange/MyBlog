@@ -1,16 +1,18 @@
 package org.oyyj.userservice.controller;
 
+import com.alibaba.nacos.api.naming.pojo.healthcheck.impl.Http;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
 import org.oyyj.blogservice.dto.BlogDTO;
-import org.oyyj.userservice.DTO.BlogUserInfoDTO;
-import org.oyyj.userservice.DTO.ChangeUserDTO;
-import org.oyyj.userservice.DTO.RegisterDTO;
-import org.oyyj.userservice.DTO.UserDTO;
+import org.oyyj.userservice.DTO.*;
 import org.oyyj.userservice.Feign.BlogFeign;
 import org.oyyj.userservice.pojo.JWTUser;
 import org.oyyj.userservice.pojo.LoginUser;
@@ -28,6 +30,7 @@ import org.springframework.util.ResourceUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.security.sasl.AuthenticationException;
 import java.awt.*;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -35,11 +38,8 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.Collections;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
@@ -55,9 +55,11 @@ public class UserController {
 
 
 
+
     // 用户登录
     @PostMapping("/login")
     public Map<String,Object> UserLogin(@RequestBody UserDTO userDTO) throws JsonProcessingException {
+
         JWTUser login = userService.login(userDTO.getUsername(), userDTO.getPassword());
         return ResultUtil.successMap(login,"登录成功");
     }
@@ -85,7 +87,8 @@ public class UserController {
     @RequestMapping("/makeHead")
     public Map<String,Object> makeUserHead(@RequestParam("file")MultipartFile file) throws IOException {
         String fileName= UUID.randomUUID().toString().substring(0,10)+file.getOriginalFilename();
-        String filePath= ResourceUtils.getURL("classpath:").getPath()+"static/image/"+fileName;
+        // String filePath= ResourceUtils.getURL("classpath:").getPath()+"static/image/"+fileName;
+        String filePath= "H:/10516/Test/image/"+fileName;
 
         FileUtils.copyInputStreamToFile(file.getInputStream(),new File(servletContext.getContextPath()+"/"+filePath));
 
@@ -109,7 +112,8 @@ public class UserController {
     // 获取用户头像的方法
     @GetMapping("/getHead/{fileName}")
     public void getUserHead(@PathVariable("fileName") String fileName , HttpServletResponse response) throws IOException {
-        String filePath= ResourceUtils.getURL("classpath:").getPath()+"static/image/"+fileName;
+        // String filePath= ResourceUtils.getURL("classpath:").getPath()+"static/image/"+fileName;
+        String filePath= "H:/10516/Test/image/"+fileName;
         String encodedFileName = URLEncoder.encode(filePath, StandardCharsets.UTF_8); // 避免有中文名 设置字符
         System.out.println("head path:"+filePath);
 
@@ -266,7 +270,160 @@ public class UserController {
         }
     }
 
+    // 获取所有用户个数
+    @GetMapping("/getUserNum")
+    public Long getUserNum( HttpServletRequest request){
+        if(!"ADMINSERVICE".equals(request.getHeader("source"))){
+            log.error("请求 来源不正确");
+            throw new RuntimeException("来源不正确");
+        }
+        return (long) userService.list().size();
+    }
 
+    // 根据条件查询用户
+
+    @GetMapping("/getUserInfoList")
+    public String getUserInfoList(@RequestParam(value = "name",required = false) String name,
+                                              @RequestParam(value = "email",required = false) String email,
+                                              @RequestParam(value = "startDate",required = false) Date startDate,
+                                              @RequestParam(value = "endDate",required = false) Date endDate,
+                                              @RequestParam(value = "status",required = false) String status,
+                                              @RequestParam(value = "currentPage") Integer currentPage,
+                                              HttpServletRequest request) throws AuthenticationException, JsonProcessingException {
+
+        IPage<User> userIPage=new Page<>(currentPage,10);
+
+        if(!"ADMINSERVICE".equals(request.getHeader("source"))){
+            log.error("请求 来源错误");
+            throw new AuthenticationException("请求 来源错误");
+        }
+
+        LambdaQueryWrapper<User> queryWrapper = Wrappers.<User>lambdaQuery();
+        if(Objects.nonNull(name)){
+            queryWrapper.like(User::getName,name);
+        }
+        if(Objects.nonNull(email)){
+            queryWrapper.like(User::getEmail,email);
+        }
+        if(Objects.nonNull(startDate)){
+            queryWrapper.ge(User::getCreateTime,startDate);
+        }
+        if(Objects.nonNull(endDate)){
+            queryWrapper.le(User::getCreateTime,endDate);
+        }
+        if(Objects.nonNull(status)){
+            switch (status){
+                case "冻结":
+                    queryWrapper.eq(User::getIsFreeze,1);
+                    break;
+                case "正常":
+                    queryWrapper.eq(User::getIsFreeze,2);
+                    break;
+                case "禁止":
+                    queryWrapper.eq(User::getIsFreeze,3);
+                    break;
+                default:
+                    log.error("查询用户的状态字段异常");
+                    break;
+            }
+        }
+
+
+        List<AdminUserDTO> list = userService.list(userIPage, queryWrapper).stream().map(i -> {
+            AdminUserDTO build = AdminUserDTO.builder()
+                    .id(String.valueOf(i.getId()))
+                    .name(i.getName())
+                    .imageUrl("http://localhost:8080/myBlog/user/getHead/" + i.getImageUrl())
+                    .email(i.getEmail())
+                    .createTime(i.getCreateTime())
+                    .updateTime(i.getUpdateTime())
+                    .build();
+            switch (i.getIsFreeze()) {
+                case 1:
+                    build.setStatus("冻结");
+                    break;
+                case 2:
+                    build.setStatus("正常");
+                    break;
+                case 3:
+                    build.setStatus("禁止");
+                    break;
+                default:
+                    log.error("数据库用户状态字段异常 ");
+                    break;
+            }
+            return build;
+        }).toList();
+
+        AdminUserPageDTO adminUserPageDTO = new AdminUserPageDTO();
+        adminUserPageDTO.setCurrentPage(currentPage);
+        adminUserPageDTO.setTotalPage(userIPage.getTotal());
+        adminUserPageDTO.setUsers(list);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        return objectMapper.writeValueAsString(adminUserPageDTO);
+    }
+
+
+    // 修改用户数据
+    @PutMapping("/updateUserStatus")
+    public Map<String,Object> updateUserStatus(@RequestBody Map<String,Object> userUpdateMap,HttpServletRequest request) throws AuthenticationException {
+        if(!"ADMINSERVICE".equals(request.getHeader("source"))){
+            log.error("请求 来源错误");
+            throw new AuthenticationException("请求 来源错误");
+        }
+
+        String userId = String.valueOf(userUpdateMap.get("userId"));
+        String status = String.valueOf(userUpdateMap.get("status"));
+        int isFreeze;
+        switch (status) {
+            case "冻结":
+                isFreeze = 1;
+                break;
+            case "正常":
+                isFreeze = 2;
+                break;
+            case "禁止":
+                isFreeze = 3;
+                break;
+            default:
+                log.error("请求字段异常 : "+status);
+                throw new AuthenticationException("请求字段异常");
+
+        }
+
+        boolean update = userService.update(Wrappers.<User>lambdaUpdate().eq(User::getId, Long.valueOf(userId))
+                .set(User::getIsFreeze, isFreeze));
+        if(update){
+            return  ResultUtil.successMap(null,"修改成功");
+        }else{
+            return  ResultUtil.failMap("修改失败");
+        }
+
+    }
+
+    @DeleteMapping("/deleteUser")
+    public Boolean deleteUser(@RequestParam("userId")Long userId ,HttpServletRequest request) throws AuthenticationException {
+
+        if(!"ADMINSERVICE".equals(request.getHeader("source"))){
+            log.error("请求 来源错误");
+            throw new AuthenticationException("请求 来源错误");
+        }
+
+        return userService.remove(Wrappers.<User>lambdaQuery().eq(User::getId, userId));
+    }
+
+    @GetMapping("/getUserIdByName")
+    public String getUserIdByName(@RequestParam("userName") String userName, HttpServletRequest request) throws AuthenticationException {
+
+        if(!"BLOGSERVICE".equals(request.getHeader("source"))){
+            log.error("请求 来源错误");
+            throw new AuthenticationException("请求 来源错误");
+        }
+
+        Long userId = userService.getOne(Wrappers.<User>lambdaQuery().eq(User::getName, userName)).getId();
+        return String.valueOf(userId);
+    }
 
 
 }

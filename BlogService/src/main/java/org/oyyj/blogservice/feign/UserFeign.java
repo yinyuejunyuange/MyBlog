@@ -32,4 +32,7 @@ public interface UserFeign {
     @GetMapping("/myBlog/user/blog/getUserKudosReply")
     Boolean getUserKudosReply(@RequestParam("replyId")String replyId,@RequestParam("userInfoKey")String userInfoKey);
 
+    @GetMapping("/myBlog/user/getUserIdByName")
+    String getUserIdByName(@RequestParam("userName") String userName);
+
 }

@@ -1,4 +1,18 @@
 spring:
+
+  # 邮箱 服务配置
+  mail:
+    host: smtp.qq.com # 邮箱服务器地址
+    port: 465
+    protocol: smtp # 协议
+    username: 3129544205@qq.com
+    password: owiclgghelckdghc
+    default-encoding: utf-8 # 邮件内容授权码
+    properties: # 配置开启 邮箱ssl加密 否则会发送失败
+      mail.smtp.auth: true
+      mail.smtp.ssl.enable: true
+      mail.smtp.starttls.enable: true
+
   data:
     redis:
       host: localhost
