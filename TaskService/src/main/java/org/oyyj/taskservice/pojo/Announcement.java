@@ -22,6 +22,8 @@ public class Announcement {
     private Long id;
     @TableField("admin_id")
     private Long adminId;
+    @TableField("task_id")
+    private Long taskId; // 记录是从哪一个任务中产生的
     @TableField("title")
     private String title;
     @TableField("content")

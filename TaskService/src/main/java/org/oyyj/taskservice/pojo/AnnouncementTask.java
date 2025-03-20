@@ -18,16 +18,24 @@ import java.util.Date;
 public class AnnouncementTask {
     @TableId("id")
     private Long id;
-    @TableField("announcement_id")
-    private Long announcementId;
+    @TableField("task_name")
+    private String taskName;
+    @TableField("title")
+    private String title;
+    @TableField("content")
+    private String content;
+    @TableField("admin_id")
+    private Long adminId;
     @TableField("create_time")
     private Date createTime;
     @TableField("update_time")
     private Date updateTime;
     @TableField("frequency")
     private String frequency;
-    @TableField("status")
-    private Integer status;
+    @TableField(exist = false)
+    private String status;
     @TableField("is_delete")
     private Integer isDelete;
+    @TableField("update_by")
+    private Long updateBy;
 }

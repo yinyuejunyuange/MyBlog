@@ -426,4 +426,21 @@ public class UserController {
     }
 
 
+    @GetMapping("/isUserExist")
+    public Date isUserExist(@RequestParam("userId")Long userId ,HttpServletRequest request) throws AuthenticationException {
+        if(!"TASKSERVICE".equals(request.getHeader("source"))){
+            log.error("请求 来源错误");
+            throw new AuthenticationException("请求 来源错误");
+        }
+
+        User one = userService.getOne(Wrappers.<User>lambdaQuery().eq(User::getId, userId));
+        if(Objects.isNull(one)){
+            return null;
+        }else{
+            return one.getCreateTime();
+        }
+
+    }
+
+
 }

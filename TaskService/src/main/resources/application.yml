@@ -28,6 +28,24 @@ spring:
     url: jdbc:mysql://localhost:3306/my_blog_taskDB?serverTimezone=UTC # ?前面是数据库名
     username: root
     password: OYyj0715
+  quartz:
+    job-store-type: jdbc
+    jdbc:
+      initialize-schema: never  # always 会清空数据库后继续运行
+    properties:
+      org:
+        quartz:
+          jobStore:
+            isClustered: true # 开启集群
+            # 持久化处理(事务管理)
+            class: org.springframework.scheduling.quartz.LocalDataSourceJobStore #全路径
+            #            # 数据库驱动代理
+            driverDelegateClass: org.quartz.impl.jdbcjobstore.StdJDBCDelegate
+          threadPool:
+            threadCount: 20 # 线程
+          scheduler:
+            instanceName: quartzScheduler # 通过一集群  多个节点名称必须相同
+            instanceId: AUTO # 自动为同一集群设置id
 
 mybatis-plus:
   global-config:
@@ -41,3 +59,5 @@ mybatis-plus:
   mapper-locations: classpath*:mapper/*.xml
 server:
   port: 8085
+  tomcat:
+    connection-timeout: -1 # 设置连接超时时间未无限

@@ -12,14 +12,21 @@ spring:
           uri: lb://UserService
           predicates: # 路由匹配规则
             - Path=/myBlog/user/**
+
         - id: AIChatDemoService
           uri: lb://AIChatDemoService
           predicates:
             - Path=/llm/**
+
         - id: AdminService
           uri: lb://AdminService
           predicates:
             - Path=/admin/**
+
+        - id: TaskService
+          uri: lb://TaskService
+          predicates:
+            - Path=/task/**
 
       globalcors:
         add-to-simple-url-handler-mapping: true # 解决options请求被拦截问题
@@ -41,10 +48,6 @@ spring:
               - 'verifytoken'  # 允许暴露特定请求头 否则 前端无法获取
               - 'token'
             max-age: 360000
-
-
-
-
 
 server:
   port: 8080
