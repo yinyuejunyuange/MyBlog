@@ -11,17 +11,14 @@ import java.util.Date;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class AdminDTO {
+public class AnnouncementAdminDTO {
+
     private String id;
-    private String name;
-    private String imageUrl;
-    private String phone;
-    private String email;
+    private String adminName;
+    private String taskName; // 记录是从哪一个任务中产生的
+    private String title;
+    private String content;
     private Date createTime;
-    private String createBy;
     private Date updateTime;
-    private String updateBy;
-    private Integer isDelete;
-    private Integer isFreeze;
-    private String adminType;
+
 }

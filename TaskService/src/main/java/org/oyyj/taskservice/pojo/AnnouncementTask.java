@@ -32,7 +32,7 @@ public class AnnouncementTask {
     private Date updateTime;
     @TableField("frequency")
     private String frequency;
-    @TableField(exist = false)
+    @TableField("status")
     private String status;
     @TableField("is_delete")
     private Integer isDelete;

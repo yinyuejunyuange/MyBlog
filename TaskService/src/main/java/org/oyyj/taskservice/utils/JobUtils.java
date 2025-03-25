@@ -184,7 +184,7 @@ public class JobUtils {
      * @param key
      * @return
      */
-    private static String getTriggerStatesCN(String key) {
+    public static String getTriggerStatesCN(String key) {
         Map<String, String> map = new LinkedHashMap<String, String>();
         map.put("BLOCKED", "阻塞");
         map.put("COMPLETE", "完成");
@@ -192,6 +192,8 @@ public class JobUtils {
         map.put("NONE", "不存在或者已清除");
         map.put("NORMAL", "正常");
         map.put("PAUSED", "暂停");
+        map.put("WAITING", "等待执行");
+        map.put("ACQUIRED", "已经获取触发器");
 
         map.put("4", "阻塞");
         map.put("2", "完成");
@@ -199,6 +201,26 @@ public class JobUtils {
         map.put("-1", "不存在");
         map.put("0", "正常");
         map.put("1", "暂停");
+    /*  **STATE_BLOCKED 4 阻塞
+STATE_COMPLETE 2 完成
+STATE_ERROR 3 错误
+STATE_NONE -1 不存在
+STATE_NORMAL 0 正常
+STATE_PAUSED 1 暂停***/
+        return map.get(key);
+    }
+
+
+    public static String getTriggerStatesByCN(String key) {
+        Map<String, String> map = new LinkedHashMap<String, String>();
+        map.put("阻塞","BLOCKED");
+        map.put( "完成","COMPLETE");
+        map.put( "出错","ERROR");
+        map.put("不存在或者已清除","NONE");
+        map.put("正常","NORMAL");
+        map.put( "暂停","PAUSED");
+        map.put( "等待执行","WAITING");
+        map.put( "已经获取触发器","ACQUIRED");
     /*  **STATE_BLOCKED 4 阻塞
 STATE_COMPLETE 2 完成
 STATE_ERROR 3 错误

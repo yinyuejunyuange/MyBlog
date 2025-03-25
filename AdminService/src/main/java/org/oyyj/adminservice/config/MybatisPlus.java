@@ -1,4 +1,4 @@
-package org.oyyj.taskservice.config;
+package org.oyyj.adminservice.config;
 
 
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
@@ -20,7 +20,7 @@ public class MybatisPlus {
         // 新建分页拦截器
         PaginationInnerInterceptor paginationInnerInterceptor = new PaginationInnerInterceptor();
 
-        paginationInnerInterceptor.setOverflow(false); // 不要 重复返回最后一次的数据
+        paginationInnerInterceptor.setOverflow(true);
         paginationInnerInterceptor.setMaxLimit(100L);
         interceptor.addInnerInterceptor(paginationInnerInterceptor);
 

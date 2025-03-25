@@ -35,4 +35,6 @@ public interface UserFeign {
     @GetMapping("/myBlog/user/getUserIdByName")
     String getUserIdByName(@RequestParam("userName") String userName);
 
+    @GetMapping("/myBlog/user/getIdsLikeName")
+    List<Long> getIdsLikeName(@RequestParam("name") String name);
 }

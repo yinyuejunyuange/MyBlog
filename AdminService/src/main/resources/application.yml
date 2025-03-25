@@ -49,3 +49,5 @@ mybatis-plus:
   mapper-locations: classpath*:mapper/*.xml
 server:
   port: 8083
+logging:
+  config: classpath:logback.xml  #指定日志的配置信息

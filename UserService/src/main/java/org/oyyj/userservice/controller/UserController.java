@@ -13,12 +13,14 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
 import org.oyyj.blogservice.dto.BlogDTO;
 import org.oyyj.userservice.DTO.*;
+import org.oyyj.userservice.Feign.AnnouncementFeign;
 import org.oyyj.userservice.Feign.BlogFeign;
 import org.oyyj.userservice.pojo.JWTUser;
 import org.oyyj.userservice.pojo.LoginUser;
 import org.oyyj.userservice.pojo.User;
 import org.oyyj.userservice.service.IUserService;
 import org.oyyj.userservice.utils.ResultUtil;
+import org.oyyj.userservice.vo.AnnouncementUserVO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +54,9 @@ public class UserController {
     private IUserService userService;
     @Autowired
     private ServletContext servletContext;
+
+    @Autowired
+    private AnnouncementFeign announcementFeign;
 
 
 
@@ -441,6 +446,47 @@ public class UserController {
         }
 
     }
+
+    @GetMapping("/getAnnouncement")
+    public Map<String,Object> getAnnouncement(@RequestParam("currentIndex") Integer currentIndex){
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+
+        List<AnnouncementUserVO> announcementByUser = announcementFeign.getAnnouncementByUser(principal.getUser().getId(), currentIndex,principal.getUser().getCreateTime());
+        List<AnnouncementUserDTO> list = announcementByUser.stream().map(i -> AnnouncementUserDTO.builder()
+                .id(String.valueOf(i.getId()))
+                .isUserRead(i.getIsUserRead())
+                .title(i.getTitle())
+                .content(i.getContent())
+                .updateTime(i.getUpdateTime())
+                .build()).toList();
+
+        return ResultUtil.successMap(list,"查询成功");
+    }
+
+    @PutMapping("/readAnnouncement")
+    public Map<String,Object> readAnnouncement(@RequestParam(value = "announcementId" )String announcementId) throws AuthenticationException {
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        boolean b = announcementFeign.readAnnouncement(principal.getUser().getId(), Long.parseLong(announcementId));
+        if(b){
+            return ResultUtil.successMap(b,"操作成功");
+        }else{
+            return ResultUtil.failMap("操作失败");
+        }
+    }
+
+    @GetMapping("/getIdsLikeName")
+    public List<Long> getIdsLikeName(@RequestParam("name") String name,HttpServletRequest request){
+        if(!"BLOGSERVICE".equals(request.getHeader("source"))){
+            log.error("获取到来源不正确的请求");
+            throw new IllegalArgumentException("请求来源不正确");
+        }
+
+        return userService.list(Wrappers.<User>lambdaQuery().like(User::getName, name)).stream().map(User::getId).toList();
+
+    }
+
 
 
 }

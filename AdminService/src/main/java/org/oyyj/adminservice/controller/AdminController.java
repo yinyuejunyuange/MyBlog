@@ -3,7 +3,9 @@ package org.oyyj.adminservice.controller;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import org.oyyj.adminservice.dto.*;
+import org.oyyj.adminservice.exception.SourceNotLegitimateException;
 import org.oyyj.adminservice.feign.BlogFeign;
 import org.oyyj.adminservice.feign.UsersFeign;
 import org.oyyj.adminservice.pojo.Admin;
@@ -12,6 +14,8 @@ import org.oyyj.adminservice.pojo.LoginAdmin;
 import org.oyyj.adminservice.service.IAdminService;
 import org.oyyj.adminservice.util.EmailUtil;
 import org.oyyj.adminservice.util.ResultUtil;
+import org.oyyj.adminservice.vo.CommentAdminVO;
+import org.oyyj.adminservice.vo.ReplyAdminVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -80,7 +84,7 @@ public class AdminController {
     }
 
         // 获取 总博客数
-        @PreAuthorize("hasAnyAuthority('admin','super_admin')")
+    @PreAuthorize("hasAnyAuthority('admin','super_admin')")
     @GetMapping("/getBlogNum")
     public Map<String,Object> getBlogNum(){
         Long blogNum = blogFeign.getBlogNum();
@@ -232,5 +236,89 @@ public class AdminController {
             return ResultUtil.failMap("删除失败");
         }
     }
+
+    @GetMapping("/getAdminIdByNameOrPhone")
+    public List<Long> getAdminIdByNameOrPhone(@RequestParam("admin") String admin, HttpServletRequest request){
+
+        String source = request.getHeader("source");
+        if(!"TASKSERVICE".equals(source)){
+            throw new SourceNotLegitimateException("请求不合法");
+        }
+
+        List<Long> adminIds=new ArrayList<>();
+        adminIds.addAll(adminService.list(Wrappers.<Admin>lambdaQuery().like(Admin::getName, admin)).stream().map(Admin::getId).toList());
+        adminIds.addAll(adminService.list(Wrappers.<Admin>lambdaQuery().like(Admin::getPhone, admin)).stream().map(Admin::getId).toList());
+        return adminIds;
+    }
+
+
+    // 评论管理
+    @PreAuthorize("hasAnyAuthority('admin','super_admin')")
+    @GetMapping("/getCommentList")
+    public Map<String,Object> getCommentList(@RequestParam(value = "blogName",required = false) String blogName,
+                                             @RequestParam(value = "userName",required = false)String userName,
+                                             @RequestParam(value = "startTime",required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Date startTime,
+                                             @RequestParam(value = "endTime",required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Date endTime,
+                                             @RequestParam(value = "isVisible",required = false)Integer isVisible,
+                                             @RequestParam("currentPage") Integer currentPage){
+        PageDTO<CommentAdminVO> commentForAdmin = blogFeign.getCommentForAdmin(blogName, userName, startTime, endTime, isVisible, currentPage);
+        return ResultUtil.successMap(commentForAdmin,"查询成功");
+
+    }
+
+    // 修改评论状态
+    @PreAuthorize("hasAnyAuthority('admin','super_admin')")
+    @PutMapping("/updateCommentStatus")
+    public Map<String,Object> updateCommentStatus(@RequestParam("commentId") String commentId,
+                                                  @RequestParam("isVisible") Integer isVisible){
+        return blogFeign.changeCommentStatus(commentId,isVisible);
+    }
+
+    @PreAuthorize("hasAnyAuthority('admin','super_admin')")
+    @DeleteMapping("/deleteComment")
+    public Map<String,Object> deleteComment(@RequestParam("commentId") String commentId){
+        return blogFeign.deleteComment(Long.valueOf(commentId));
+    }
+
+    // 回复管理
+    @PreAuthorize("hasAnyAuthority('admin','super_admin')")
+    @GetMapping("/getReplyList")
+    public Map<String,Object> getReplyList(@RequestParam(value = "blogName",required = false) String blogName,
+                                             @RequestParam(value = "userName",required = false)String userName,
+                                             @RequestParam(value = "comment",required = false)String comment,
+                                             @RequestParam(value = "startTime",required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Date startTime,
+                                             @RequestParam(value = "endTime",required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Date endTime,
+                                             @RequestParam(value = "isVisible",required = false)Integer isVisible,
+                                             @RequestParam("currentPage") Integer currentPage){
+        PageDTO<ReplyAdminVO> replyForAdmin = blogFeign.getReplyForAdmin(blogName, userName, comment, startTime, endTime, isVisible, currentPage);
+        return ResultUtil.successMap(replyForAdmin,"查询成功");
+    }
+
+    // 回复修改
+    @PreAuthorize("hasAnyAuthority('admin','super_admin')")
+    @PutMapping("/updateReply")
+    public Map<String,Object> updateReply(@RequestParam("replyId") String replyId,
+                                          @RequestParam("isVisible") Integer isVisible){
+        return blogFeign.changeReplyStatus(replyId,isVisible);
+    }
+    // 回复删除
+    @PreAuthorize("hasAnyAuthority('admin','super_admin')")
+    @DeleteMapping("/deleteReply")
+    public Map<String,Object> deleteReply(@RequestParam("replyId")String replyId){
+        try {
+            return blogFeign.deleteReply(Long.valueOf(replyId));
+        } catch (NumberFormatException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // 判断当前token是否有效
+
+    @GetMapping("/isValidToken")
+    public Map<String,Object> isValidToken(){
+        System.out.println("token 有效");
+        return ResultUtil.successMap(true,"token有效");
+    }
+
 
 }

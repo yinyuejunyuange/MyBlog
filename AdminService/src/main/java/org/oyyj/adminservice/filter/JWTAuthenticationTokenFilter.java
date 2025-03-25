@@ -70,6 +70,7 @@ public class JWTAuthenticationTokenFilter extends OncePerRequestFilter {
             if(!token.equals(redisToken)){
                 // token已经过期
                 log.error("请求用户 token过期");
+
                 throw new InsufficientAuthenticationException("无效用户信息 请重新登录");
             }
 

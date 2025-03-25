@@ -6,22 +6,21 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.Date;
+import java.util.List;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class AdminDTO {
+public class MenuAdminDTO {
     private String id;
     private String name;
-    private String imageUrl;
-    private String phone;
-    private String email;
+    private String url;
+    private List<String> adminTypes;
     private Date createTime;
     private String createBy;
     private Date updateTime;
     private String updateBy;
-    private Integer isDelete;
-    private Integer isFreeze;
-    private String adminType;
+    private Integer sort;
+    private List<MenuAdminDTO> children;
 }

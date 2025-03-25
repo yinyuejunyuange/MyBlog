@@ -46,7 +46,7 @@ public class SecurityConfig {
         return http.csrf(csrf->csrf.disable())
                 .sessionManagement(session->session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) //基于token 不需要session
                 .authorizeHttpRequests((request)->{
-                    request.requestMatchers("/admin/login","/admin/getEncode").permitAll() // 放行
+                    request.requestMatchers("/admin/login","/admin/getEncode","/admin/getAdminIdByNameOrPhone").permitAll() // 放行
                             .anyRequest().authenticated();//  除此之外全部验证
                 })
                 .addFilterBefore(jwtAuthenticationTokenFilter, UsernamePasswordAuthenticationFilter.class) // 在身份验证之前进行token验证
