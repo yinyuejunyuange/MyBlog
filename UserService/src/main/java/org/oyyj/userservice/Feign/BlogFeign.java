@@ -1,20 +1,29 @@
 package org.oyyj.userservice.Feign;
 
 import feign.Response;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.oyyj.blogservice.dto.BlogDTO;
 import org.oyyj.blogservice.dto.ImageResultDTO;
 import org.oyyj.blogservice.pojo.Blog;
+import org.oyyj.blogservice.vo.BlogReportVO;
+import org.oyyj.blogservice.vo.CommentReportVO;
+import org.oyyj.blogservice.vo.ReplyReportVO;
+import org.oyyj.userservice.DTO.BlogReportDTO;
+import org.oyyj.userservice.DTO.CommentReportDTO;
+import org.oyyj.userservice.DTO.ReplyReportDTO;
+import org.oyyj.userservice.config.FeignUserConfig;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.security.sasl.AuthenticationException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-@FeignClient("BlogService")
+@FeignClient(value = "BlogService",configuration = FeignUserConfig.class)
 public interface BlogFeign {
 
     @PostMapping("/blog/write")
@@ -97,4 +106,17 @@ public interface BlogFeign {
 
     @GetMapping("/blog/getHotBlog")
     Map<String,Object> getHotBlog();
+
+    // 举报博客
+    @PutMapping("/blog/reportBlog")
+    Map<String,Object> reportBlogs(@RequestBody BlogReportDTO blogReportVO) throws AuthenticationException ;
+
+
+    // 举报评论
+    @PutMapping("/blog/reportComment")
+    Map<String,Object> reportComments(@RequestBody CommentReportDTO commentReportVO) throws AuthenticationException;
+
+    // 举报回复
+    @PutMapping("/blog/reportReply")
+    Map<String,Object> reportReply(@RequestBody ReplyReportDTO replyReportVO) throws AuthenticationException;
 }

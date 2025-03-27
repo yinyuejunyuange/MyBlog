@@ -14,15 +14,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
 import org.oyyj.blogservice.dto.*;
 import org.oyyj.blogservice.feign.UserFeign;
-import org.oyyj.blogservice.pojo.Blog;
-import org.oyyj.blogservice.pojo.Comment;
-import org.oyyj.blogservice.pojo.Reply;
-import org.oyyj.blogservice.service.IBlogService;
-import org.oyyj.blogservice.service.ICommentService;
-import org.oyyj.blogservice.service.IReplyService;
+import org.oyyj.blogservice.pojo.*;
+import org.oyyj.blogservice.service.*;
 import org.oyyj.blogservice.util.ResultUtil;
-import org.oyyj.blogservice.vo.CommentAdminVO;
-import org.oyyj.blogservice.vo.ReplyAdminVO;
+import org.oyyj.blogservice.vo.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,6 +58,15 @@ public class BlogController {
     private IReplyService replyService;
     @Autowired
     private UserFeign userFeign;
+
+    @Autowired
+    private IBlogReportService blogReportService;
+
+    @Autowired
+    private ICommentReportService commentReportService;
+
+    @Autowired
+    private IReplyReportService replyReportService;
 
     @CrossOrigin // 允许此方法跨域
     @PostMapping("/write")
@@ -780,6 +784,169 @@ public class BlogController {
         }
 
         boolean remove = replyService.remove(Wrappers.<Reply>lambdaQuery().eq(Reply::getId, replyId));
+        if(remove){
+            return ResultUtil.successMap(null,"删除成功");
+        }else{
+            return ResultUtil.failMap("删除失败");
+        }
+    }
+
+    // 举报博客
+    @PutMapping("/reportBlog")
+    public Map<String,Object> reportBlogs(@RequestBody BlogReportVO blogReportVO,HttpServletRequest request) throws AuthenticationException {
+        if(!"USERSERVICE".equals(request.getHeader("source"))){
+            log.error("请求来源不正确");
+            throw new AuthenticationException("请求来源不正确");
+        }
+
+        return blogReportService.reportBlogs(blogReportVO);
+    }
+
+    // todo 管理员查询博客举报
+    @GetMapping("/getBlogReports")
+    public PageDTO<BlogReportForAdminDTO> getBlogReports(@RequestParam("currentPage") Integer currentPage,
+                                                         @RequestParam(value = "adminName",required = false) String adminName,
+                                                         @RequestParam(value = "status",required = false) Integer status,
+                                                         HttpServletRequest request) throws AuthenticationException {
+        if(!"ADMINSERVICE".equals(request.getHeader("source"))){
+            log.error("数据来源不正确");
+            throw new AuthenticationException("数据来源不正确");
+        }
+
+        return blogReportService.reportBlogsPage(currentPage,adminName,status);
+    }
+
+
+    // todo 管理员 修改博客举报状态
+    @PutMapping("/updateBlogReport")
+    public Map<String,Object> updateBlogReport(@RequestBody AdminUpdateBlogReportVO adminUpdateBlogReportVO
+            ,HttpServletRequest request) throws AuthenticationException {
+        if(!"ADMINSERVICE".equals(request.getHeader("source"))){
+            log.error("请求来源不正确");
+            throw new AuthenticationException("请求来源不正确");
+        }
+        return blogReportService.updateBlogReport(adminUpdateBlogReportVO);
+    }
+    // todo 管理员删除 博客举报
+
+    @DeleteMapping("/deleteBlogReport")
+    public Map<String ,Object> deleteBlogReport(@RequestParam("blogReportId")String blogReportId,
+                                                HttpServletRequest request) throws AuthenticationException {
+        if(!"ADMINSERVICE".equals(request.getHeader("source"))){
+            log.error("请求来源不正确");
+            throw new AuthenticationException("请求来源不正确");
+        }
+        boolean remove = blogReportService.remove(Wrappers.<BlogReport>lambdaQuery()
+                .eq(BlogReport::getId, Long.parseLong(blogReportId)));
+        if(remove){
+            return ResultUtil.successMap(null,"删除成功");
+        }else{
+            return ResultUtil.failMap("删除失败");
+        }
+    }
+
+    // 举报评论
+    @PutMapping("/reportComment")
+    public Map<String,Object> reportComments(@RequestBody CommentReportVO commentReportVO, HttpServletRequest request) throws AuthenticationException {
+        if(!"USERSERVICE".equals(request.getHeader("source"))){
+            log.error("请求来源不正确");
+            throw new AuthenticationException("请求来源不正确");
+        }
+
+        return commentReportService.commentReport(commentReportVO);
+    }
+
+    // todo 管理员查询 评论举报
+    @GetMapping("/getCommentReports")
+    public PageDTO<CommentReportForAdminDTO> getCommentReports(@RequestParam("currentPage") Integer currentPage,
+                                                         @RequestParam(value = "adminName",required = false) String adminName,
+                                                         @RequestParam(value = "status",required = false) Integer status,
+                                                         HttpServletRequest request) throws AuthenticationException {
+        if(!"ADMINSERVICE".equals(request.getHeader("source"))){
+            log.error("数据来源不正确");
+            throw new AuthenticationException("数据来源不正确");
+        }
+        return commentReportService.reportCommentsPage(currentPage,adminName,status);
+    }
+
+    // todo 管理员 修改评论举报状态
+    @PutMapping("/updateCommentReport")
+    public Map<String,Object> updateCommentReport(@RequestBody AdminUpdateCommentReportVO adminUpdateCommentReportVO
+            ,HttpServletRequest request) throws AuthenticationException {
+        if(!"ADMINSERVICE".equals(request.getHeader("source"))){
+            log.error("请求来源不正确");
+            throw new AuthenticationException("请求来源不正确");
+        }
+        return commentReportService.updateCommentReport(adminUpdateCommentReportVO);
+    }
+
+
+    // todo 管理员删除 评论举报
+
+
+    @DeleteMapping("/deleteCommentReport")
+    public Map<String ,Object> deleteCommentReport(@RequestParam("commentReportId")String commentReportId,
+                                                HttpServletRequest request) throws AuthenticationException {
+        if(!"ADMINSERVICE".equals(request.getHeader("source"))){
+            log.error("请求来源不正确");
+            throw new AuthenticationException("请求来源不正确");
+        }
+        boolean remove = commentReportService.remove(Wrappers.<CommentReport>lambdaQuery()
+                .eq(CommentReport::getId, Long.parseLong(commentReportId)));
+        if(remove){
+            return ResultUtil.successMap(null,"删除成功");
+        }else{
+            return ResultUtil.failMap("删除失败");
+        }
+    }
+
+    // 举报回复  todo 修改
+    @PutMapping("/reportReply")
+    public Map<String,Object> reportReply(@RequestBody ReplyReportVO replyReportVO, HttpServletRequest request) throws AuthenticationException {
+        if(!"USERSERVICE".equals(request.getHeader("source"))){
+            log.error("请求来源不正确");
+            throw new AuthenticationException("请求来源不正确");
+        }
+
+        return replyReportService.ReplyReport(replyReportVO);
+    }
+
+    // todo 管理员查询 回复举报
+
+    @GetMapping("/getReplyReports")
+    public PageDTO<ReplyReportForAdminDTO> getReplyReports(@RequestParam("currentPage") Integer currentPage,
+                                                               @RequestParam(value = "adminName",required = false) String adminName,
+                                                               @RequestParam(value = "status",required = false) Integer status,
+                                                               HttpServletRequest request) throws AuthenticationException {
+        if(!"ADMINSERVICE".equals(request.getHeader("source"))){
+            log.error("数据来源不正确");
+            throw new AuthenticationException("数据来源不正确");
+        }
+        return replyReportService.reportReplyPage(currentPage,adminName,status);
+    }
+
+    // todo 管理员 修改回复举报状态
+    @PutMapping("/updateReplyReport")
+    public Map<String,Object> updateReplyReport(@RequestBody AdminUpdateReplyReportVO adminUpdateReplyReportVO
+            ,HttpServletRequest request) throws AuthenticationException {
+        if(!"ADMINSERVICE".equals(request.getHeader("source"))){
+            log.error("请求来源不正确");
+            throw new AuthenticationException("请求来源不正确");
+        }
+        return replyReportService.updateReplyReport(adminUpdateReplyReportVO);
+    }
+
+
+    // todo 管理员删除 回复举报
+    @DeleteMapping("/deleteReplyReport")
+    public Map<String ,Object> deleteReplyReport(@RequestParam("ReplyReportId")String replyReportId,
+                                                   HttpServletRequest request) throws AuthenticationException {
+        if(!"ADMINSERVICE".equals(request.getHeader("source"))){
+            log.error("请求来源不正确");
+            throw new AuthenticationException("请求来源不正确");
+        }
+        boolean remove = replyReportService.remove(Wrappers.<ReplyReport>lambdaQuery()
+                .eq(ReplyReport::getId, Long.parseLong(replyReportId)));
         if(remove){
             return ResultUtil.successMap(null,"删除成功");
         }else{

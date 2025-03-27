@@ -2,6 +2,9 @@ package org.oyyj.adminservice.feign;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.oyyj.adminservice.config.FeignRequestConfig;
+import org.oyyj.adminservice.dto.PageDTO;
+import org.oyyj.adminservice.dto.UserReportForAdminDTO;
+import org.oyyj.adminservice.vo.AdminUpdateUserReportVO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,4 +30,16 @@ public interface UsersFeign {
 
     @DeleteMapping("/myBlog/user/deleteUser")
     Boolean deleteUser(@RequestParam("userId") Long userId);
+
+    @DeleteMapping("/myBlog/user/deleteUserReport")
+    Map<String ,Object> deleteUserReport(@RequestParam("userReportId")String userReportId);
+
+    @PutMapping("/myBlog/user/updateUserReport")
+    Map<String,Object> updateUserReport(@RequestBody AdminUpdateUserReportVO adminUpdateUserReportVO);
+
+    @GetMapping("/myBlog/user/getUserReports")
+    PageDTO<UserReportForAdminDTO> getUserReports(@RequestParam("currentPage") Integer currentPage,
+                                                  @RequestParam(value = "adminName",required = false) String adminName,
+                                                  @RequestParam(value = "status",required = false) Integer status);
+
 }

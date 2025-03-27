@@ -12,14 +12,18 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
 import org.oyyj.blogservice.dto.BlogDTO;
+import org.oyyj.blogservice.vo.BlogReportVO;
 import org.oyyj.userservice.DTO.*;
 import org.oyyj.userservice.Feign.AnnouncementFeign;
 import org.oyyj.userservice.Feign.BlogFeign;
 import org.oyyj.userservice.pojo.JWTUser;
 import org.oyyj.userservice.pojo.LoginUser;
 import org.oyyj.userservice.pojo.User;
+import org.oyyj.userservice.pojo.UserReport;
+import org.oyyj.userservice.service.IUserReportService;
 import org.oyyj.userservice.service.IUserService;
 import org.oyyj.userservice.utils.ResultUtil;
+import org.oyyj.userservice.vo.AdminUpdateUserReportVO;
 import org.oyyj.userservice.vo.AnnouncementUserVO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +62,10 @@ public class UserController {
     @Autowired
     private AnnouncementFeign announcementFeign;
 
-
+    @Autowired
+    private IUserReportService userReportService;
+    @Autowired
+    private BlogFeign blogFeign;
 
 
     // 用户登录
@@ -485,6 +492,88 @@ public class UserController {
 
         return userService.list(Wrappers.<User>lambdaQuery().like(User::getName, name)).stream().map(User::getId).toList();
 
+    }
+
+
+    // 用户举报 用户
+    @PutMapping("/reportUser")
+    public Map<String,Object> reportUser(@RequestBody ReportUserDTO reportUserDTO ) throws AuthenticationException {
+        return  userReportService.reportUser(reportUserDTO);
+    }
+
+    // 管理员查询举报信息
+    @GetMapping("/getUserReports")
+    public PageDTO<UserReportForAdminDTO> getUserReports(@RequestParam("currentPage") Integer currentPage,
+                                                         @RequestParam(value = "adminName",required = false) String adminName,
+                                                         @RequestParam(value = "status",required = false) Integer status,
+                                                      HttpServletRequest request) throws AuthenticationException {
+        if(!"ADMINSERVICE".equals(request.getHeader("source"))){
+            log.error("数据来源不正确");
+            throw new AuthenticationException("数据来源不正确");
+        }
+
+        return userReportService.reportUserForAdmin(currentPage,adminName,status);
+    }
+
+    // 管理员修改 举报信息
+    @PutMapping("/updateUserReport")
+    public Map<String,Object> updateUserReport(@RequestBody AdminUpdateUserReportVO adminUpdateUserReportVO
+            ,HttpServletRequest request) throws AuthenticationException {
+        if(!"ADMINSERVICE".equals(request.getHeader("source"))){
+            log.error("请求来源不正确");
+            throw new AuthenticationException("请求来源不正确");
+        }
+
+        return userReportService.updateUserReport(adminUpdateUserReportVO);
+
+    }
+
+    // 管理员删除 举报信息
+
+    @DeleteMapping("/deleteUserReport")
+    public Map<String ,Object> deleteUserReport(@RequestParam("userReportId")String userReportId,
+                                                HttpServletRequest request) throws AuthenticationException {
+        if(!"ADMINSERVICE".equals(request.getHeader("source"))){
+            log.error("请求来源不正确");
+            throw new AuthenticationException("请求来源不正确");
+        }
+        boolean remove = userReportService.remove(Wrappers.<UserReport>lambdaQuery()
+                .eq(UserReport::getId, Long.parseLong(userReportId)));
+        if(remove){
+            return ResultUtil.successMap(null,"删除成功");
+        }else{
+            return ResultUtil.failMap("删除失败");
+        }
+    }
+
+
+    // 用户举报 博客
+    @PutMapping("/reportBlog")
+    public Map<String,Object> reportBlog(@RequestBody BlogReportDTO blogReportDTO ) throws AuthenticationException {
+        UsernamePasswordAuthenticationToken authentication =
+                (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        blogReportDTO.setUserId(String.valueOf(principal.getUser().getId()));
+        return  blogFeign.reportBlogs(blogReportDTO);
+    }
+
+    // 用户举报 评论
+    @PutMapping("/reportComment")
+    public Map<String,Object> reportComment(@RequestBody CommentReportDTO commentReportDTO ) throws AuthenticationException {
+        UsernamePasswordAuthenticationToken authentication =
+                (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        commentReportDTO.setUserId(String.valueOf(principal.getUser().getId()));
+        return  blogFeign.reportComments(commentReportDTO);
+    }
+    // 用户举报
+    @PutMapping("/reportReply")
+    public Map<String,Object> reportReply(@RequestBody ReplyReportDTO replyReportDTO ) throws AuthenticationException {
+        UsernamePasswordAuthenticationToken authentication =
+                (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        LoginUser principal = (LoginUser) authentication.getPrincipal();
+        replyReportDTO.setUserId(String.valueOf(principal.getUser().getId()));
+        return  blogFeign.reportReply(replyReportDTO);
     }
 
 

@@ -2,9 +2,11 @@ package org.oyyj.adminservice.feign;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.oyyj.adminservice.config.FeignRequestConfig;
+import org.oyyj.adminservice.dto.BlogReportForAdminDTO;
+import org.oyyj.adminservice.dto.CommentReportForAdminDTO;
 import org.oyyj.adminservice.dto.PageDTO;
-import org.oyyj.adminservice.vo.CommentAdminVO;
-import org.oyyj.adminservice.vo.ReplyAdminVO;
+import org.oyyj.adminservice.dto.ReplyReportForAdminDTO;
+import org.oyyj.adminservice.vo.*;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
@@ -70,6 +72,46 @@ public interface BlogFeign {
 
     @DeleteMapping("/blog/deleteReply")
     Map<String,Object> deleteReply(@RequestParam("replyId") Long replyId);
+
+    @DeleteMapping("/blog/deleteReplyReport")
+    Map<String ,Object> deleteReplyReport(@RequestParam("ReplyReportId")String replyReportId);
+
+    @PutMapping("/blog/updateReplyReport")
+    Map<String,Object> updateReplyReport(@RequestBody AdminUpdateReplyReportVO adminUpdateReplyReportVO);
+
+    @GetMapping("/blog/getReplyReports")
+    PageDTO<ReplyReportForAdminDTO> getReplyReports(@RequestParam("currentPage") Integer currentPage,
+                                                    @RequestParam(value = "adminName",required = false) String adminName,
+                                                    @RequestParam(value = "status",required = false) Integer status);
+
+    @PutMapping("/blog/reportReply")
+    Map<String,Object> reportReply(@RequestBody ReplyReportVO replyReportVO);
+
+    @DeleteMapping("/blog/deleteCommentReport")
+    Map<String ,Object> deleteCommentReport(@RequestParam("commentReportId")String commentReportId);
+
+    @PutMapping("/blog/updateCommentReport")
+    Map<String,Object> updateCommentReport(@RequestBody AdminUpdateCommentReportVO adminUpdateCommentReportVO);
+
+    @GetMapping("/blog/getCommentReports")
+    PageDTO<CommentReportForAdminDTO> getCommentReports(@RequestParam("currentPage") Integer currentPage,
+                                                               @RequestParam(value = "adminName",required = false) String adminName,
+                                                               @RequestParam(value = "status",required = false) Integer status);
+
+    @PutMapping("/blog/reportComment")
+    Map<String,Object> reportComments(@RequestBody CommentReportVO commentReportVO);
+
+    @DeleteMapping("/blog/deleteBlogReport")
+    Map<String ,Object> deleteBlogReport(@RequestParam("blogReportId")String blogReportId);
+
+    @PutMapping("/blog/updateBlogReport")
+    Map<String,Object> updateBlogReport(@RequestBody AdminUpdateBlogReportVO adminUpdateBlogReportVO);
+
+    @GetMapping("/blog/getBlogReports")
+    PageDTO<BlogReportForAdminDTO> getBlogReports(@RequestParam("currentPage") Integer currentPage,
+                                                  @RequestParam(value = "adminName",required = false) String adminName,
+                                                  @RequestParam(value = "status",required = false) Integer status);
+
 }
 
 
