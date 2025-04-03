@@ -3,7 +3,6 @@ package org.oyyj.userservice.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.servlet.http.HttpServletResponse;
-import org.oyyj.blogservice.dto.BlogDTO;
 import org.oyyj.userservice.DTO.*;
 import org.oyyj.userservice.pojo.JWTUser;
 import org.oyyj.userservice.pojo.User;

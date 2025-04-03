@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletResponse;
 import org.bouncycastle.jcajce.provider.symmetric.AES;
-import org.oyyj.blogservice.dto.BlogDTO;
 import org.oyyj.userservice.DTO.*;
 import org.oyyj.userservice.Feign.AIChatFeign;
 import org.oyyj.userservice.Feign.BlogFeign;

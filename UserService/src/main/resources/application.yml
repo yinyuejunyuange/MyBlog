@@ -19,6 +19,8 @@ spring:
       discovery:
         service: UserService
         server-addr: localhost:8848
+        ip: 47.120.35.205  # 部署
+
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     type: com.alibaba.druid.pool.DruidDataSource
@@ -38,5 +40,9 @@ mybatis-plus:
   mapper-locations: classpath*:mapper/*.xml
 server:
   port: 8081
+
+user:
+  header-url: H:/10516/Test/image/
+
 
 

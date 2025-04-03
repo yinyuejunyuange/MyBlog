@@ -31,11 +31,11 @@
     <dependencies>
 
 
-        <dependency>
-            <groupId>org.oyyj</groupId>
-            <artifactId>BlogService</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.oyyj</groupId>-->
+<!--            <artifactId>BlogService</artifactId>-->
+<!--            <version>0.0.1-SNAPSHOT</version>-->
+<!--        </dependency>-->
 
         <!--提供 @MppMultiId   处理复合主键-->
         <dependency>

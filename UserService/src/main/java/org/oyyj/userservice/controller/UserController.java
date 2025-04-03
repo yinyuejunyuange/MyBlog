@@ -11,8 +11,6 @@ import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
-import org.oyyj.blogservice.dto.BlogDTO;
-import org.oyyj.blogservice.vo.BlogReportVO;
 import org.oyyj.userservice.DTO.*;
 import org.oyyj.userservice.Feign.AnnouncementFeign;
 import org.oyyj.userservice.Feign.BlogFeign;
@@ -28,6 +26,7 @@ import org.oyyj.userservice.vo.AnnouncementUserVO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -66,6 +65,10 @@ public class UserController {
     private IUserReportService userReportService;
     @Autowired
     private BlogFeign blogFeign;
+
+    @Value("${user.header-url}")
+    private String userHeadUrl;
+
 
 
     // 用户登录
@@ -125,7 +128,8 @@ public class UserController {
     @GetMapping("/getHead/{fileName}")
     public void getUserHead(@PathVariable("fileName") String fileName , HttpServletResponse response) throws IOException {
         // String filePath= ResourceUtils.getURL("classpath:").getPath()+"static/image/"+fileName;
-        String filePath= "H:/10516/Test/image/"+fileName;
+        //String filePath= "H:/10516/Test/image/"+fileName;
+        String filePath= userHeadUrl+fileName;
         String encodedFileName = URLEncoder.encode(filePath, StandardCharsets.UTF_8); // 避免有中文名 设置字符
         System.out.println("head path:"+filePath);
 

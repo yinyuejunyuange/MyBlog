@@ -29,11 +29,14 @@ spring:
     nacos:
       discovery:
         service: AdminService
+        #server-addr: localhost:8848
         server-addr: localhost:8848
+        ip: 47.120.35.205  # 部署
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     type: com.alibaba.druid.pool.DruidDataSource
-    url: jdbc:mysql://localhost:3306/my_blog_adminDB?serverTimezone=UTC # ?前面是数据库名
+    # url: jdbc:mysql://localhost:3306/my_blog_adminDB?serverTimezone=UTC # ?前面是数据库名
+    url: jdbc:mysql://localhost:3306/my_blog_admindb?serverTimezone=UTC # ?前面是数据库名
     username: root
     password: OYyj0715
 
