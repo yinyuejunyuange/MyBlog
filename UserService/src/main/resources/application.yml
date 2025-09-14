@@ -19,7 +19,7 @@ spring:
       discovery:
         service: UserService
         server-addr: localhost:8848
-        ip: 47.120.35.205  # 部署
+        # ip: 47.120.35.205  # 部署
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver

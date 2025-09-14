@@ -17,14 +17,21 @@ import org.oyyj.blogservice.service.IBlogService;
 import org.oyyj.blogservice.service.IBlogTypeService;
 import org.oyyj.blogservice.service.ICommentService;
 import org.oyyj.blogservice.service.IReplyService;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.xml.transform.Result;
+import java.security.SecurityPermission;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -49,6 +56,32 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     @Autowired
     private BlogMapper blogMapper;
 
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
+    @Autowired
+    private RedissonClient redissonClient;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    // 加载Lua脚本
+    private static final DefaultRedisScript<Long> READ_COUNT_SCRIPT;
+
+    static {
+        READ_COUNT_SCRIPT = new DefaultRedisScript<>();
+        READ_COUNT_SCRIPT.setScriptText(
+                "local hasRead = redis.call('EXISTS', KEYS[2])\n" +
+                        "if hasRead == 1 then\n" +
+                        "    return 0\n" +
+                        "end\n" +
+                        "redis.call('SET', KEYS[2], 1, 'EX', ARGV[1])\n" +
+                        "local count = redis.call('INCR', KEYS[1])\n" +
+                        "return count"
+        );
+        READ_COUNT_SCRIPT.setResultType(Long.class);
+    }
+
+
 
     @Override
     public void saveBlog(Blog blog) {
@@ -65,35 +98,177 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     }
 
     @Override
-    @Transactional(isolation = Isolation.READ_COMMITTED)  // 保证数据库操作的原子性  设置为 读已提交  避免使用 REPEATABLE READ 导致死循环
-    public ReadDTO ReadBlog(Long id, String userInfoKey) {
-
+    public ReadDTO ReadBlog(Long id, String userInfoKey,Long userId) {
         // 获取 blog的主要信息
-        Blog one = getOne(Wrappers.<Blog>lambdaQuery().eq(Blog::getId, id));
+        ReadDTO blogInfo = getBlogInfo(id, userInfoKey);
+        initBlogReadCount(id,blogInfo);
+        incrementReadCount(id,userId);
+/*取消自旋使用 redis + LUA脚本 */
+        return blogInfo;
+    }
 
-        if (Objects.isNull(one)) {
-            return null;
+    // 缓存中数据量增加
+
+
+    // 使用分布式左 初始化博客阅读数量
+    public void initBlogReadCount(Long blogId,ReadDTO readDTO) {
+
+        if (readDTO!= null) {
+            String countKey = "blog:read:count:" + blogId;
+            // 使用 setIfAbsent 原子操作：仅当键不存在时才设置值
+            // 返回 true 表示设置成功（首次初始化），false 表示键已存在（无需操作）
+            redisTemplate.opsForValue().setIfAbsent(
+                    countKey,
+                    String.valueOf(readDTO.getWatch()),
+                    7,  // 过期时间（根据业务设置，避免永久缓存）
+                    TimeUnit.DAYS
+            );
+        }
+    }
+
+
+    // 从缓存中获取数据 并使用redisson处理缓存击穿
+    public ReadDTO getBlogInfo( Long id, String userInfoKey) {
+        String countKey = "blog:info:" + id;
+        // 1. 先查缓存
+        String blogJson = redisTemplate.opsForValue().get(countKey);
+        if (Objects.nonNull(blogJson)) {
+            try {
+                if(blogJson.isEmpty()){
+                    // 缓存中的是空字符串 （缓存穿透）
+                    return null;
+                }
+                ReadDTO readDTO = objectMapper.readValue(blogJson, ReadDTO.class);
+                return readDTO;
+            } catch (Exception e) {
+                log.warn("反序列化博客缓存失败，blogId: {}"+ id + ":" + e);
+                // 缓存失效 直接删除
+                redisTemplate.delete(countKey);
+            }
         }
 
-        // 每看一次 博客的阅读数量就加一
-        boolean update = update(Wrappers.<Blog>lambdaUpdate()
-                .eq(Blog::getId, one.getId())
-                .eq(Blog::getWatch, one.getWatch()) // 乐观锁 处理高并发问题
-                .set(Blog::getWatch, one.getWatch() + 1));
-        if (!update) {
-            // 出现 问题 自旋
-            return ReadBlog(id, userInfoKey);
+        // 缓存未命中  准备获取分布式锁
+        String lockKey = "lock:blog:info:"+id;
+        RLock lock = redissonClient.getLock(lockKey);
+        ReadDTO result =  null;
+        try {
+            // 启动看门狗
+            boolean isLocked = lock.tryLock(1, TimeUnit.SECONDS);
+            if(isLocked ){
+                try {
+                    try {
+                        // 再次检查避免 再处理锁的时候获取到数据了
+                        String info = redisTemplate.opsForValue().get(countKey);
+                        if(Objects.nonNull(info)){
+                            if(info.isEmpty()){
+                                return null;
+                            }
+                            return objectMapper.readValue(info,ReadDTO.class);
+                        }
+
+                    } catch (JsonProcessingException e) {
+                        log.warn("反序列化博客缓存失败，blogId: {}"+ id + ":" + e);
+                        // 缓存失效 直接删除
+                        redisTemplate.delete(countKey);
+                    }
+
+                    // 查询数据库
+                    result = getReadDTO( id, userInfoKey);
+
+                    if(result != null){
+                        redisTemplate.opsForValue().set(countKey, objectMapper.writeValueAsString(result), 30, TimeUnit.MINUTES);
+                    }else{
+                        redisTemplate.opsForValue().set(countKey, "", 30, TimeUnit.MINUTES);
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }finally {
+                    if(lock.isHeldByCurrentThread()){
+                        lock.unlock();
+                    }
+                }
+            }else{
+                for (int i = 0; i < 3; i++) {
+                    blogJson = redisTemplate.opsForValue().get(countKey);
+                    if (Objects.nonNull(blogJson)) {
+                        try {
+                            if(blogJson.isEmpty()){
+                                // 缓存中的是空字符串 （缓存穿透）
+                                return null;
+                            }
+                            return objectMapper.readValue(blogJson, ReadDTO.class);
+                        } catch (Exception e) {
+                            log.warn("反序列化博客缓存失败，blogId: {}"+ id + ":" + e);
+                            // 缓存失效 直接删除
+                            redisTemplate.delete(countKey);
+                        }
+                        // 重复逻辑
+                        isLocked = lock.tryLock(1, TimeUnit.SECONDS);
+                        if(isLocked ){
+                            try {
+                                try {
+                                    // 再次检查避免 再处理锁的时候获取到数据了
+                                    String info = redisTemplate.opsForValue().get(countKey);
+                                    if(Objects.nonNull(info)){
+                                        if(info.isEmpty()){
+                                            return null;
+                                        }
+                                        return objectMapper.readValue(info,ReadDTO.class);
+                                    }
+
+                                } catch (JsonProcessingException e) {
+                                    log.warn("反序列化博客缓存失败，blogId: {}"+ id + ":" + e);
+                                    // 缓存失效 直接删除
+                                    redisTemplate.delete(countKey);
+                                }
+
+                                // 查询数据库
+                                result = getReadDTO( id, userInfoKey);
+
+                                if(result != null){
+                                    redisTemplate.opsForValue().set(countKey, result.getWatch(), 30, TimeUnit.MINUTES);
+                                }else{
+                                    redisTemplate.opsForValue().set(countKey, "", 30, TimeUnit.MINUTES);
+                                }
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }finally {
+                                if(lock.isHeldByCurrentThread()){
+                                    lock.unlock();
+                                }
+                            }
+                            break;
+                        }
+
+                    }
+                }
+            }
+
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        return result;
+    }
+
+
+    // 初始化博客内容
+    public ReadDTO getReadDTO(Long id, String userInfoKey) {
+        Blog one = getOne(Wrappers.<Blog>lambdaQuery().eq(Blog::getId, id));
+        if (Objects.isNull(one)) {
+            return null;
         }
 
         // 获取与其相关的类型type
         List<BlogType> list = blogTypeService.list(Wrappers.<BlogType>lambdaQuery().eq(BlogType::getBlogId, id));
 
         // 封装
-        Map<Long, String> userNameMap = userFeign.getUserNameMap();
+        // todo 测试
+        // Map<Long, String> userNameMap = userFeign.getUserNameMap();
         ReadDTO readDTO = ReadDTO.builder()
                 .id(String.valueOf(id))
                 .userId(String.valueOf(one.getUserId()))
-                .userName(userNameMap.get(one.getUserId()))
+               // .userName(userNameMap.get(one.getUserId()))
                 .title(one.getTitle())
                 .Introduce(one.getIntroduce())
                 .context(one.getContext())
@@ -121,9 +296,52 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 readDTO.setIsUserStar(true);
             }
         }
-
         return readDTO;
     }
+
+    /**
+     * 增加阅读计数（使用Lua脚本保证原子性）
+     */
+    private Long incrementReadCount(Long blogId, Long userId) {
+        String countKey = "blog:read:count:" + blogId;
+        String userReadKey = "blog:user:read:" + blogId + ":" + userId;
+
+        // 执行Lua脚本
+        Long result = redisTemplate.execute(
+                READ_COUNT_SCRIPT,
+                Arrays.asList(countKey, userReadKey),
+                String.valueOf(1800), // 30分钟过期时间
+                String.valueOf(userId)
+        );
+
+        return result;
+    }
+
+
+    // 定期从redis中得到数据存储到数据库中 保证数据的一致性   同时也避免高并发导致的数据问题
+    /**
+     * 定期同步Redis阅读数到数据库
+     */
+    @Scheduled(fixedRate = 300000) // 每5分钟执行一次
+    public void syncReadCountToDB() {
+        Set<String> keys = redisTemplate.keys("blog:read:count:*");
+        if (keys != null) {
+            for (String key : keys) {
+                Long blogId = Long.parseLong(key.substring("blog:read:count:".length()));
+                String countStr = redisTemplate.opsForValue().get(key);
+                if (countStr != null) {
+                    Long count = Long.parseLong(countStr);
+
+                    // 更新数据库
+                    Blog blog = new Blog();
+                    blog.setId(blogId);
+                    blog.setWatch(count);
+                    blogMapper.updateById(blog);
+                }
+            }
+        }
+    }
+
 
 
     @Override

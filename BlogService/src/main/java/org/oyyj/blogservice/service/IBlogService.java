@@ -20,7 +20,7 @@ import java.util.Map;
 public interface IBlogService extends IService<Blog> {
     void saveBlog(Blog blog);
 
-    ReadDTO ReadBlog(Long id,String UserInfoKey);
+    ReadDTO ReadBlog(Long id,String UserInfoKey,Long userId);
 
     PageDTO<BlogDTO> getBlogByPage(int current, int pageSizem, String type);
 

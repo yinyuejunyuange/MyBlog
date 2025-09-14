@@ -90,8 +90,9 @@ public class BlogController {
     }
 
     @GetMapping("/read")
-    public Map<String, Object> readBlog(@RequestParam("blogId") String  id,@RequestParam(value = "userInfoKey",required = false) String userInfoKey) {
-        ReadDTO readDTO = blogService.ReadBlog(Long.valueOf(id),userInfoKey);
+    public Map<String, Object> readBlog(@RequestParam("blogId") String  id,@RequestParam(value = "userInfoKey",required = false) String userInfoKey,
+                                        @RequestParam(value = "userId",required = false) Long userId) {
+        ReadDTO readDTO = blogService.ReadBlog(Long.valueOf(id),userInfoKey,userId);
         if(Objects.isNull(readDTO)){
             return ResultUtil.failMap("查询失败");
         }

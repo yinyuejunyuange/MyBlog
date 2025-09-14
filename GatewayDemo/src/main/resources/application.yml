@@ -5,8 +5,8 @@ spring:
   cloud:
     nacos:
       discovery:
-        #server-addr: localhost:8848
-        server-addr: http://47.120.35.205:7001/nacos
+        server-addr: localhost:8848
+        # server-addr: http://47.120.35.205:7001/nacos
     gateway:
       routes:
         - id: UserService
@@ -29,6 +29,12 @@ spring:
           predicates:
             - Path=/task/**
 
+        - id: BlogService
+          uri: lb://BlogService
+          predicates:
+            - Path=/blog/**, /vipCache/** # 实现或关系  如果单独一行就是and关系
+
+
       globalcors:
         add-to-simple-url-handler-mapping: true # 解决options请求被拦截问题
         cors-configurations:
@@ -49,6 +55,9 @@ spring:
               - 'verifytoken'  # 允许暴露特定请求头 否则 前端无法获取
               - 'token'
             max-age: 360000
+BlogService:
+  ribbon:
+    NFLoadBalancerRuleClassName: com.alibaba.cloud.nacos.ribbon.NacosRule # 使用Nacos提供的同集
 
 server:
   port: 8080
