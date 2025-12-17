@@ -1,4 +1,4 @@
-package org.oyyj.userservice.DTO;
+package org.oyyj.userservice.dto;
 
 import lombok.*;
 

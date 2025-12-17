@@ -1,4 +1,4 @@
-package org.oyyj.userservice.DTO;
+package org.oyyj.userservice.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,8 +9,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class CommentReportDTO {
-    private String commentId;
+public class ReplyReportDTO {
+    private String replyId;
     private String content;
     private String userId;// 举报者的id
 }

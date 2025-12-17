@@ -2,7 +2,9 @@ package org.oyyj.blogservice.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.oyyj.blogservice.dto.BlogTypeDTO;
 import org.oyyj.blogservice.dto.IncreaseDTO;
 import org.oyyj.blogservice.pojo.Blog;
 
@@ -30,5 +32,7 @@ public interface BlogMapper extends BaseMapper<Blog> {
             ") AS yearly_data")
     String gerMinDate();
 
+
+    List<BlogTypeDTO> getBlogTypeList( @Param("blogIds") List<Long> blogIds);
 
 }

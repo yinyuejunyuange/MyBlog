@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.oyyj.blogservice.enums.TypeEnum;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -47,5 +48,7 @@ public class Blog {
     private Long watch; // 阅读量
     @TableField("comment_num")
     private Long commentNum; // 博客总评论数
+    @TableField(exist = false)
+    private BigDecimal commentPrice; //评论情绪得分
 
 }

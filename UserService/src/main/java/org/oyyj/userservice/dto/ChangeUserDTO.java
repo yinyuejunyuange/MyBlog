@@ -1,7 +1,6 @@
-package org.oyyj.userservice.DTO;
+package org.oyyj.userservice.dto;
 
 import lombok.*;
-import org.springframework.web.multipart.MultipartFile;
 
 @Data
 @AllArgsConstructor

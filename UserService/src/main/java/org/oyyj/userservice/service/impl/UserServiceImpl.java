@@ -8,8 +8,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletResponse;
-import org.bouncycastle.jcajce.provider.symmetric.AES;
-import org.oyyj.userservice.DTO.*;
+import org.oyyj.userservice.dto.*;
 import org.oyyj.userservice.Feign.AIChatFeign;
 import org.oyyj.userservice.Feign.BlogFeign;
 import org.oyyj.userservice.mapper.SysRoleMapper;
@@ -20,9 +19,6 @@ import org.oyyj.userservice.utils.RedisUtil;
 import org.oyyj.userservice.utils.ResultUtil;
 import org.oyyj.userservice.utils.TokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
 
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.scheduling.annotation.Async;
@@ -39,7 +35,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.rmi.RemoteException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 

@@ -16,6 +16,7 @@ import org.oyyj.blogservice.dto.VIPMapVO;
 import org.oyyj.blogservice.util.ResultUtil;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.AmqpHeaders;
@@ -291,5 +292,39 @@ public class VIPCatchController {
         }
     }
 
+
+    /**
+     * 使用TTL+死信实现 定时任务
+     */
+    @GetMapping("/markTask")
+    public Map<String, Object> markTask(){
+        String string = UUID.randomUUID().toString();
+        RabbitMqMessage message = new RabbitMqMessage(string,null);
+        EnhancedCorrelationData ed = new EnhancedCorrelationData(string,string);
+        rabbitTemplate.convertAndSend(
+                RabbitMqConfig.DELAY_EXCHANGE,
+                RabbitMqConfig.DELAY_ROUTING_KEY,
+                message,
+                msg ->{
+                    msg.getMessageProperties().setExpiration(String.valueOf(10000));
+                    return msg;
+                }, // 使用的是 消息的后置处理器 postProcessMessage   设置延时10秒
+                ed
+        );
+        return ResultUtil.successMap(null,"发送成功");
+    }
+
+
+    @RabbitListener(queues = "#{rabbitMqConfig.getDXLInvalidationQueue()}")
+    public void handleDLXInfo(RabbitMqMessage message ,
+                              Channel channel,
+                              @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
+
+        System.out.println("成功收到延时消息 ："+message.toString());
+        if(channel.isOpen()){
+            channel.basicAck(deliveryTag,false);
+        }
+
+    }
 
 }

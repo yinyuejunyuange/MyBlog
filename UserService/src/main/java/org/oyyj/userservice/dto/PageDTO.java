@@ -1,4 +1,4 @@
-package org.oyyj.userservice.DTO;
+package org.oyyj.userservice.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,8 +11,9 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class AdminUserPageDTO {
-    private Long totalPage;
-    private Integer currentPage;
-    private List<AdminUserDTO> users;
+public class PageDTO<T> {
+    private List<T> pageList;
+    private Integer total;
+    private Integer pageNow;
+    private Integer pageSize;
 }

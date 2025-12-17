@@ -1,10 +1,9 @@
 package org.oyyj.userservice.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.ibatis.annotations.Select;
 
-import org.oyyj.userservice.DTO.AIFileDTO;
-import org.oyyj.userservice.DTO.BlogDTO;
+import org.oyyj.userservice.dto.AIFileDTO;
+import org.oyyj.userservice.dto.BlogDTO;
 import org.oyyj.userservice.Feign.AIChatFeign;
 import org.oyyj.userservice.service.IAsyncService;
 import org.springframework.beans.factory.annotation.Autowired;

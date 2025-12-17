@@ -15,6 +15,10 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+
 @Slf4j
 @Configuration
 public class RabbitMqConfig {
@@ -155,6 +159,34 @@ public class RabbitMqConfig {
         return BindingBuilder.bind(vipNumQueue)
                 .to(vipNumExchange)
                 .with(VIP_NUM_ROUTING_KEY);
+    }
+
+    /**
+     * 添加延时队列
+     */
+
+    public static final String DELAY_EXCHANGE="delay.exchange";  // 交换机
+    public static final String DELAY_QUEUE="delay.queue";  // 队列前缀
+    public static final String DELAY_ROUTING_KEY="delay.routing.key"; // 消息路由
+
+    @Bean
+    public Queue delayQueue(){
+        Map<String, Object> args = new LinkedHashMap<>();
+        args.put("x-dead-letter-exchange",DXL_INVALIDATION_EXCHANGE);
+        args.put("x-dead-letter-routing-key",DXL_INVALIDATION_ROUTING_KEY); // 绑定死信队列
+        return new Queue(DELAY_QUEUE,true,false,false,args);
+    }
+
+    @Bean
+    public TopicExchange delayExchange(){
+        return new TopicExchange(DELAY_EXCHANGE);
+    }
+
+    @Bean
+    public Binding bindingdelavBinding(Queue delayQueue, TopicExchange delayExchange){
+        return BindingBuilder.bind(delayQueue)
+                .to(delayExchange)
+                .with(DELAY_ROUTING_KEY);
     }
 
 

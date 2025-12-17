@@ -1,4 +1,4 @@
-package org.oyyj.userservice.DTO;
+package org.oyyj.userservice.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,7 +9,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class HotSearchDTO {
+public class BlogReportDTO {
+    private String blogId;
     private String content;
-    private Integer num;
+    private String userId;// 举报者的id
 }

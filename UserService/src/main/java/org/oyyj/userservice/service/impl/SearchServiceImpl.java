@@ -1,7 +1,7 @@
 package org.oyyj.userservice.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import org.oyyj.userservice.DTO.HotSearchDTO;
+import org.oyyj.userservice.dto.HotSearchDTO;
 import org.oyyj.userservice.mapper.SearchMapper;
 import org.oyyj.userservice.pojo.Search;
 import org.oyyj.userservice.service.ISearchService;

@@ -1,13 +1,11 @@
 package org.oyyj.userservice.controller;
 
-import com.alibaba.nacos.common.utils.UuidUtils;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import feign.Response;
-import feign.form.multipart.Output;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.IOUtils;
-import org.oyyj.userservice.DTO.*;
+import org.oyyj.userservice.dto.*;
 import org.oyyj.userservice.Feign.BlogFeign;
 import org.oyyj.userservice.pojo.*;
 import org.oyyj.userservice.service.*;
@@ -18,7 +16,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;

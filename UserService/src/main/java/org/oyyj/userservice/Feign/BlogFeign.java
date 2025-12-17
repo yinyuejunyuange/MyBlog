@@ -1,9 +1,8 @@
 package org.oyyj.userservice.Feign;
 
 import feign.Response;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.oyyj.userservice.DTO.*;
+import org.oyyj.userservice.dto.*;
 import org.oyyj.userservice.config.FeignUserConfig;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.MediaType;
@@ -13,7 +12,6 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.security.sasl.AuthenticationException;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 @FeignClient(value = "BlogService",configuration = FeignUserConfig.class)
 public interface BlogFeign {

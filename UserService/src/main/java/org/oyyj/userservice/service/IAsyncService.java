@@ -1,7 +1,7 @@
 package org.oyyj.userservice.service;
 
 
-import org.oyyj.userservice.DTO.BlogDTO;
+import org.oyyj.userservice.dto.BlogDTO;
 
 public interface IAsyncService {
     void upLoadBlogToAI(BlogDTO blogDTO);
