@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.oyyj.gatewaydemo.mapper.SysRoleMapper">
+
+    <select id="selectUserRole" resultType="java.lang.String">
+        SELECT sr.role_name
+        FROM sys_role sr
+        INNER JOIN user_role ur ON ur.role_id = sr.id
+        WHERE ur.user_id = #{userId}
+    </select>
+</mapper>

@@ -6,10 +6,11 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.oyyj.mycommon.utils.ResultUtil;
 import org.oyyj.userservice.exception.SourceException;
 import org.oyyj.userservice.pojo.LoginUser;
 import org.oyyj.userservice.utils.RedisUtil;
-import org.oyyj.userservice.utils.ResultUtil;
+
 import org.oyyj.userservice.utils.TokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -19,7 +20,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import javax.net.ssl.SSLPeerUnverifiedException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Map;

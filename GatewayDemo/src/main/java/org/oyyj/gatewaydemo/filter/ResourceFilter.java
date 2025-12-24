@@ -22,12 +22,6 @@ public class ResourceFilter implements GlobalFilter , Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest().mutate()
                 .header("from",FROMWORD).build();
-        /*
-        exchange.getRequest(): 获取当前的 HTTP 请求。
-mutate(): 创建一个可变的请求构建器，使你可以修改请求的属性。
-.header("from", "gateway"): 向请求添加一个自定义 HTTP 头，名为 from，值为 gateway。这可以用于标识请求的来源。
-build(): 构建并返回修改后的请求对象。
-        * */
 
         exchange= exchange.mutate().request(request).build();
 

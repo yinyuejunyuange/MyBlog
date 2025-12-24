@@ -1,11 +1,11 @@
-package org.oyyj.userservice.service.impl;
+package org.oyyj.gatewaydemo.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-
-import org.oyyj.userservice.mapper.SysPermissionMapper;
-import org.oyyj.userservice.mapper.UserMapper;
-import org.oyyj.userservice.pojo.LoginUser;
-import org.oyyj.userservice.pojo.User;
+import org.oyyj.gatewaydemo.mapper.SysPermissionMapper;
+import org.oyyj.gatewaydemo.mapper.SysRoleMapper;
+import org.oyyj.gatewaydemo.mapper.UserMapper;
+import org.oyyj.gatewaydemo.pojo.AuthUser;
+import org.oyyj.gatewaydemo.pojo.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -24,6 +24,9 @@ public class UserDetailServiceImpl implements UserDetailsService {
     @Autowired
     private SysPermissionMapper sysPermissionMapper;
 
+    @Autowired
+    private SysRoleMapper sysRoleMapper;
+
     /**
      * 在过滤器链中 DaoAuthenticationProvider会调用此方法 来验证用户
      * @param username
@@ -40,7 +43,9 @@ public class UserDetailServiceImpl implements UserDetailsService {
         }
         List<String> list=sysPermissionMapper.getPermissionsByUserId(one.getId());
 
+        List<String> roles = sysRoleMapper.selectUserRole(one.getId());
+
         // 封装 后返回
-        return new LoginUser(one,list);
+        return new AuthUser(one.getId(),one.getName(),null,list,roles);
     }
 }

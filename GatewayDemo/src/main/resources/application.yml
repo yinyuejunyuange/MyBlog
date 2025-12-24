@@ -9,6 +9,36 @@ spring:
         # server-addr: http://47.120.35.205:7001/nacos
     gateway:
       routes:
+        # 当前服务处理 登录
+        - id: AuthLogin
+          uri: no://op # 特殊URI 不需要转发
+          predicates:
+            - Path=/auth/login
+          filters:
+            - name: LocalRequestFilter # 指定处理登录/注册逻辑的过滤器
+              args:
+                handle-type: LOGIN
+
+        # 当前服务处理 注册
+        - id: AuthRegister
+          uri: no://op
+          predicates:
+            - Path=/auth/register
+          filters:
+            - name: LocalRequestFilter
+              args:
+                handle-type: REGISTER
+
+        # 3. 登出路由 - 本地处理
+        - id: auth-logout
+          uri: no://op
+          predicates:
+            - Path=/auth/logout
+          filters:
+            - name: LocalRequestFilter
+              args:
+                handler-type: LOGOUT
+
         - id: UserService
           uri: lb://UserService
           predicates: # 路由匹配规则
@@ -38,7 +68,7 @@ spring:
       globalcors:
         add-to-simple-url-handler-mapping: true # 解决options请求被拦截问题
         cors-configurations:
-          '[/**]':         # 匹配所有请求
+          '[/**]': # 匹配所有请求
             allowed-origins:
               - "http://localhost:5173" # 允许区域
               - "http://localhost:8079" # 允许区域
