@@ -6,7 +6,9 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Component
 public class RedisUtil {
@@ -46,6 +48,37 @@ public class RedisUtil {
     public String getString(String key) {
         Object obj = redisTemplate.opsForValue().get(key);
         return obj == null ? null : obj.toString();
+    }
+
+    /**
+     * 存储Map到Redis Hash
+     * @param key Redis key
+     * @param map 要存储的Map（Long→Double）
+     */
+    public void setHashWithLongDouble(String key, Map<Long, Double> map) {
+        // 转换Map的key为String（Redis Hash的field只能是字符串）
+        Map<String, Double> hashMap = map.entrySet().stream()
+                .collect(Collectors.toMap(
+                        entry -> entry.getKey().toString(), // Long→String
+                        Map.Entry::getValue
+                ));
+        // 存储到Redis Hash
+        redisTemplate.opsForHash().putAll(key, hashMap);
+    }
+
+    /**
+     * 读取Redis Hash为Map<Long, Double>
+     * @param key Redis key
+     * @return 解析后的Map
+     */
+    public Map<Long, Double> getHashWithLongDouble(String key) {
+        Map<Object, Object> hashEntries = redisTemplate.opsForHash().entries(key);
+        // 转换field从String→Long，value→Double
+        return hashEntries.entrySet().stream()
+                .collect(Collectors.toMap(
+                        entry -> Long.parseLong(entry.getKey().toString()),
+                        entry -> Double.parseDouble(entry.getValue().toString())
+                ));
     }
 
     // 删除键

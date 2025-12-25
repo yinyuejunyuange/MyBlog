@@ -7,6 +7,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.checkerframework.checker.units.qual.C;
 import org.oyyj.blogservice.mapper.UserBehaviorMapper;
 import org.oyyj.blogservice.pojo.UserBehavior;
+import org.oyyj.blogservice.util.RedisUtil;
+import org.oyyj.mycommon.common.RedisPrefix;
+import org.redisson.Redisson;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -15,7 +20,9 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
 
 /**
  * 用户 - 物品评分矩阵
@@ -28,52 +35,72 @@ public class RatingMatrix {
     @Autowired
     private UserBehaviorMapper userBehaviorMapper;
 
-    // 用户ID ->(物品ID -> 评分)
-    private Map<Long,ConcurrentHashMap<Long,Double>> userItemMatrix;
+    @Autowired
+    private RedissonClient redissonClient;
 
-    // 物品ID ->(用户ID -> 评分)
-    private Map<Long ,ConcurrentHashMap<Long,Double>> itemUserMatrix;  // 便于访问避免反复遍历
-
-    // 用户平均评分
-    private Map<Long, Double> userAvgMatrix;
-
-    // 物品平均评分
-    private Map<Long , Double> itemAvgMatrix;
-
-    private volatile int initialized = 0;
-
-    public RatingMatrix() {
-        userItemMatrix = new ConcurrentHashMap<>();
-        itemUserMatrix = new ConcurrentHashMap<>();
-        userAvgMatrix = new ConcurrentHashMap<>();
-        itemAvgMatrix = new ConcurrentHashMap<>();
-    }
-
+    @Autowired
+    private  RedisUtil redisUtil;
 
     /**
      * 项目启动时初始化
+     * 逻辑： 先查询查询用户基数 如果用户基数小于等于5万 则  直接将表存入到本地 如果大于5万 则存储到redis中 本地仅存储 活跃度前20%的用户
+     *
      */
     @PostConstruct
     public synchronized void init(){
 
-        if(initialized != 0){
-            log.info("ratingMatrix initialized");
-        }else{
-            initialized = 1;
-            List<UserBehavior> behaviors = userBehaviorMapper.selectList(Wrappers.<UserBehavior>lambdaQuery());
+        RLock lock = redissonClient.getLock(RedisPrefix.INIT_LOCK);
+        try {
+            boolean isLock = lock.tryLock(3, 30, TimeUnit.SECONDS);
+            if(isLock){
+                String isInit = redisUtil.getString(RedisPrefix.INIT_RATING);
+                if(Objects.isNull(isInit)){
+                    log.debug("评分矩阵加载完成,完成时间：+{}",new Date().getTime());
+                    return;
+                }
+                // 通过userBehavior获取所有用户Id 和 物品ID
+                List<Long> userIdList = userBehaviorMapper.getUserIdList();
+                // 分批次加载
+                int order = 0;
+                int batch = 1000;
+                do {
+                    order++;
+                    List<Long> userIdBatch = userIdList.subList((order - 1)*batch, order * batch);
+                    if(userIdBatch.isEmpty()){
+                        log.warn("批次查询出现数据数量为空！");
+                        break;
+                    }
+                    Map<Long, List<UserBehavior>> userBehaviorMap = userBehaviorMapper.selectList(Wrappers.<UserBehavior>lambdaQuery()
+                            .in(UserBehavior::getUserId, userIdBatch)).stream().collect(Collectors.groupingBy(UserBehavior::getUserId));
+                    Map<Long, List<UserBehavior>> finalUserBehaviorMap  = new ConcurrentHashMap<>(userBehaviorMap);
 
-            Map<Long, List<UserBehavior>> idBehaviorMap = behaviors.stream().collect(Collectors.groupingBy(UserBehavior::getUserId));
-            Set<Long> userIds = idBehaviorMap.keySet();
+                    userIdBatch.parallelStream().forEach(id -> {
+                        List<UserBehavior> behaviors = finalUserBehaviorMap.get(id);
+                        Map<Long, List<UserBehavior>> idBehaviorMap = behaviors.stream().collect(Collectors.groupingBy(UserBehavior::getUserId));
+                        Set<Long> userIds = idBehaviorMap.keySet();
 
-            for (Long userId : userIds) {
-                List<UserBehavior> userBehaviors = idBehaviorMap.get(userId);
-                calculateMatrixByUserId(userId, userBehaviors);
+                        for (Long userId : userIds) {
+                            List<UserBehavior> userBehaviors = idBehaviorMap.get(userId);
+                            calculateMatrixByUserId(userId, userBehaviors);
+                        }
+                    });
+                }while (order * batch < userIdList.size());
+                // 计算物品的平均得分
+                calculateBlogAvgScore();
+                redisUtil.set(RedisPrefix.INIT_RATING,RedisPrefix.INIT_FINISH);
+            }else{
+                // 锁获取失败 添加重试机制
+
             }
 
-            this.calculateUserAvgRating();
-            this.calculateItemAvgRating();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }finally {
+            if(lock.isHeldByCurrentThread()){
+                lock.unlock();
+                log.debug("分布式锁释放+{}",new Date().getTime());
+            }
         }
-
     }
 
     /**
@@ -166,51 +193,6 @@ public class RatingMatrix {
         }
     }
 
-
-    /**
-     * 添加评分记录
-     *
-     * @param userId
-     * @param itemId
-     * @param rating
-     */
-    public void addRating(Long userId, Long itemId ,Double rating){
-        // 用户-物品矩阵
-        Map<Long, Double> itemMap = userItemMatrix.computeIfAbsent(userId, k -> new ConcurrentHashMap<>());
-        itemMap.put(itemId,rating);
-        // 物品-用户矩阵
-        Map<Long, Double> userMap = itemUserMatrix.computeIfAbsent(itemId, k -> new ConcurrentHashMap<>());
-        userMap.put(userId,rating);
-    }
-
-    /**
-     * 计算用户平均分 (定期更新)
-     */
-    @Scheduled(fixedRate = 60000)
-    public void calculateUserAvgRating(){
-        calculateAvgRating(userItemMatrix, userAvgMatrix);
-    }
-
-    /**
-     * 计算物品平均分 （定期更新）
-     */
-    @Scheduled(fixedRate = 30000)
-    public void calculateItemAvgRating(){
-        calculateAvgRating(itemUserMatrix, itemAvgMatrix);
-    }
-
-    private void calculateAvgRating(Map<Long, ConcurrentHashMap<Long, Double>> itemUserMatrix, Map<Long, Double> itemAvgMatrix) {
-        itemUserMatrix.entrySet().parallelStream().forEach(item->{
-            Long userId = item.getKey();
-            Map<Long, Double> rating = item.getValue();
-
-            double sum = rating.values().stream().mapToDouble(Double::doubleValue).sum();
-            double avg = sum / rating.size();
-            itemAvgMatrix.put(userId, avg);
-        });
-    }
-
-
     /**
      * 计算行为评分
      * @param behaviors
@@ -251,8 +233,56 @@ public class RatingMatrix {
         });
         // 计算线性分段后的结果
         Map<Long, Double> marginalisation = marginalisation(blogValues);
-        marginalisation.forEach((blogId,rating)->{
-            addRating(userId,blogId,rating);
+        // 存储到redis
+        redisUtil.setHashWithLongDouble(RedisPrefix.RATING_MATRIX_USER+userId,marginalisation);
+        // 计算平均值并存储到redis中
+        if(!marginalisation.isEmpty()){
+            Double reduce = marginalisation.entrySet().parallelStream().map(Map.Entry::getValue).reduce(0d, Double::sum);
+            redisUtil.set(RedisPrefix.AVG_RATING_USER+userId,reduce/marginalisation.size());
+        }
+        // 计算 物品 - 用户 矩阵并存储到redis中
+        calculateBlogMatrixByUserId(userId,marginalisation);
+    }
+
+    /**
+     * 存储物品-用户 矩阵
+     * @param userId
+     * @param marginalisation
+     */
+    private void calculateBlogMatrixByUserId(Long userId , Map<Long, Double> marginalisation ){
+
+        if(marginalisation.isEmpty()){
+            return;
+        }
+        Set<Long> blogIds = marginalisation.keySet();
+        blogIds.parallelStream().forEach(blogId -> {
+            Map<Long, Double> hashWithLongDouble = redisUtil.getHashWithLongDouble(RedisPrefix.RATING_MATRIX_ITEM + blogId);
+            if(Objects.nonNull(hashWithLongDouble)){
+                hashWithLongDouble.put(userId,marginalisation.get(blogId));
+            }else{
+                hashWithLongDouble = new HashMap<>();
+                hashWithLongDouble.put(userId,marginalisation.get(blogId));
+            }
+
+            redisUtil.setHashWithLongDouble(RedisPrefix.RATING_MATRIX_ITEM + blogId,hashWithLongDouble);
+        });
+    }
+
+
+    /**
+     * 计算物品的平均得分并上传到redis中
+     *
+     */
+    @Scheduled(cron = "0 0 */1 * * ?")
+    public void calculateBlogAvgScore(){
+        List<UserBehavior> userBehaviors = userBehaviorMapper.selectList(Wrappers.<UserBehavior>lambdaQuery());
+        Set<Long> blogIds = userBehaviors.parallelStream().map(UserBehavior::getBlogId).collect(Collectors.toSet());
+        blogIds.parallelStream().forEach(blogId -> {
+            Map<Long, Double> hashWithLongDouble = redisUtil.getHashWithLongDouble(RedisPrefix.RATING_MATRIX_ITEM + blogId);
+            if(Objects.nonNull(hashWithLongDouble)){
+                Double totalScore = hashWithLongDouble.entrySet().parallelStream().map(Map.Entry::getValue).reduce(0d, Double::sum);
+                redisUtil.set(RedisPrefix.AVG_RATING_ITEM+blogId, totalScore/hashWithLongDouble.size());
+            }
         });
     }
 
@@ -263,7 +293,6 @@ public class RatingMatrix {
     public void updateMatrix(Long userId){
         List<UserBehavior> userBehaviors = userBehaviorMapper.selectList(Wrappers.<UserBehavior>lambdaQuery().eq(UserBehavior::getUserId, userId));
         calculateMatrixByUserId(userId,userBehaviors);
-
     }
 
 

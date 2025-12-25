@@ -72,3 +72,7 @@ server:
 tokenBucket:
   capacity: 2000
   addTokenNum: 1500
+
+  # 物品相似度矩阵存储的物品数量
+similarty:
+  blog-max-item-num: 1000

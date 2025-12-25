@@ -161,6 +161,11 @@
 <!--            <version>3.0.4</version>-->
 <!--            <scope>test</scope>-->
 <!--        </dependency>-->
+        <dependency>
+            <groupId>org.oyyj</groupId>
+            <artifactId>MyCommon</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
     </dependencies>
 
     <build>

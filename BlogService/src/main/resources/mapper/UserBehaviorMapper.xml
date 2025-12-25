@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.oyyj.blogservice.mapper.UserBehaviorMapper">
+
+
+    <select id="getUserIdList" resultType="java.lang.Long">
+        SELECT DISTINCT userId
+        FROM user_behavior
+
+    </select>
+    <select id="getUserActivityLevel" resultType="org.oyyj.blogservice.config.pojo.UserActivityLevel">
+        SELECT
+            user_id AS userId,
+            SUM(weight *
+                CASE
+                    WHEN DATEDIFF(NOW(),create_time) > 7 THEN 0.5
+                    WHEN DATEDIFF(NOW(),create_time) > 30 THEN 0.3
+                    ELSE 1.0
+                END
+                ) AS weightedActivity,
+            COUNT(*) AS behaviorCount,
+            MAX(create_time) AS lastActTime
+        FROM user_behavior
+        GROUP BY user_id
+        ORDER BY weightedActivity DESC , lastActTime DESC
+        LIMIT 5000
+    </select>
+</mapper>

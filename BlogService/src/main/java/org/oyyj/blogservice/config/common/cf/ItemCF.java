@@ -1,13 +1,20 @@
 package org.oyyj.blogservice.config.common.cf;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import jakarta.annotation.PostConstruct;
 import org.oyyj.blogservice.config.pojo.RatingMatrix;
 import org.oyyj.blogservice.dto.BlogTypeDTO;
 import org.oyyj.blogservice.dto.Recommendation;
 import org.oyyj.blogservice.mapper.BlogMapper;
+import org.oyyj.blogservice.pojo.Blog;
+import org.oyyj.mycommon.common.RedisPrefix;
+import org.oyyj.mycommon.utils.RedisUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
+import java.sql.Wrapper;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -19,50 +26,93 @@ import java.util.stream.Collectors;
 public class ItemCF {
 
     @Autowired
-    private RatingMatrix ratingMatrix;
+    private RedisUtil redisUtil;
 
     @Autowired
     private BlogMapper blogMapper;
-    // 博客相似度举证
-    private Map<Long,Map<Long,Double>> itemSimilarityMatrix;
 
+    @Value("${similarty.blog-max-item-num}")
+    private int similartyBlogMaxItemNum;
+
+
+    @PostConstruct
+    public void init(){
+        List<Long> allBlogIds = blogMapper.selectList(Wrappers.<Blog>lambdaQuery()
+                .select(Blog::getId)
+        ).stream().map(Blog::getId).toList();
+
+        int batchSize = 1000;
+        int order = 0;
+        int allSize = allBlogIds.size();
+        while(order*batchSize <= allSize){
+            List<Long> blogIds = allBlogIds.subList(order*batchSize,(order+1)*batchSize);
+            // 将现有的博客的类别存储到redis中
+            Map<Long, List<BlogTypeDTO>> blogTypeMap = blogMapper.getBlogTypeList(blogIds)
+                    .stream()
+                    .collect(Collectors.groupingBy(BlogTypeDTO::getBlogId));
+
+            blogTypeMap.forEach((blogId, blogTypeDTOs) -> {
+                List<String> typeList = blogTypeDTOs.stream().map(BlogTypeDTO::getBlogType).toList();
+                redisUtil.setList(RedisPrefix.ITEM_TYPE+blogId,typeList);
+            });
+            order++;
+        }
+        calculateItemSimilarity();
+    }
 
     /**
      * 计算两两物品之间的相似度
      */
-    // todo 添加到redis中
     public void calculateItemSimilarity(){
-        Map<Long, ConcurrentHashMap<Long, Double>> itemUserMatrix = ratingMatrix.getItemUserMatrix();
-        List<Long> blogIds = new ArrayList<>(itemUserMatrix.keySet());
-        itemSimilarityMatrix = new HashMap<>();
+        List<Long> blogIds = blogMapper.selectList(Wrappers.<Blog>lambdaQuery()
+                .select(Blog::getId)
+        ).stream().map(Blog::getId).toList();
+
         if(blogIds.isEmpty()){
             return ;
-        }
-
-        Map<Long, List<BlogTypeDTO>> blogTypeMap = blogMapper.getBlogTypeList(blogIds)
-                .stream()
-                .collect(Collectors.groupingBy(BlogTypeDTO::getBlogId));
+        };
 
         for (Long blogId : blogIds) {
-            List<String> typeListOne = blogTypeMap.getOrDefault(blogId,new ArrayList<>()).stream().map(BlogTypeDTO::getBlogType).toList();
+            List<String> typeListOne = redisUtil.getList(RedisPrefix.ITEM_TYPE+blogId);
             Map<Long,Double> blogTypeSimilarity = new HashMap<>();
             for (Long blogTwoId : blogIds) {
                 if(blogTwoId.equals(blogId)){
                     continue;
                 }
+                Map<Long, Double> twoTypeList = redisUtil.getHashWithLongDouble(RedisPrefix.ITEM_SIMILARITY + blogTwoId);
                 // 判断对称方向是否存在数据
-                if(itemSimilarityMatrix.containsKey(blogTwoId)){
-                    Map<Long, Double> otherMap = itemSimilarityMatrix.get(blogTwoId);
-                    if(otherMap.containsKey(blogId)){
-                        blogTypeSimilarity.put(blogTwoId,otherMap.get(blogId));
+                if( twoTypeList != null && twoTypeList.containsKey(blogTwoId)){
+                    Double score = twoTypeList.get(blogTwoId);
+                    if(Objects.nonNull(score)){
+                        blogTypeSimilarity.put(blogTwoId,score);
                         continue;
                     }
                 }
-                List<String> typeListTwo = blogTypeMap.getOrDefault(blogTwoId, new ArrayList<>()).stream().map(BlogTypeDTO::getBlogType).toList();
+                List<String> typeListTwo = redisUtil.getList(RedisPrefix.ITEM_TYPE+blogTwoId);
                 double rating = calculateCategorySimilarity(typeListOne, typeListTwo);
-                blogTypeSimilarity.put(blogTwoId, rating);
+                if(blogTypeSimilarity.size() > similartyBlogMaxItemNum){
+                    // 超过数量择优处理
+                    Set<Map.Entry<Long, Double>> entries = blogTypeSimilarity.entrySet();
+
+                    Long replaceId = null;
+                    Double minValue = rating;
+                    for (Map.Entry<Long, Double> entry : entries) {
+                        if(entry.getValue()<minValue){
+                            replaceId = entry.getKey();
+                            minValue = entry.getValue();
+
+                        }
+                    }
+                    if(replaceId != null){
+                        blogTypeSimilarity.remove(replaceId);
+                        blogTypeSimilarity.put(blogTwoId, rating);
+                    }
+                }else{
+                    blogTypeSimilarity.put(blogTwoId, rating);
+                }
+
             }
-            itemSimilarityMatrix.put(blogId, blogTypeSimilarity);
+            redisUtil.setHashWithLongDouble(RedisPrefix.ITEM_SIMILARITY + blogId,blogTypeSimilarity);
         }
 
     }
@@ -94,9 +144,7 @@ public class ItemCF {
      */
     public List<Recommendation> recommendForUser(Long userId,int topN){
 
-        // todo 从redis中获取短时间用户已经看过的数据
-
-        Map<Long, Double> userBlogMap = ratingMatrix.getUserItemMatrix().get(userId);
+        Map<Long, Double> userBlogMap = redisUtil.getHashWithLongDouble(RedisPrefix.RATING_MATRIX_USER + userId);
 
         Map<Long,Double> predictRatingMap = new HashMap<>() ; // 预测评分
 
@@ -132,13 +180,11 @@ public class ItemCF {
      * @return
      */
     private Map<Long, Double> getSimilarityItems(Long itemId, int k){
-        Map<Long, Double> similarityItems = itemSimilarityMatrix.getOrDefault(itemId, new HashMap<>());
+        Map<Long, Double> similarityItems = redisUtil.getHashWithLongDouble(RedisPrefix.ITEM_SIMILARITY+itemId);
         return similarityItems.entrySet().stream()
                 .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
                 .limit(k)
                 .collect(Collectors.toMap(Map.Entry::getKey,Map.Entry::getValue));
-
-
     }
 
 

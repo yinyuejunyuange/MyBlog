@@ -2,7 +2,11 @@ package org.oyyj.blogservice.config.common.cf;
 
 import org.checkerframework.checker.units.qual.C;
 import org.oyyj.blogservice.config.pojo.RatingMatrix;
+import org.oyyj.blogservice.config.pojo.UserActivityLevel;
 import org.oyyj.blogservice.dto.Recommendation;
+import org.oyyj.blogservice.mapper.UserBehaviorMapper;
+import org.oyyj.blogservice.util.RedisUtil;
+import org.oyyj.mycommon.common.RedisPrefix;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
@@ -20,34 +24,14 @@ public class UserCF {
     @Autowired
     private  RatingMatrix ratingMatrix;
 
+    @Autowired
+    private RedisUtil redisUtil;
+
+    @Autowired
+    private UserBehaviorMapper  userBehaviorMapper;
+
     private Map<Long,Map<Long,Double>> userSimilarityMatrix; // 用户相似度矩阵
 
-    /**
-     * 计算用户相似度
-     */
-    // todo 添加从redis中获取
-    public void calculateUserSimilarityMatrix(){
-
-        Map<Long, ConcurrentHashMap<Long, Double>> userItemMatrix = ratingMatrix.getUserItemMatrix();
-        List<Long> userIds = new ArrayList<>(userItemMatrix.keySet()); // 存储用户以及相似度评分
-
-        userSimilarityMatrix = new HashMap<>();
-
-        for (Long userId : userIds) {
-            Map<Long, Double> ratingOne = userItemMatrix.get(userId);
-            Map<Long, Double> userRating = new HashMap<>(ratingOne);
-            for (Long userIdTwo : userIds) {
-                if(userIdTwo.equals(userId)){
-                    continue;
-                }
-                Map<Long, Double> ratingTwo = userItemMatrix.get(userIdTwo);
-                double similarity = calculatePersonSimilarity(ratingOne, ratingTwo);
-                userRating.put(userId, similarity);
-            }
-
-            userSimilarityMatrix.put(userId, userRating);
-        }
-    }
 
     /**
      * 计算皮尔逊相关系数
@@ -59,7 +43,7 @@ public class UserCF {
                                              Map<Long,Double> ratingTwo){
         // 获取共同有评分的博客
         Set<Long> commonBlog = new HashSet<>(ratingOne.keySet());
-        commonBlog.removeAll(ratingTwo.keySet());
+        commonBlog.retainAll(ratingTwo.keySet());
 
         if(commonBlog.size()<2){
             return 0;
@@ -105,17 +89,16 @@ public class UserCF {
      */
     public List<Recommendation> recommendForUser(Long userId,int topN){
 
-        // todo 从redis中获取短时间用户已经看过的数据
-
         List<Long> similarUsers = findSimilarUsers(userId, 20);
 
         // 获取这些用户喜欢的物品（排除目标已经接触的）
-        Map<Long ,Double> candidateItems = new  HashMap<>();
-        Set<Long> userInteractedItems = ratingMatrix.getUserItemMatrix()
-                .getOrDefault(userId, new ConcurrentHashMap<>()).keySet();
+        // 3. 初始化两个Map用于加权平均
+        Map<Long, Double> weightedScores = new HashMap<>(); // 加权分数和
+        Map<Long, Double> weightSums = new HashMap<>();     // 权重和
 
+        Set<Long> userInteractedItems = new ConcurrentHashMap<>(redisUtil.getHashWithLongDouble(RedisPrefix.RATING_MATRIX_USER + userId)).keySet();
         // 平均值
-        double userAvgRating = ratingMatrix.getUserAvgMatrix().getOrDefault(userId, 0.0);
+        double userAvgRating = Double.parseDouble(redisUtil.get(RedisPrefix.AVG_RATING_USER+userId).toString());
 
         for (Long similarUser : similarUsers) {
             double userSimilarity = getUserSimilarity(userId, similarUser);
@@ -123,9 +106,10 @@ public class UserCF {
                 continue;
             }
 
-            Map<Long, Double> userRating = ratingMatrix.getUserItemMatrix().getOrDefault(similarUser, new ConcurrentHashMap<>());
-            double similarUserAvg = ratingMatrix.getUserAvgMatrix().getOrDefault(similarUser, 0.0);
+            Map<Long, Double> userRating = new ConcurrentHashMap<>(redisUtil.getHashWithLongDouble(RedisPrefix.RATING_MATRIX_USER + similarUser));
+            double similarUserAvg = Double.parseDouble(redisUtil.get(RedisPrefix.AVG_RATING_USER+similarUser).toString());
 
+            // 预测计算公式：预测评分 = 用户平均分 + Σ[相似度 × (邻居评分 - 邻居平均分)] / Σ|相似度|
             for (Map.Entry<Long, Double> entry : userRating.entrySet()) {
                 Long itemId = entry.getKey();
                 // 排除用户已经接触过的博客
@@ -138,15 +122,32 @@ public class UserCF {
                 double predictedRating = userAvgRating + userSimilarity * (rating - similarUserAvg);
 
                 // 使用相加 合并结果
-                candidateItems.merge(itemId, predictedRating, Double::sum);
+                // 7. 关键：使用加权平均而不是累加或覆盖
+                weightedScores.merge(itemId,
+                        predictedRating * Math.abs(userSimilarity),  // 加权分数
+                        Double::sum);
+                weightSums.merge(itemId,
+                        Math.abs(userSimilarity),  // 权重
+                        Double::sum);
 
             }
         }
 
-        return candidateItems.entrySet().stream()
-                .sorted(Map.Entry.<Long,Double>comparingByValue().reversed())
+        // 8. 计算最终评分（加权平均）
+        Map<Long, Double> finalScores = new HashMap<>();
+        for (Long itemId : weightedScores.keySet()) {
+            double totalWeight = weightSums.get(itemId);
+            if (totalWeight > 0) {
+                finalScores.put(itemId,
+                        weightedScores.get(itemId) / totalWeight);
+            }
+        }
+
+        // 9. 返回结果
+        return finalScores.entrySet().stream()
+                .sorted(Map.Entry.<Long, Double>comparingByValue().reversed())
                 .limit(topN)
-                .map(entry -> new Recommendation(entry.getKey(),entry.getValue()))
+                .map(entry -> new Recommendation(entry.getKey(), entry.getValue()))
                 .collect(Collectors.toList());
 
     }
@@ -160,7 +161,10 @@ public class UserCF {
     private List<Long> findSimilarUsers(Long userId, int k){
         Map<Long,Double> similarities = new HashMap<>();
 
-        for (Long otherUserId : ratingMatrix.getUserItemMatrix().keySet()) {
+        List<UserActivityLevel> userActivityLevel = userBehaviorMapper.getUserActivityLevel();
+        List<Long> userIds = userActivityLevel.parallelStream().map(UserActivityLevel::getUserId).toList();
+
+        for (Long otherUserId : userIds) {
             if(userId.equals(otherUserId)){
                 continue;
             }
@@ -185,10 +189,11 @@ public class UserCF {
      * @return
      */
     private double getUserSimilarity(Long userIdOne, Long userIdTwo){
-        return calculatePersonSimilarity(
-                ratingMatrix.getUserItemMatrix().getOrDefault(userIdOne,new ConcurrentHashMap<>()),
-                ratingMatrix.getUserItemMatrix().getOrDefault(userIdTwo,new ConcurrentHashMap<>())
-        );
+
+        Map<Long, Double> userOneBlogMap = new ConcurrentHashMap<>(redisUtil.getHashWithLongDouble(RedisPrefix.RATING_MATRIX_USER + userIdOne));
+        Map<Long, Double> userTwoBlogMap = new ConcurrentHashMap<>(redisUtil.getHashWithLongDouble(RedisPrefix.RATING_MATRIX_USER + userIdTwo));
+
+        return calculatePersonSimilarity(userOneBlogMap,userTwoBlogMap);
     }
 
 }

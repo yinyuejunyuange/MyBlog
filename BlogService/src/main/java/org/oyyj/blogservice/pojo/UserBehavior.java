@@ -1,9 +1,9 @@
 package org.oyyj.blogservice.pojo;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.*;
 
 import java.util.Date;
 
@@ -14,7 +14,9 @@ import java.util.Date;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@TableName("user_behavior")
 public class UserBehavior {
+    @TableId("id")
     private Long id;
     private Long userId;
     private Long blogId;
