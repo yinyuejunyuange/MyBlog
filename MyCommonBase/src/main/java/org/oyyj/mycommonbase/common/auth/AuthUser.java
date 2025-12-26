@@ -1,4 +1,4 @@
-package org.oyyj.gatewaydemo.pojo;
+package org.oyyj.mycommonbase.common.auth;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -9,7 +9,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -31,6 +30,8 @@ public class AuthUser implements UserDetails {
     private List<String> permissions;
 
     private List<String> roles;
+
+    private String ip; //  用户的IP
 
     @JsonIgnore
     private List<SimpleGrantedAuthority> authorities;

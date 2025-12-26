@@ -51,7 +51,7 @@
 
         <dependency>
             <groupId>org.oyyj</groupId>
-            <artifactId>MyCommon</artifactId>
+            <artifactId>MyCommonBase</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
 

@@ -2,8 +2,9 @@ package org.oyyj.gatewaydemo.filter;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.oyyj.gatewaydemo.pojo.AuthUser;
-import org.oyyj.gatewaydemo.utils.JWTUtils;
+import lombok.extern.slf4j.Slf4j;
+import org.oyyj.mycommonbase.common.auth.AuthUser;
+import org.oyyj.mycommonbase.utils.JWTUtils;
 import org.oyyj.gatewaydemo.utils.RedisUtil;
 
 
@@ -35,6 +36,7 @@ import java.util.concurrent.TimeUnit;
  * 过滤器 通过token得出结果
  */
 @Component
+@Slf4j
 public class JWTAuthenticationTokenFilter implements WebFilter { // 原来的过滤器实现接口存在问题
 
     @Autowired
@@ -49,12 +51,20 @@ public class JWTAuthenticationTokenFilter implements WebFilter { // 原来的过
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
         ServerHttpResponse response = exchange.getResponse();
-
+        ServerHttpRequest mutatedRequest;
+        String clientRealIp = getClientRealIp(request);
+        if(Objects.isNull(clientRealIp)){
+            return handleError(response,"请求无IP来源",HttpStatus.INTERNAL_SERVER_ERROR);
+        }
         // 获取token
         String token = request.getHeaders().getFirst("token");
         // token 为空交给 SpringSecurity的authorizeExchange决定
         if (!StringUtils.hasText(token)) {
-            return chain.filter(exchange);
+            // 匿名请求 获取访问者的IP信息
+            mutatedRequest=request.mutate()
+                    .header("X-Real-IP", clientRealIp)
+                    .build();
+            return chain.filter(exchange.mutate().request(mutatedRequest).build());
         }
 
         AuthUser authUser = JWTUtils.parseTokenAndGetUserId(token);
@@ -69,7 +79,7 @@ public class JWTAuthenticationTokenFilter implements WebFilter { // 原来的过
 
         // 刷新redis中token有效期
         redisUtil.set(String.valueOf(authUser.getUserId()), token, 24, TimeUnit.HOURS);
-        ServerHttpRequest mutatedRequest;
+
 
         // 将用户信息添加到 请求头中
         try {
@@ -125,4 +135,30 @@ public class JWTAuthenticationTokenFilter implements WebFilter { // 原来的过
             return response.writeWith(Mono.just(buffer));
         }
     }
+
+    /**
+     * 获取用户真实IP
+     * @param request
+     * @return
+     */
+    private String getClientRealIp(ServerHttpRequest request) {
+
+        // 标准代理头
+        String xForwardedFor = request.getHeaders().getFirst("X-Forwarded-For");
+        if (StringUtils.hasText(xForwardedFor) && !"unknown".equalsIgnoreCase(xForwardedFor) ) {
+            xForwardedFor = xForwardedFor.split(",")[0]; // 可能存在多项IP
+            return xForwardedFor.trim();
+        }
+
+        // Nginx代理（实际部署环境时使用）
+        String xRealIp = request.getHeaders().getFirst("X-Real-IP");
+        if (StringUtils.hasText(xRealIp) && !"unknown".equalsIgnoreCase(xRealIp) ) {
+            return xRealIp;
+        }
+
+        // 没有编写来源 可能来源爬虫等工具
+        log.warn("拦截无IP请求：{}",request.getHeaders());
+        return null;
+    }
+
 }

@@ -1,4 +1,4 @@
-package org.oyyj.gatewaydemo.utils;
+package org.oyyj.mycommonbase.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -9,7 +9,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
-import org.oyyj.gatewaydemo.pojo.AuthUser;
+import org.oyyj.mycommonbase.common.auth.AuthUser;
 
 
 import java.nio.charset.StandardCharsets;

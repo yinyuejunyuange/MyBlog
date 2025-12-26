@@ -1,4 +1,4 @@
-package org.oyyj.mycommon.utils;
+package org.oyyj.mycommonbase.utils;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;

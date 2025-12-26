@@ -11,7 +11,7 @@ import org.oyyj.gatewaydemo.pojo.dto.LoginDTO;
 import org.oyyj.gatewaydemo.pojo.dto.RegisterDTO;
 import org.oyyj.gatewaydemo.pojo.vo.JWTUserVO;
 import org.oyyj.gatewaydemo.service.IUserService;
-import org.oyyj.mycommon.utils.ResultUtil;
+import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
@@ -45,6 +45,7 @@ public class LocalRequestFilter extends AbstractGatewayFilterFactory<LocalReques
 
     private static final DataBufferFactory BUFFER_FACTORY = new DefaultDataBufferFactory(); // 字节缓冲应对GATEWAY
 
+    // todo 补充 管理员端的 登录（管理员的注册和注销只能由超管负责）
     @Override
     public GatewayFilter apply(Config config) {
         return (exchange, chain)->{
@@ -157,7 +158,7 @@ public class LocalRequestFilter extends AbstractGatewayFilterFactory<LocalReques
         try {
             response.setStatusCode(status);
             response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-            ResultUtil<Object> errorResponse = ResultUtil.fail(status.value(), message);
+            org.oyyj.mycommonbase.utils.ResultUtil<Object> errorResponse = ResultUtil.fail(status.value(), message);
             String responseBody = objectMapper.writeValueAsString(errorResponse);
             byte[] bytes = responseBody.getBytes(StandardCharsets.UTF_8);
             DataBuffer buffer = BUFFER_FACTORY.wrap(bytes);

@@ -4,12 +4,11 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.checkerframework.checker.units.qual.C;
 import org.oyyj.blogservice.mapper.UserBehaviorMapper;
 import org.oyyj.blogservice.pojo.UserBehavior;
 import org.oyyj.blogservice.util.RedisUtil;
-import org.oyyj.mycommon.common.RedisPrefix;
-import org.redisson.Redisson;
+
+import org.oyyj.mycommonbase.common.RedisPrefix;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;

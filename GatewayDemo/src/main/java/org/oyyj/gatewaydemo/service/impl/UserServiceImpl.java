@@ -1,38 +1,28 @@
 package org.oyyj.gatewaydemo.service.impl;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.oyyj.gatewaydemo.mapper.SysPermissionMapper;
 import org.oyyj.gatewaydemo.mapper.SysRoleMapper;
 import org.oyyj.gatewaydemo.mapper.UserMapper;
-import org.oyyj.gatewaydemo.pojo.AuthUser;
+import org.oyyj.mycommonbase.common.auth.AuthUser;
 import org.oyyj.gatewaydemo.pojo.User;
 import org.oyyj.gatewaydemo.pojo.dto.RegisterDTO;
 import org.oyyj.gatewaydemo.pojo.vo.JWTUserVO;
 import org.oyyj.gatewaydemo.service.IUserService;
-import org.oyyj.gatewaydemo.utils.JWTUtils;
+import org.oyyj.mycommonbase.utils.JWTUtils;
 import org.oyyj.gatewaydemo.utils.RedisUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Mono;
 
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 

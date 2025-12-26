@@ -1,15 +1,13 @@
 package org.oyyj.blogservice.config.common.cf;
 
-import org.checkerframework.checker.units.qual.C;
 import org.oyyj.blogservice.config.pojo.RatingMatrix;
 import org.oyyj.blogservice.config.pojo.UserActivityLevel;
 import org.oyyj.blogservice.dto.Recommendation;
 import org.oyyj.blogservice.mapper.UserBehaviorMapper;
-import org.oyyj.blogservice.util.RedisUtil;
-import org.oyyj.mycommon.common.RedisPrefix;
+import org.oyyj.mycommonbase.common.RedisPrefix;
+import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

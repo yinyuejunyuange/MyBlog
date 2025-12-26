@@ -1,4 +1,4 @@
-package org.oyyj.mycommon.config;
+package org.oyyj.mycommonbase.config;
 
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;

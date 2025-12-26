@@ -21,6 +21,7 @@
         <module>AIChatDemo</module>
         <module>TaskService</module>
         <module>MyCommon</module>
+        <module>MyCommonBase</module>
         <module>GatewayDemo</module>
     </modules>
     <url/>

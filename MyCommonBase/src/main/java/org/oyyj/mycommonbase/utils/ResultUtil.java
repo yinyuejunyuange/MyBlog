@@ -1,4 +1,4 @@
-package org.oyyj.mycommon.utils;
+package org.oyyj.mycommonbase.utils;
 
 import java.util.HashMap;
 import java.util.Map;

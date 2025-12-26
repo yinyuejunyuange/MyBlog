@@ -9,7 +9,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableFeignClients(value="org.oyyj.blogservice.feign")
 @SpringBootApplication
 @EnableScheduling
-@ComponentScan(basePackages = {"org.oyyj.blogservice", "org.oyyj.mycommon"})
+@ComponentScan(basePackages = {"org.oyyj.blogservice", "org.oyyj.mycommon","org.oyyj.mycommonbase"})
 public class BlogServiceApplication {
 
     public static void main(String[] args) {

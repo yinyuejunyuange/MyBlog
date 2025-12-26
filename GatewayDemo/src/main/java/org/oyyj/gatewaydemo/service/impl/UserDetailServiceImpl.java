@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import org.oyyj.gatewaydemo.mapper.SysPermissionMapper;
 import org.oyyj.gatewaydemo.mapper.SysRoleMapper;
 import org.oyyj.gatewaydemo.mapper.UserMapper;
-import org.oyyj.gatewaydemo.pojo.AuthUser;
+import org.oyyj.mycommonbase.common.auth.AuthUser;
 import org.oyyj.gatewaydemo.pojo.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
