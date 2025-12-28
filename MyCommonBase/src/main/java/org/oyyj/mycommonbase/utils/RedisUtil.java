@@ -99,7 +99,9 @@ public class RedisUtil {
             return;
         }
         list = list.stream().filter(Objects::nonNull).collect(Collectors.toList());
-        stringRedisTemplate.opsForList().rightPushAll(key, list);
+        // 核心：先删除原有key，清空旧列表
+        stringRedisTemplate.delete(key);
+        stringRedisTemplate.opsForList().rightPushAll(key, list); //  向右添加数据
     }
 
     /**
