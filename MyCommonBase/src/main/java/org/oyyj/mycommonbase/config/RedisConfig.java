@@ -1,4 +1,4 @@
-package org.oyyj.blogservice.config;
+package org.oyyj.mycommonbase.config;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;

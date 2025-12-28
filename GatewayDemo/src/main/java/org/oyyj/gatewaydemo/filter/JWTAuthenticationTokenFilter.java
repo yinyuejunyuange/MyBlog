@@ -5,9 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.oyyj.mycommonbase.common.auth.AuthUser;
 import org.oyyj.mycommonbase.utils.JWTUtils;
-import org.oyyj.gatewaydemo.utils.RedisUtil;
-
-
+import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpStatus;
@@ -44,7 +42,6 @@ public class JWTAuthenticationTokenFilter implements WebFilter { // 原来的过
 
     private final ObjectMapper objectMapper =  new ObjectMapper();
 
-    private final static String FROMWORD="FROM_GATEWAY";
 
 
     @Override

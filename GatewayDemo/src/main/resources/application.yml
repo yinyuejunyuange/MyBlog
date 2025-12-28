@@ -1,12 +1,30 @@
 spring:
   application:
     name: GateWayDemo
+  data: # 作为功能模块 当别的微服务读取时 不会读取common下的 yml文件
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      lettuce:
+        pool:
+          min-idle: 0
+          max-active: 16
+          max-wait: -1ms
+          max-idle: 8
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    type: com.alibaba.druid.pool.DruidDataSource
+    url: jdbc:mysql://localhost:3306/my_blog_blogDB?serverTimezone=UTC # ?前面是数据库名
+    username: root
+    password: OYyj0715
 
   cloud:
     nacos:
       discovery:
-        server-addr: localhost:8848
-        # server-addr: http://47.120.35.205:7001/nacos
+        service: GateWayDemo
+        server-addr: 192.168.101.1:8848
+        cluster-name: BJ  # 假设网关部署在 BJ 集群，优先调用 BJ 集群的 BlogService
     gateway:
       routes:
         # 当前服务处理 登录

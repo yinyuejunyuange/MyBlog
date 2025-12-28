@@ -53,6 +53,7 @@ public class SecurityConfig {
         return manager;
     }
 
+
     // 放行--安全配置
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) throws Exception {

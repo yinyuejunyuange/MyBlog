@@ -41,9 +41,14 @@ public class ItemCF {
         int order = 0;
         int allSize = allBlogIds.size();
         while(order*batchSize <= allSize){
-            List<Long> blogIds = allBlogIds.subList(order*batchSize,(order+1)*batchSize);
+            int end = (order+1)*batchSize>allSize?allSize:order*batchSize;
+            List<Long> blogIds = allBlogIds.subList(order*batchSize,end);
+            List<BlogTypeDTO> blogTypeList = blogMapper.getBlogTypeList(blogIds);
+            if(Objects.isNull(blogTypeList) ||  blogTypeList.isEmpty()){
+                break;
+            }
             // 将现有的博客的类别存储到redis中
-            Map<Long, List<BlogTypeDTO>> blogTypeMap = blogMapper.getBlogTypeList(blogIds)
+            Map<Long, List<BlogTypeDTO>> blogTypeMap = blogTypeList
                     .stream()
                     .collect(Collectors.groupingBy(BlogTypeDTO::getBlogId));
 

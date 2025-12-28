@@ -2,12 +2,14 @@ package org.oyyj.mycommonbase.utils;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -16,6 +18,9 @@ public class RedisUtil {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate; // 处理String的存储 避免发生如 将List<String>全部序列化为字符串的情况
 
     private static final Long RELEASE_SUCCESS = 1L;
     private static final String RELEASE_SCRIPT = "if redis.call('get', KEYS[1]) == ARGV[1] then " +
@@ -89,7 +94,12 @@ public class RedisUtil {
      * @param list
      */
     public void setList(String key, List<String> list) {
-        redisTemplate.opsForList().leftPushAll(key, list);
+
+        if(key == null || list == null || list.isEmpty()){
+            return;
+        }
+        list = list.stream().filter(Objects::nonNull).collect(Collectors.toList());
+        stringRedisTemplate.opsForList().rightPushAll(key, list);
     }
 
     /**
@@ -98,8 +108,11 @@ public class RedisUtil {
      * @return
      */
     public List<String> getList(String key) {
-        List<Object> range = redisTemplate.opsForList().range(key, 0, -1);// 获取从0到最后一个
-        return range.stream().map(String::valueOf).toList();
+        if(key == null || key.isEmpty()){
+            return Collections.emptyList();
+        }
+        return stringRedisTemplate.opsForList().range(key, 0, -1);// 获取从0到最后一个
+
     }
     // 删除键
     public Boolean delete(String key) {

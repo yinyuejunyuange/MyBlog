@@ -4,10 +4,12 @@
 
 
     <select id="getBlogTypeList" resultType="org.oyyj.blogservice.dto.BlogTypeDTO">
-        SELECT *
+        SELECT
+            b.id AS blogId,
+            tt.name AS blogType
         FROM blog b
-        LEFT JOIN type_blog tb ON tb.blog_id = b.id
-        LEFT JOIN type_table tt ON tt.id = tb.type_id
+        INNER JOIN type_blog tb ON tb.blog_id = b.id
+        INNER JOIN type_table tt ON tt.id = tb.type_id
         <where>
             <if test="blogIds != null and blogIds.size() > 0">
                 b.id  in

@@ -6,9 +6,10 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.oyyj.blogservice.mapper.UserBehaviorMapper;
 import org.oyyj.blogservice.pojo.UserBehavior;
-import org.oyyj.blogservice.util.RedisUtil;
+
 
 import org.oyyj.mycommonbase.common.RedisPrefix;
+import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +39,7 @@ public class RatingMatrix {
     private RedissonClient redissonClient;
 
     @Autowired
-    private  RedisUtil redisUtil;
+    private RedisUtil redisUtil;
 
     /**
      * 项目启动时初始化
