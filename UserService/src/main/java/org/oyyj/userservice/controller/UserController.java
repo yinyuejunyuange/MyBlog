@@ -10,7 +10,7 @@ import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
-import org.oyyj.mycommon.utils.ResultUtil;
+import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.userservice.dto.*;
 import org.oyyj.userservice.Feign.AnnouncementFeign;
 import org.oyyj.userservice.Feign.BlogFeign;
@@ -67,34 +67,34 @@ public class UserController {
 
 
 
-    // 用户登录
-    @PostMapping("/login")
-    public Map<String,Object> UserLogin(@RequestBody UserDTO userDTO) throws JsonProcessingException {
+//    // 用户登录
+//    @PostMapping("/login")
+//    public Map<String,Object> UserLogin(@RequestBody UserDTO userDTO) throws JsonProcessingException {
+//
+//        JWTUser login = userService.login(userDTO.getUsername(), userDTO.getPassword());
+//        return ResultUtil.successMap(login,"登录成功");
+//    }
+//
+//    // 用户注册
+//    @PostMapping("/register")
+//    public Map<String,Object> UserRegister(@RequestBody RegisterDTO registerDTO) throws IOException {
+//        JWTUser jwtUser = userService.registerUser(registerDTO);
+//        if(Objects.isNull(jwtUser)){
+//            return ResultUtil.failMap("用户名重复 请重新注册");
+//        }
+//        return ResultUtil.successMap(jwtUser,"注册成功 已登录");
+//    }
+//
+//
+//    // 用户登出
+//    @GetMapping("/logout")
+//    public Map<String,Object> UserLogout() {
+//        userService.LoginOut();
+//        return ResultUtil.successMap(null,"退出成功");
+//    }
 
-        JWTUser login = userService.login(userDTO.getUsername(), userDTO.getPassword());
-        return ResultUtil.successMap(login,"登录成功");
-    }
 
-    // 用户注册
-    @PostMapping("/register")
-    public Map<String,Object> UserRegister(@RequestBody RegisterDTO registerDTO) throws IOException {
-        JWTUser jwtUser = userService.registerUser(registerDTO);
-        if(Objects.isNull(jwtUser)){
-            return ResultUtil.failMap("用户名重复 请重新注册");
-        }
-        return ResultUtil.successMap(jwtUser,"注册成功 已登录");
-    }
-
-
-    // 用户登出
-    @GetMapping("/logout")
-    public Map<String,Object> UserLogout() {
-        userService.LoginOut();
-        return ResultUtil.successMap(null,"退出成功");
-    }
-
-
-    // 用户存储 头像
+    // 用户存储 头像  todo 重写
     @RequestMapping("/makeHead")
     public Map<String,Object> makeUserHead(@RequestParam("file")MultipartFile file) throws IOException {
         String fileName= UUID.randomUUID().toString().substring(0,10)+file.getOriginalFilename();
@@ -120,7 +120,7 @@ public class UserController {
     }
 
 
-    // 获取用户头像的方法
+    // 获取用户头像的方法  todo 重写
     @GetMapping("/getHead/{fileName}")
     public void getUserHead(@PathVariable("fileName") String fileName , HttpServletResponse response) throws IOException {
         // String filePath= ResourceUtils.getURL("classpath:").getPath()+"static/image/"+fileName;

@@ -6,10 +6,12 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.oyyj.mycommon.utils.ResultUtil;
+
+import org.oyyj.mycommonbase.utils.RedisUtil;
+import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.userservice.exception.SourceException;
 import org.oyyj.userservice.pojo.LoginUser;
-import org.oyyj.userservice.utils.RedisUtil;
+
 
 import org.oyyj.userservice.utils.TokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;

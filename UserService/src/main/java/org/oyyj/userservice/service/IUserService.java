@@ -14,13 +14,13 @@ import java.util.Map;
 
 
 public interface IUserService extends IService<User> {
-
-    JWTUser login(String username, String password) throws JsonProcessingException;
-
-    // 登出
-    void LoginOut();
-
-    JWTUser registerUser(RegisterDTO registerDTO) throws IOException;
+//
+//    JWTUser login(String username, String password) throws JsonProcessingException;
+//
+//    // 登出
+//    void LoginOut();
+//
+//    JWTUser registerUser(RegisterDTO registerDTO) throws IOException;
 
     Map<String,Object> saveBlog(BlogDTO blogDTO);
 

@@ -2,8 +2,8 @@ package org.oyyj.userservice.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.oyyj.mycommon.utils.ResultUtil;
-import org.oyyj.userservice.utils.RedisUtil;
+import org.oyyj.mycommonbase.utils.RedisUtil;
+import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.userservice.utils.VerifyUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;

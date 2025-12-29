@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
+import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.userservice.dto.PageDTO;
 import org.oyyj.userservice.dto.ReportUserDTO;
 import org.oyyj.userservice.dto.UserReportForAdminDTO;
@@ -15,7 +16,6 @@ import org.oyyj.userservice.pojo.User;
 import org.oyyj.userservice.pojo.UserReport;
 import org.oyyj.userservice.service.IUserReportService;
 import org.oyyj.userservice.service.IUserService;
-import org.oyyj.userservice.utils.ResultUtil;
 import org.oyyj.userservice.vo.AdminUpdateUserReportVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

@@ -5,12 +5,12 @@ import feign.Response;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.IOUtils;
+import org.oyyj.mycommonbase.utils.RedisUtil;
+import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.userservice.dto.*;
 import org.oyyj.userservice.Feign.BlogFeign;
 import org.oyyj.userservice.pojo.*;
 import org.oyyj.userservice.service.*;
-import org.oyyj.userservice.utils.RedisUtil;
-import org.oyyj.userservice.utils.ResultUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,22 +57,21 @@ public class UserBlogController {
 
 
     // 用户查找
-        // 根据分类查找
+        // 根据分类查找  todo 修改为blog服务
     @GetMapping("/getBlogList")
     public Map<String,Object> getBlogList(@RequestParam int pageNow,@RequestParam(required = false) String type){
         return blogFeign.getBlogListByPage(pageNow, type);
     }
 
 
-    // 用户编写
-
+    // 用户编写 todo 修改成blog服务
     @PostMapping("/write")
     public Map<String,Object> UserWrite(@RequestBody BlogDTO blogDTO) throws IOException {
         return userService.saveBlog(blogDTO);
     }
     // 用户评论
 
-    // 用户阅读
+    // 用户阅读 todo 修改成blog服务
 
     @GetMapping("/read")
     public Map<String,Object> UserRead(@RequestParam("id") String id) throws IOException {
@@ -100,7 +99,7 @@ public class UserBlogController {
     }
 
     // 上传图片
-    @CrossOrigin // 允许跨域
+    @CrossOrigin // 允许跨域 todo 修改成blog服务
     @RequestMapping("/file/upload")
     public Object uploadImage(@RequestParam("image")MultipartFile file){
         return userService.uploadPict(file);
@@ -108,7 +107,7 @@ public class UserBlogController {
 
 
 
-    // 下载图片
+    // 下载图片 todo 修改成blog服务
     @GetMapping("/file/download/{fileName}")
     public void downloadFile(@PathVariable("fileName")String fileName, HttpServletResponse response){
         //userService.downloadFile(fileName,response);
@@ -128,7 +127,7 @@ public class UserBlogController {
 //        userService.downloadFile(fileName,response);
 //    }
 
-    // 用户点赞
+    // 用户点赞 todo 修改成blog服务
     @PutMapping("/kudos")
     public Map<String,Object> kudosBlog(@RequestParam("blogId") String blogId){
 
@@ -148,7 +147,7 @@ public class UserBlogController {
 
 
 
-    // 用户取消点赞
+    // 用户取消点赞 todo 修改成blog服务
     @PutMapping("/cancelKudos")
     public Map<String,Object> cancelKudos(@RequestParam("blogId") String blogId){
         // 将用户点赞表中的数据删除----删除操作指挥存在用户本人不存在并发情况
@@ -177,7 +176,7 @@ public class UserBlogController {
 
     }
 
-    // 判断当前用户是否点赞
+    // 判断当前用户是否点赞 todo 修改成blog服务
     @GetMapping("/isUserKudos")
     public boolean isUserKudos(@RequestParam("blogId") Long blogId,@RequestParam("userInfoKey") String userInfoKey, HttpServletRequest request)  {
 
@@ -203,7 +202,7 @@ public class UserBlogController {
         }
     }
 
-    // 用户收藏
+    // 用户收藏 todo 修改成blog服务
     @PutMapping("/userStar")
     public Map<String,Object> userStar(@RequestParam("blogId") String blogId){
         // 用户收藏表中添加对应的用户博客id；
@@ -218,7 +217,7 @@ public class UserBlogController {
         }
     }
 
-    // 用户取消收藏
+    // 用户取消收藏  todo 修改成blog服务
     @PutMapping("/cancelStar")
     public Map<String,Object> cancelStar(@RequestParam("blogId") String blogId){
         // 将用户点赞表中的数据删除----删除操作指挥存在用户本人不存在并发情况
@@ -247,7 +246,7 @@ public class UserBlogController {
 
     }
 
-    // 判断当前用户是否收藏
+    // 判断当前用户是否收藏 todo 修改成blog服务
     @GetMapping("/isUserStar")
     public Boolean isUserStar(@RequestParam("blogId") Long blogId,@RequestParam("userInfoKey")String userInfoKey,HttpServletRequest request){
         try {
@@ -272,7 +271,7 @@ public class UserBlogController {
         }
     }
 
-    // 用户添加评论
+    // 用户添加评论 todo 修改成blog服务
     @PostMapping("/addComment")
     public Map<String,Object> writeComment(@RequestBody CommentDTO commentDTO){
         if(Objects.isNull(commentDTO)){
@@ -297,7 +296,7 @@ public class UserBlogController {
         }
     }
 
-    // 用户回复评论
+    // 用户回复评论  todo 修改成blog服务
     @PostMapping("/replyComment")
     public Map<String,Object> replyComment(@RequestBody ReplyDTO replyDTO){
         if(Objects.isNull(replyDTO)){
@@ -321,7 +320,7 @@ public class UserBlogController {
         }
     }
 
-    // 用户获取评论
+    // 用户获取评论 todo 修改成blog服务
 
     @GetMapping("/getComment")
     public Map<String,Object> getComment(@RequestParam("blogId")String blogId){
@@ -340,7 +339,7 @@ public class UserBlogController {
         return blogFeign.getComment(blogId,null);
     }
 
-    // 用户点赞评论
+    // 用户点赞评论 todo 修改成blog服务
     @GetMapping("/kudosComment")
     public Map<String,Object> kudosComment(@RequestParam("commentId")String commentId,@RequestParam("bytes")Byte bytes){
 
@@ -357,7 +356,7 @@ public class UserBlogController {
         }
 
     }
-    // 用户点赞回复
+    // 用户点赞回复 todo 修改成blog服务
     @GetMapping("/kudosReply")
     public Map<String,Object> kudosReply(@RequestParam("replyId")String replyId,@RequestParam("bytes")Byte bytes){
 
@@ -374,7 +373,7 @@ public class UserBlogController {
         }
     }
 
-    // 判断用户是否点赞评论
+    // 判断用户是否点赞评论 todo 修改成blog服务
     @GetMapping("/getUserKudosComment")
     public Boolean getUserKudosComment(@RequestParam("commentId")String commentId,@RequestParam("userInfoKey")String userInfoKey,HttpServletRequest request){
         try {
@@ -399,7 +398,7 @@ public class UserBlogController {
         }
     }
 
-    // 判断用户是否点赞回复
+    // 判断用户是否点赞回复 todo 修改成blog服务
     @GetMapping("/getUserKudosReply")
     public Boolean getUserKudosReply(@RequestParam("replyId")String replyId,@RequestParam("userInfoKey")String userInfoKey,HttpServletRequest request){
         try {
@@ -424,7 +423,7 @@ public class UserBlogController {
         }
     }
 
-    // 搜索博客 名称模糊搜做
+    // 搜索博客 名称模糊搜索 todo 修改成blog服务  并重写
 
     @GetMapping("/getBlogByName")
     public Map<String,Object> getBlogByName(@RequestParam("blogName") String blogName
@@ -447,14 +446,14 @@ public class UserBlogController {
         return blogFeign.GetBlogByName(blogName,current);
     }
 
-    // 类型搜索
+    // 类型搜索 todo 修改成blog服务
     @GetMapping("/getBlogByTypeList")
     public Map<String,Object> getBlogByTypeList(@RequestParam("typeList") List<String> typeList
             ,@RequestParam("current")int current){
         log.info("123123123");
         return blogFeign.GetBlogByTypeList(typeList,current);
     }
-    // 作者搜索
+    // 作者搜索 todo 修改成blog服务
     @GetMapping("/getBlogByUserId")
     public Map<String,Object> getBlogByUserId(@RequestParam("userId") String userId
             ,@RequestParam("current")int current){
@@ -462,14 +461,14 @@ public class UserBlogController {
     }
 
 
-    // 获取用户收藏的博客
+    // 获取用户收藏的博客 todo 修改成blog服务
     @GetMapping("/getUserStarBlog")
     public Map<String,Object> getUserStarBlog(@RequestParam("userId") String userId,
                                               @RequestParam("current")int current){
         return userService.getUserStarBlog(userId,current);
     }
 
-    // 获取用户关注的博客作者
+    // 获取用户关注的博客作者 todo 修改成blog服务
 
     @GetMapping("/getUserStarAuthor")
     public Map<String,Object> getUserStarAuthor(@RequestParam("current")int current){
@@ -484,7 +483,7 @@ public class UserBlogController {
         return ResultUtil.successMap(userStarBlogAuthor,"查询成功");
     }
 
-    // 获取用户自己的博客
+    // 获取用户自己的博客 todo 修改成blog服务
     @GetMapping("/getUsersBlog")
     public Map<String,Object> getUsersBlog(@RequestParam("current") int current){
         UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
@@ -493,6 +492,7 @@ public class UserBlogController {
         return userService.getUsersBlog(principal.getUser().getId(),current);
     }
 
+    // todo 修改成blog服务
     @GetMapping("/getHotBlog")
     public Map<String,Object> getHotBlog(){
         return blogFeign.getHotBlog();
