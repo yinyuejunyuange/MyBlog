@@ -8,6 +8,7 @@ import org.oyyj.blogservice.dto.PageDTO;
 import org.oyyj.blogservice.dto.ReadCommentDTO;
 import org.oyyj.blogservice.dto.ReadDTO;
 import org.oyyj.blogservice.pojo.Blog;
+import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -22,7 +23,7 @@ public interface IBlogService extends IService<Blog> {
 
     ReadDTO ReadBlog(Long id,String UserInfoKey,Long userId);
 
-    PageDTO<BlogDTO> getBlogByPage(int current, int pageSizem, String type);
+    PageDTO<BlogDTO> getBlogByPage(int current, int pageSize, String type, LoginUser loginUser);
 
     List<ReadCommentDTO> getBlogComment(String blogId,String userInfoKey);
 
@@ -31,6 +32,13 @@ public interface IBlogService extends IService<Blog> {
     Boolean changeReplyKudos(Long replyId,Byte bytes);
 
     List<Long> getUserBlogNum(Long userId);
+
+    /**
+     * 首页 博客
+     * @param loginUser
+     * @return
+     */
+    List<BlogDTO> getHomeBlogs(LoginUser loginUser);
 
     PageDTO<BlogDTO> getBlogByName(int current,int pageSize,String blogName);
 

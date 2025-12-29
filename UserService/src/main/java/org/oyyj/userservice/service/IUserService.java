@@ -3,6 +3,7 @@ package org.oyyj.userservice.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.servlet.http.HttpServletResponse;
+import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.userservice.dto.*;
 import org.oyyj.userservice.pojo.JWTUser;
 import org.oyyj.userservice.pojo.User;
@@ -21,28 +22,28 @@ public interface IUserService extends IService<User> {
 //    void LoginOut();
 //
 //    JWTUser registerUser(RegisterDTO registerDTO) throws IOException;
+//
+//    Map<String,Object> saveBlog(BlogDTO blogDTO);
+//
+//    Map<String,Object> readBlog(String blogId,String userInfoKey);
+//
+//    Object uploadPict(MultipartFile file);
+//
+//    void downloadFile(String fileName, HttpServletResponse response);
+//
+//    boolean userKudos(String blogId);
+//
+//    boolean userStar(String blogId);
+//
+//    Long addComment(CommentDTO commentDTO);
+//
+//    Long addReply(ReplyDTO replyDTO);
+//
+//    Boolean kudosComment(String commentId,Byte bytes);
+//
+//    Boolean kudosReply(String replyId,Byte bytes);
 
-    Map<String,Object> saveBlog(BlogDTO blogDTO);
-
-    Map<String,Object> readBlog(String blogId,String userInfoKey);
-
-    Object uploadPict(MultipartFile file);
-
-    void downloadFile(String fileName, HttpServletResponse response);
-
-    boolean userKudos(String blogId);
-
-    boolean userStar(String blogId);
-
-    Long addComment(CommentDTO commentDTO);
-
-    Long addReply(ReplyDTO replyDTO);
-
-    Boolean kudosComment(String commentId,Byte bytes);
-
-    Boolean kudosReply(String replyId,Byte bytes);
-
-    BlogUserInfoDTO getBlogUserInfo(String userId);
+    BlogUserInfoDTO getBlogUserInfo(String userId, LoginUser principal);
 
     Boolean starBlogAuthor(String authorId);
 

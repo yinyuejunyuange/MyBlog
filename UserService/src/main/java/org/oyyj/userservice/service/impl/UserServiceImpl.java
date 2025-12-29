@@ -4,10 +4,10 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletResponse;
+import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.userservice.dto.*;
@@ -17,16 +17,10 @@ import org.oyyj.userservice.mapper.SysRoleMapper;
 import org.oyyj.userservice.mapper.UserMapper;
 import org.oyyj.userservice.pojo.*;
 import org.oyyj.userservice.service.*;
-import org.oyyj.userservice.utils.TokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -36,7 +30,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 @Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
@@ -188,207 +181,201 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 //        }
 //    }
 
-    @Override
-    public Map<String, Object> saveBlog(BlogDTO blogDTO) {
-        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-
-        if(Objects.isNull(authentication)){
-            return ResultUtil.failMap("登录过期 请重新登录");
-        }
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-        Long id = principal.getUser().getId();
-        blogDTO.setUserId(String.valueOf(id));
-        if(Objects.isNull(blogDTO.getStatus())){
-            blogDTO.setStatus(1); // 设置为保存
-            // 第一次编写的博客文档 全部都设置成为 保存
-        }
-
-        Map<String, Object> map = blogFeign.writeBlog(blogDTO);
-        if((int)map.get("code")==200){
-//            upLoadBlogToAI(blogDTO); // 异步执行上传文件
-            blogDTO.setId(String.valueOf(map.get("data")) );
-            asyncService.upLoadBlogToAI(blogDTO);
-        }
-        return map;
-    }
-
-    @Override
-    public Map<String, Object> readBlog(String blogId,String userInfoKey) {
-
-        return blogFeign.readBlog(blogId,userInfoKey);
-    }
-
-    @Override
-    public Object uploadPict(MultipartFile file) {
-        return blogFeign.uploadPict(file);
-    }
-
-    @Override
-    public void downloadFile(String fileName, HttpServletResponse response) {
-        blogFeign.download(fileName,response);
-    }
-
-    @Override
-    public boolean userKudos(String blogId) {
-
-        // 获取当前用户---用户登录后才可以点赞和收藏
-        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-        Long userId = principal.getUser().getId();
-
-        System.out.println(blogId);
-
-        boolean save = userKudosService.save(UserKudos.builder()
-                .userId(userId)
-                .blogId(Long.valueOf(blogId))
-                .build());
-        if(save){
-            return save;
-        }else{
-            return false;
-        }
-    }
-
-    @Override
-    public boolean userStar(String blogId) {
-        // 获取当前用户---用户登录后才可以点赞和收藏
-        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-        Long userId = principal.getUser().getId();
-
-        System.out.println(blogId);
-
-        return userStarService.save(UserStar.builder()
-                .blogId(Long.valueOf(blogId))
-                .userId(userId)
-                .build());
-
-    }
-
-    @Override
-    public Long addComment(CommentDTO commentDTO) {
-        Long commentId = blogFeign.writeComment(Long.valueOf(commentDTO.getUserId()), Long.valueOf(commentDTO.getBlogId()), commentDTO.getContext());
-        if(!Objects.isNull(commentId)){
-            // 博客服务添加成功
-            return commentId;
-        }
-        // 博客评论添加失败 撤回
-        return null;
-    }
-
-    @Override
-    public Long addReply(ReplyDTO replyDTO) {
-        Long replyId = blogFeign.replyComment(Long.valueOf(replyDTO.getUserId()), Long.valueOf(replyDTO.getCommentId()), replyDTO.getContext());
-        if(!Objects.isNull(replyId)){
-            return replyId;
-        }
-
-        return null;
-    }
-
-    @Override
-    @Transactional // 原子性 保证回滚
-    public Boolean kudosComment(String commentId,Byte bytes) {
-        // 获取当前用户---用户登录后才可以点赞和收藏
-        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-        Long userId = principal.getUser().getId();
-
-        if(bytes==1){
-            UserComment userComment=new UserComment();
-            userComment.setCommentId(Long.valueOf(commentId));
-            userComment.setUserId(userId);
-            boolean save = userCommentService.save(userComment);
-            if(save){
-                // 评论点赞数加一
-                Boolean b = blogFeign.changCommentKudos(Long.valueOf(commentId), bytes);
-                if(b){
-                    return b;
-                }else{
-                    // 评论点赞数添加失败
-                    throw new RuntimeException("博客评论增加异常");
-                }
-            }else{
-                return false;
-            }
-        }else if(bytes==2){
-
-
-            boolean remove = userCommentService.remove(Wrappers.<UserComment>lambdaQuery()
-                    .eq(UserComment::getCommentId, Long.valueOf(commentId))
-                    .eq(UserComment::getUserId, userId)
-            );
-
-            if(remove){
-                // 评论点赞数加一
-                Boolean b = blogFeign.changCommentKudos(Long.valueOf(commentId), bytes);
-                if(b){
-                    return b;
-                }else{
-                    // 评论点赞数添加失败
-                    throw new RuntimeException("博客评论减少异常");
-                }
-            }else{
-                return false;
-            }
-        }else{
-            return false;
-        }
-
-    }
-
-    @Transactional
-    public Boolean kudosReply(String replyId,Byte bytes) {
-        // 获取当前用户---用户登录后才可以点赞和收藏
-        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-        Long userId = principal.getUser().getId();
-
-
-        if(bytes==1){
-            UserReply build = UserReply.builder()
-                    .userId(userId)
-                    .replyId(Long.valueOf(replyId))
-                    .build();
-            boolean save = userReplyService.save(build);
-            if(save){
-                Boolean b = blogFeign.changReplyKudos(Long.valueOf(replyId), bytes);
-                if(b){
-                    return b;
-                }else{
-                    // 抛出异常 让事务回滚
-                    throw new RuntimeException("博客评论点赞数增加异常");
-
-                }
-            }else{
-                return false;
-            }
-        } else if (bytes==2) {
-            boolean remove = userReplyService.remove(Wrappers.<UserReply>lambdaQuery()
-                    .eq(UserReply::getReplyId, Long.valueOf(replyId))
-                    .eq(UserReply::getUserId, userId)
-            );
-
-            if(remove){
-                Boolean b = blogFeign.changReplyKudos(Long.valueOf(replyId), bytes);
-                if(b){
-                    return b;
-                }else{
-
-                    throw new RuntimeException("博客评论点赞数减少异常");
-                }
-            }else{
-                return false;
-            }
-        }else{
-
-            return false;
-        }
-    }
+//    @Override
+//    public Map<String, Object> saveBlog(BlogDTO blogDTO) {
+//
+//        blogDTO.setUserId(String.valueOf(id));
+//        if(Objects.isNull(blogDTO.getStatus())){
+//            blogDTO.setStatus(1); // 设置为保存
+//            // 第一次编写的博客文档 全部都设置成为 保存
+//        }
+//
+//        Map<String, Object> map = blogFeign.writeBlog(blogDTO);
+//        if((int)map.get("code")==200){
+////            upLoadBlogToAI(blogDTO); // 异步执行上传文件
+//            blogDTO.setId(String.valueOf(map.get("data")) );
+//            asyncService.upLoadBlogToAI(blogDTO);
+//        }
+//        return map;
+//    }
+//
+//    @Override
+//    public Map<String, Object> readBlog(String blogId,String userInfoKey) {
+//
+//        return blogFeign.readBlog(blogId,userInfoKey);
+//    }
+//
+//    @Override
+//    public Object uploadPict(MultipartFile file) {
+//        return blogFeign.uploadPict(file);
+//    }
+//
+//    @Override
+//    public void downloadFile(String fileName, HttpServletResponse response) {
+//        blogFeign.download(fileName,response);
+//    }
+//
+//    @Override
+//    public boolean userKudos(String blogId) {
+//
+//        // 获取当前用户---用户登录后才可以点赞和收藏
+//        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+//        LoginUser principal = (LoginUser) authentication.getPrincipal();
+//        Long userId = principal.getUser().getId();
+//
+//        System.out.println(blogId);
+//
+//        boolean save = userKudosService.save(UserKudos.builder()
+//                .userId(userId)
+//                .blogId(Long.valueOf(blogId))
+//                .build());
+//        if(save){
+//            return save;
+//        }else{
+//            return false;
+//        }
+//    }
+//
+//    @Override
+//    public boolean userStar(String blogId) {
+//        // 获取当前用户---用户登录后才可以点赞和收藏
+//        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+//        LoginUser principal = (LoginUser) authentication.getPrincipal();
+//        Long userId = principal.getUser().getId();
+//
+//        System.out.println(blogId);
+//
+//        return userStarService.save(UserStar.builder()
+//                .blogId(Long.valueOf(blogId))
+//                .userId(userId)
+//                .build());
+//
+//    }
+//
+//    @Override
+//    public Long addComment(CommentDTO commentDTO) {
+//        Long commentId = blogFeign.writeComment(Long.valueOf(commentDTO.getUserId()), Long.valueOf(commentDTO.getBlogId()), commentDTO.getContext());
+//        if(!Objects.isNull(commentId)){
+//            // 博客服务添加成功
+//            return commentId;
+//        }
+//        // 博客评论添加失败 撤回
+//        return null;
+//    }
+//
+//    @Override
+//    public Long addReply(ReplyDTO replyDTO) {
+//        Long replyId = blogFeign.replyComment(Long.valueOf(replyDTO.getUserId()), Long.valueOf(replyDTO.getCommentId()), replyDTO.getContext());
+//        if(!Objects.isNull(replyId)){
+//            return replyId;
+//        }
+//
+//        return null;
+//    }
+//
+//    @Override
+//    @Transactional // 原子性 保证回滚
+//    public Boolean kudosComment(String commentId,Byte bytes) {
+//        // 获取当前用户---用户登录后才可以点赞和收藏
+//        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+//        LoginUser principal = (LoginUser) authentication.getPrincipal();
+//        Long userId = principal.getUser().getId();
+//
+//        if(bytes==1){
+//            UserComment userComment=new UserComment();
+//            userComment.setCommentId(Long.valueOf(commentId));
+//            userComment.setUserId(userId);
+//            boolean save = userCommentService.save(userComment);
+//            if(save){
+//                // 评论点赞数加一
+//                Boolean b = blogFeign.changCommentKudos(Long.valueOf(commentId), bytes);
+//                if(b){
+//                    return b;
+//                }else{
+//                    // 评论点赞数添加失败
+//                    throw new RuntimeException("博客评论增加异常");
+//                }
+//            }else{
+//                return false;
+//            }
+//        }else if(bytes==2){
+//
+//
+//            boolean remove = userCommentService.remove(Wrappers.<UserComment>lambdaQuery()
+//                    .eq(UserComment::getCommentId, Long.valueOf(commentId))
+//                    .eq(UserComment::getUserId, userId)
+//            );
+//
+//            if(remove){
+//                // 评论点赞数加一
+//                Boolean b = blogFeign.changCommentKudos(Long.valueOf(commentId), bytes);
+//                if(b){
+//                    return b;
+//                }else{
+//                    // 评论点赞数添加失败
+//                    throw new RuntimeException("博客评论减少异常");
+//                }
+//            }else{
+//                return false;
+//            }
+//        }else{
+//            return false;
+//        }
+//
+//    }
+//
+//    @Transactional
+//    public Boolean kudosReply(String replyId,Byte bytes) {
+//        // 获取当前用户---用户登录后才可以点赞和收藏
+//        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+//        LoginUser principal = (LoginUser) authentication.getPrincipal();
+//        Long userId = principal.getUser().getId();
+//
+//
+//        if(bytes==1){
+//            UserReply build = UserReply.builder()
+//                    .userId(userId)
+//                    .replyId(Long.valueOf(replyId))
+//                    .build();
+//            boolean save = userReplyService.save(build);
+//            if(save){
+//                Boolean b = blogFeign.changReplyKudos(Long.valueOf(replyId), bytes);
+//                if(b){
+//                    return b;
+//                }else{
+//                    // 抛出异常 让事务回滚
+//                    throw new RuntimeException("博客评论点赞数增加异常");
+//
+//                }
+//            }else{
+//                return false;
+//            }
+//        } else if (bytes==2) {
+//            boolean remove = userReplyService.remove(Wrappers.<UserReply>lambdaQuery()
+//                    .eq(UserReply::getReplyId, Long.valueOf(replyId))
+//                    .eq(UserReply::getUserId, userId)
+//            );
+//
+//            if(remove){
+//                Boolean b = blogFeign.changReplyKudos(Long.valueOf(replyId), bytes);
+//                if(b){
+//                    return b;
+//                }else{
+//
+//                    throw new RuntimeException("博客评论点赞数减少异常");
+//                }
+//            }else{
+//                return false;
+//            }
+//        }else{
+//
+//            return false;
+//        }
+//    }
 
     @Override
     //  获取博客作者信息（博客粉丝数 博客创建时间 博客简介 博客原作数  博客访问量）
-    public BlogUserInfoDTO getBlogUserInfo(String userId){
+    public BlogUserInfoDTO getBlogUserInfo(String userId, LoginUser principal){
 
         Long id = Long.valueOf(userId);
         // 获取用户粉丝数 简介 注册时间
@@ -418,17 +405,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             blogUserInfoDTO.setIntroduction(one.getIntroduce());
         }
 
-        // 判断当前用户是否登录
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if(authentication.isAuthenticated()){
-            // 用户登录
-            UsernamePasswordAuthenticationToken authenticationToken = (UsernamePasswordAuthenticationToken) authentication;
-            LoginUser principal = (LoginUser) authenticationToken.getPrincipal();
-            Long currentUserId = principal.getUser().getId();
+        if(principal.getIsUserLogin() == 1){
 
             // 判断当前用户是否关注此作者
             UserAttention userAttention = userAttentionService.getOne(Wrappers.<UserAttention>lambdaQuery()
-                    .eq(UserAttention::getUserId, currentUserId)
+                    .eq(UserAttention::getUserId, principal.getUserId())
                     .eq(UserAttention::getAttentionId, Long.valueOf(userId))
             );
 
@@ -447,74 +428,75 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     @Override
     @Transactional
     public Boolean starBlogAuthor(String authorId) {
-
-        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-        Long userId = principal.getUser().getId();
-
-        Long attentionId = Long.valueOf(authorId);
-
-        boolean save = userAttentionService.save(UserAttention.builder()
-                .userId(userId)
-                .attentionId(attentionId)
-                .build());
-        if(save){
-
-            User one = getOne(Wrappers.<User>lambdaQuery()
-                    .eq(User::getId, attentionId)
-                    .last("for update") // 悲观锁
-            );
-
-            if(Objects.isNull(one)){
-                return false;
-            }
-
-            return update(Wrappers.<User>lambdaUpdate()
-                    .eq(User::getId, attentionId)
-                    .set(User::getStar, one.getStar() + 1)
-            );
-        }else{
-            return false;
-        }
+//
+//        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+//        LoginUser principal = (LoginUser) authentication.getPrincipal();
+//        Long userId = principal.getUser().getId();
+//
+//        Long attentionId = Long.valueOf(authorId);
+//
+//        boolean save = userAttentionService.save(UserAttention.builder()
+//                .userId(userId)
+//                .attentionId(attentionId)
+//                .build());
+//        if(save){
+//
+//            User one = getOne(Wrappers.<User>lambdaQuery()
+//                    .eq(User::getId, attentionId)
+//                    .last("for update") // 悲观锁
+//            );
+//
+//            if(Objects.isNull(one)){
+//                return false;
+//            }
+//
+//            return update(Wrappers.<User>lambdaUpdate()
+//                    .eq(User::getId, attentionId)
+//                    .set(User::getStar, one.getStar() + 1)
+//            );
+//        }else{
+//            return false;
+//        }
+        return  false;
     }
 
     @Override
     @Transactional
     public Boolean cancelStarBlogAuthor(String authorId) {
 
-        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-        Long userId = principal.getUser().getId();
-
-        Long attentionId = Long.valueOf(authorId);
-
-        UserAttention userAttention = userAttentionService.getOne(Wrappers.<UserAttention>lambdaQuery()
-                .eq(UserAttention::getUserId, userId)
-                .eq(UserAttention::getAttentionId, attentionId)
-        );
-
-        if(Objects.isNull(userAttention)){
-            log.error("操作错误");
-            return false;
-        }
-
-        boolean remove = userAttentionService.remove(Wrappers.<UserAttention>lambdaQuery().eq(UserAttention::getUserId, userId)
-                .eq(UserAttention::getAttentionId, attentionId));
-        if(remove){
-            User one = getOne(Wrappers.<User>lambdaQuery()
-                    .eq(User::getId, attentionId)
-                    .last("for update") // 悲观锁
-            );
-
-            if(Objects.isNull(one)){
-                return false;
-            }
-
-            return update(Wrappers.<User>lambdaUpdate()
-                    .eq(User::getId, attentionId)
-                    .set(User::getStar, one.getStar() - 1)
-            );
-        }
+//        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+//        LoginUser principal = (LoginUser) authentication.getPrincipal();
+//        Long userId = principal.getUser().getId();
+//
+//        Long attentionId = Long.valueOf(authorId);
+//
+//        UserAttention userAttention = userAttentionService.getOne(Wrappers.<UserAttention>lambdaQuery()
+//                .eq(UserAttention::getUserId, userId)
+//                .eq(UserAttention::getAttentionId, attentionId)
+//        );
+//
+//        if(Objects.isNull(userAttention)){
+//            log.error("操作错误");
+//            return false;
+//        }
+//
+//        boolean remove = userAttentionService.remove(Wrappers.<UserAttention>lambdaQuery().eq(UserAttention::getUserId, userId)
+//                .eq(UserAttention::getAttentionId, attentionId));
+//        if(remove){
+//            User one = getOne(Wrappers.<User>lambdaQuery()
+//                    .eq(User::getId, attentionId)
+//                    .last("for update") // 悲观锁
+//            );
+//
+//            if(Objects.isNull(one)){
+//                return false;
+//            }
+//
+//            return update(Wrappers.<User>lambdaUpdate()
+//                    .eq(User::getId, attentionId)
+//                    .set(User::getStar, one.getStar() - 1)
+//            );
+//        }
 
         return false;
 
@@ -579,29 +561,30 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     @Override
     @Transactional
     public Map<String, Object> changeUserInfo(ChangeUserDTO changeUserDTO) {
-        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-
-        User one = getOne(Wrappers.<User>lambdaQuery()
-                .eq(User::getId, principal.getUser().getId())
-                .last("for update") // 加锁悲观锁
-        );
-
-        if(!Objects.isNull(changeUserDTO.getUserName())&&!changeUserDTO.getUserName().isEmpty()){
-            one.setName(changeUserDTO.getUserName());
-        }
-        if(!Objects.isNull(changeUserDTO.getEmail())&&!changeUserDTO.getEmail().isEmpty()){
-            one.setEmail(changeUserDTO.getEmail());
-        }
-        if(!Objects.isNull(changeUserDTO.getSex())){
-            one.setSex(changeUserDTO.getSex());
-        }
-        if(!Objects.isNull(changeUserDTO.getIntroduce())&&!changeUserDTO.getIntroduce().isEmpty()){
-            one.setIntroduce(changeUserDTO.getIntroduce());
-        }
-
-        boolean b = saveOrUpdate(one);
-        return ResultUtil.successMap(b,"修改成功");
+//        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+//        LoginUser principal = (LoginUser) authentication.getPrincipal();
+//
+//        User one = getOne(Wrappers.<User>lambdaQuery()
+//                .eq(User::getId, principal.getUser().getId())
+//                .last("for update") // 加锁悲观锁
+//        );
+//
+//        if(!Objects.isNull(changeUserDTO.getUserName())&&!changeUserDTO.getUserName().isEmpty()){
+//            one.setName(changeUserDTO.getUserName());
+//        }
+//        if(!Objects.isNull(changeUserDTO.getEmail())&&!changeUserDTO.getEmail().isEmpty()){
+//            one.setEmail(changeUserDTO.getEmail());
+//        }
+//        if(!Objects.isNull(changeUserDTO.getSex())){
+//            one.setSex(changeUserDTO.getSex());
+//        }
+//        if(!Objects.isNull(changeUserDTO.getIntroduce())&&!changeUserDTO.getIntroduce().isEmpty()){
+//            one.setIntroduce(changeUserDTO.getIntroduce());
+//        }
+//
+//        boolean b = saveOrUpdate(one);
+//        return ResultUtil.successMap(b,"修改成功");
+        return Map.of();
     }
 
     @Async("asyncTaskExecutor")
@@ -662,86 +645,90 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Override
     public List<String> getUserSearch() {
-        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-        User user = principal.getUser();
+//        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+//        LoginUser principal = (LoginUser) authentication.getPrincipal();
+//        User user = principal.getUser();
+//
+//        return searchService.list(Wrappers.<Search>lambdaQuery()
+//                .eq(Search::getUserId, user.getId())
+//                .orderByDesc(Search::getLatelyTime) // 按照最近时间排序
+//        ).stream().map(Search::getContent).toList();
 
-        return searchService.list(Wrappers.<Search>lambdaQuery()
-                .eq(Search::getUserId, user.getId())
-                .orderByDesc(Search::getLatelyTime) // 按照最近时间排序
-        ).stream().map(Search::getContent).toList();
-
+        return  Collections.emptyList();
 
     }
 
     @Override
     @Transactional
     public boolean addUserSearch(List<String> names) {
-        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-        User user = principal.getUser();
-
-        Date date=new Date();
-
-        // 获取用户搜索记录
-        List<String> list = searchService.list(Wrappers.<Search>lambdaQuery().eq(Search::getUserId, user.getId())).stream().map(Search::getContent).toList();
-
-
-        List<Search> searches=new ArrayList<>();
-        for (String name : names) {
-            name=name.trim();
-            if(name.isEmpty()||list.contains(name)){
-                continue; // 为空的记录可以跳过
-            }
-
-            Search build = Search.builder()
-                    .userId(user.getId())
-                    .content(name)
-                    .createTime(date)
-                    .updateTime(date)
-                    .latelyTime(date)
-                    .isUserDelete(0)
-                    .isDelete(0)
-                    .build();
-            searches.add(build);
-        }
-
-        return searchService.saveBatch(searches);
+//        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+//        LoginUser principal = (LoginUser) authentication.getPrincipal();
+//        User user = principal.getUser();
+//
+//        Date date=new Date();
+//
+//        // 获取用户搜索记录
+//        List<String> list = searchService.list(Wrappers.<Search>lambdaQuery().eq(Search::getUserId, user.getId())).stream().map(Search::getContent).toList();
+//
+//
+//        List<Search> searches=new ArrayList<>();
+//        for (String name : names) {
+//            name=name.trim();
+//            if(name.isEmpty()||list.contains(name)){
+//                continue; // 为空的记录可以跳过
+//            }
+//
+//            Search build = Search.builder()
+//                    .userId(user.getId())
+//                    .content(name)
+//                    .createTime(date)
+//                    .updateTime(date)
+//                    .latelyTime(date)
+//                    .isUserDelete(0)
+//                    .isDelete(0)
+//                    .build();
+//            searches.add(build);
+//        }
+//
+//        return searchService.saveBatch(searches);
+        return  false;
 
 
     }
 
     @Override
     public boolean deleteUserSearchByName(String name) {
+//
+//        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+//        LoginUser principal = (LoginUser) authentication.getPrincipal();
+//        User user = principal.getUser();
+//
+//
+//        if(name.trim().isEmpty()){
+//            log.error("参数为空");
+//            return false;
+//        }
+//
+//        return searchService.update(Wrappers.<Search>lambdaUpdate()
+//                .eq(Search::getUserId, user.getId())
+//                .eq(Search::getContent, name)
+//                .set(Search::getIsUserDelete, 1)
+//        );
 
-        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-        User user = principal.getUser();
-
-
-        if(name.trim().isEmpty()){
-            log.error("参数为空");
-            return false;
-        }
-
-        return searchService.update(Wrappers.<Search>lambdaUpdate()
-                .eq(Search::getUserId, user.getId())
-                .eq(Search::getContent, name)
-                .set(Search::getIsUserDelete, 1)
-        );
-
+        return false;
     }
 
     @Override
     public boolean deleteUserAllSearch() {
-        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-        User user = principal.getUser();
-
-
-        return searchService.update(Wrappers.<Search>lambdaUpdate()
-                .eq(Search::getUserId, user.getId())
-                .set(Search::getIsUserDelete, 1)
-        );
+//        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+//        LoginUser principal = (LoginUser) authentication.getPrincipal();
+//        User user = principal.getUser();
+//
+//
+//        return searchService.update(Wrappers.<Search>lambdaUpdate()
+//                .eq(Search::getUserId, user.getId())
+//                .set(Search::getIsUserDelete, 1)
+//        );
+        return false;
     }
 }

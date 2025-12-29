@@ -7,7 +7,7 @@ import jakarta.annotation.Nullable;
 import jakarta.servlet.http.HttpServletRequest;
 import org.oyyj.mycommon.annotation.RequestUser;
 import org.oyyj.mycommonbase.common.RequestHeadItems;
-import org.oyyj.mycommonbase.common.auth.AuthUser;
+import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;
@@ -56,17 +56,20 @@ public class HandlerMethodAuthUserResolver implements HandlerMethodArgumentResol
      * @param required 是否必须
      * @return
      */
-    private AuthUser tryGetAuthUser(NativeWebRequest webRequest , boolean required) {
+    private LoginUser tryGetAuthUser(NativeWebRequest webRequest , boolean required) {
         HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
         if(request == null){
             throw new RuntimeException("当前请求上下文不存在HttpServletRequest");
         }
+        int isUserLogin = 1;
         // 获取需要的信息
         String userId = request.getHeader(RequestHeadItems.X_USER_ID);
         if(userId == null && required ){
             throw new RuntimeException("用户无权操作");
         }
-
+        if(userId == null){
+            isUserLogin = 0;
+        }
         String userName = request.getHeader(RequestHeadItems.X_USER_NAME);
         String userPermission = request.getHeader(RequestHeadItems.X_USER_PERMISSION);
         String userRole = request.getHeader(RequestHeadItems.X_USER_ROLE);
@@ -91,11 +94,12 @@ public class HandlerMethodAuthUserResolver implements HandlerMethodArgumentResol
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
-        AuthUser authUser = new AuthUser(userId != null ? Long.parseLong(userId) : null,
+        LoginUser authUser = new LoginUser(userId != null ? Long.parseLong(userId) : null,
                 userName,
                 null,
                 permissions,
-                roles);
+                roles,
+                isUserLogin);
         authUser.setIp(ip);
 
         return authUser;

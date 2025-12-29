@@ -116,6 +116,21 @@ public class RedisUtil {
         return stringRedisTemplate.opsForList().range(key, 0, -1);// 获取从0到最后一个
 
     }
+
+    /**
+     * 删除redis列表中指定的元素
+     * @param key
+     * @param count 删除数量 -1 删除所有匹配向 1 删除第一个匹配项 -2 删除最后一个匹配项目
+     * @param value
+     * @return
+     */
+    public Long removeListItem(String key,long count , String value){
+        if(key == null || key.isEmpty()){
+            return 0L;
+        }
+        return stringRedisTemplate.opsForList().remove(key,count,value);
+    }
+
     // 删除键
     public Boolean delete(String key) {
         return redisTemplate.delete(key);

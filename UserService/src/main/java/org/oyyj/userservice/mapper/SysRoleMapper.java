@@ -6,7 +6,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.oyyj.userservice.pojo.SysRole;
-import org.springframework.security.core.parameters.P;
+
 
 @Mapper
 public interface SysRoleMapper extends BaseMapper<SysRole> {

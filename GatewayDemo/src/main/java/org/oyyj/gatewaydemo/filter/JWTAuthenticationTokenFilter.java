@@ -3,8 +3,10 @@ package org.oyyj.gatewaydemo.filter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.oyyj.mycommonbase.common.auth.AuthUser;
-import org.oyyj.mycommonbase.utils.JWTUtils;
+import org.apache.logging.log4j.util.Strings;
+import org.oyyj.gatewaydemo.pojo.auth.AuthUser;
+import org.oyyj.mycommonbase.common.auth.LoginUser;
+import org.oyyj.gatewaydemo.utils.JWTUtils;
 import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.buffer.DataBuffer;
@@ -24,6 +26,7 @@ import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
+import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -54,7 +57,7 @@ public class JWTAuthenticationTokenFilter implements WebFilter { // 原来的过
             return handleError(response,"请求无IP来源",HttpStatus.INTERNAL_SERVER_ERROR);
         }
         // 获取token
-        String token = request.getHeaders().getFirst("token");
+        String token = request.getHeaders().getFirst("X-Token");
         // token 为空交给 SpringSecurity的authorizeExchange决定
         if (!StringUtils.hasText(token)) {
             // 匿名请求 获取访问者的IP信息
@@ -153,6 +156,14 @@ public class JWTAuthenticationTokenFilter implements WebFilter { // 原来的过
             return xRealIp;
         }
 
+        // 在tcp/ip层获取到IP信息
+        InetSocketAddress remoteAddress = request.getRemoteAddress();
+        if(remoteAddress != null){
+            String hostAddress = remoteAddress.getAddress().getHostAddress();
+            if(!Strings.isBlank(hostAddress)){
+                return hostAddress;
+            }
+        }
         // 没有编写来源 可能来源爬虫等工具
         log.warn("拦截无IP请求：{}",request.getHeaders());
         return null;

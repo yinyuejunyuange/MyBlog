@@ -6,20 +6,18 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
+import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.userservice.dto.PageDTO;
 import org.oyyj.userservice.dto.ReportUserDTO;
 import org.oyyj.userservice.dto.UserReportForAdminDTO;
 import org.oyyj.userservice.mapper.UserReportMapper;
-import org.oyyj.userservice.pojo.LoginUser;
 import org.oyyj.userservice.pojo.User;
 import org.oyyj.userservice.pojo.UserReport;
 import org.oyyj.userservice.service.IUserReportService;
 import org.oyyj.userservice.service.IUserService;
 import org.oyyj.userservice.vo.AdminUpdateUserReportVO;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,14 +36,10 @@ public class UserReportServiceImpl extends ServiceImpl<UserReportMapper, UserRep
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Map<String, Object> reportUser(ReportUserDTO reportUserDTO) {
-        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-
-
+    public Map<String, Object> reportUser(ReportUserDTO reportUserDTO, LoginUser loginUser) {
         // 检查是否存在重复举报
         UserReport one = getOne(Wrappers.<UserReport>lambdaQuery()
-                .eq(UserReport::getUserId, principal.getUser().getId())
+                .eq(UserReport::getUserId, loginUser.getUserId())
                 .eq(UserReport::getUserReportId, Long.valueOf(reportUserDTO.getUserId()))
         );
         if(Objects.nonNull(one)){
@@ -55,8 +49,8 @@ public class UserReportServiceImpl extends ServiceImpl<UserReportMapper, UserRep
         UserReport build = UserReport.builder()
                 .userReportId(Long.parseLong(reportUserDTO.getUserId()))
                 .userReportName(userService.getOne(Wrappers.<User>lambdaQuery().eq(User::getId, Long.valueOf(reportUserDTO.getUserId()))).getName())
-                .userId(principal.getUser().getId())
-                .userName(principal.getUser().getName())
+                .userId(loginUser.getUserId())
+                .userName(loginUser.getUserName())
                 .content(reportUserDTO.getContent())
                 .createTime(new Date())
                 .status(0)

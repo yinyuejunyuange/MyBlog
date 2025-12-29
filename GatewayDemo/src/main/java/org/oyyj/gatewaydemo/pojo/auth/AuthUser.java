@@ -1,4 +1,4 @@
-package org.oyyj.mycommonbase.common.auth;
+package org.oyyj.gatewaydemo.pojo.auth;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -36,7 +36,7 @@ public class AuthUser implements UserDetails {
     @JsonIgnore
     private List<SimpleGrantedAuthority> authorities;
 
-    public AuthUser(Long userId, String userName, String password, List<String> permissions,List<String> roles) {
+    public AuthUser(Long userId, String userName, String password, List<String> permissions, List<String> roles) {
         this.userId = userId;
         this.userName = userName;
         this.password = password;

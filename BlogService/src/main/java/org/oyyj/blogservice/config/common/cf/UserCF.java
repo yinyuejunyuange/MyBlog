@@ -87,7 +87,7 @@ public class UserCF {
      */
     public List<Recommendation> recommendForUser(Long userId,int topN){
 
-        List<Long> similarUsers = findSimilarUsers(userId, 20);
+        List<Long> similarUsers = findSimilarUsers(userId, 150);
 
         // 获取这些用户喜欢的物品（排除目标已经接触的）
         // 3. 初始化两个Map用于加权平均

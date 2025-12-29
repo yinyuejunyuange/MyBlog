@@ -8,15 +8,22 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.ibatis.annotations.Mapper;
+import org.oyyj.blogservice.config.common.cf.ItemCF;
+import org.oyyj.blogservice.config.common.cf.UserCF;
+import org.oyyj.blogservice.config.pojo.BlogActivityLevel;
 import org.oyyj.blogservice.dto.*;
 import org.oyyj.blogservice.feign.UserFeign;
 import org.oyyj.blogservice.mapper.BlogMapper;
 import org.oyyj.blogservice.mapper.TypeTableMapper;
+import org.oyyj.blogservice.mapper.UserBehaviorMapper;
 import org.oyyj.blogservice.pojo.*;
 import org.oyyj.blogservice.service.IBlogService;
 import org.oyyj.blogservice.service.IBlogTypeService;
 import org.oyyj.blogservice.service.ICommentService;
 import org.oyyj.blogservice.service.IReplyService;
+import org.oyyj.mycommonbase.common.RedisPrefix;
+import org.oyyj.mycommonbase.common.auth.LoginUser;
+import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +38,7 @@ import javax.xml.transform.Result;
 import java.security.SecurityPermission;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -40,6 +48,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     @Autowired
     private TypeTableMapper typeTableMapper;
+
+    @Autowired
+    private ItemCF itemCF;
+
+    @Autowired
+    private UserCF userCF;
 
     @Autowired
     private IBlogTypeService blogTypeService;
@@ -61,6 +75,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     @Autowired
     private RedissonClient redissonClient;
+
+    @Autowired
+    private RedisUtil redisUtil;
+
+    @Autowired
+    private UserBehaviorMapper userBehaviorMapper;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -342,10 +362,123 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         }
     }
 
+    /**
+     * 兜底推荐，确保redis挂掉 或者 推荐不出来时 是能根据 博客热度进行筛选
+     * @param userId 基于行为作为筛选
+     * @return
+     */
+    private List<String> safetyNetSelect(Long userId){
+        List<BlogActivityLevel> blogActivityLevel = userBehaviorMapper.getBlogActivityLevel(userId);
+        List<Long> result = new ArrayList<>(new ArrayList<>(blogActivityLevel).stream().map(BlogActivityLevel::getBlogId).toList());
+        if( result.size() <= 20){
+            // 用户浏览量较多其他用户浏览的商品 从数据库中随机抽取博客给用户
+            List<Long> blogIds = blogMapper.selectBlogIdRand();
+            result.addAll(blogIds);
+        }
+        return  result.stream().map(String::valueOf).toList();
+    }
+
+
+    /**
+     * 为用户推荐博客IDS
+     * @param userId
+     * @return
+     */
+    private List<String> recommendUserBlogs(Long userId) {
+        // 先尝试从redis中获取之前计算的没有遗漏的数据
+        List<String> recommendList = redisUtil.getList(RedisPrefix.RECOMMEND_USER + userId);
+        if(recommendList == null || recommendList.isEmpty() || recommendList.size()<=100 ){
+            List<String> newRecommendBlogs = addNewRecommendBlogs(userId);
+            // 随机抽取 20 条 返回 其余保存到redis中
+            List<String> newRecommends = new ArrayList<>(newRecommendBlogs);
+            List<String> randomElements = getRandomElements(newRecommends, 20);
+            // 新增的数据中 删除
+            newRecommends.removeAll(randomElements);
+            // 其余保存到redis中
+            redisUtil.setList(RedisPrefix.RECOMMEND_USER + userId, newRecommends);
+            return randomElements;
+        }else{
+            // 数量较多 随机抽取20条后 然后将redis中的数据删除20条
+            List<String> randomElements = getRandomElements(recommendList, 20);
+            // 删除多余数据
+            randomElements.forEach(randomElement -> {
+                redisUtil.removeListItem(RedisPrefix.RECOMMEND_USER + userId,1,randomElement);
+            });
+            return randomElements;
+        }
+    }
+
+    /**
+     * 从列表中随机抽取指定数量元素
+     * @param sourceList
+     * @param count
+     * @return
+     */
+    private List<String> getRandomElements(List<String> sourceList , int count){
+        List<String> tempList = new ArrayList<>(sourceList);
+        Collections.shuffle(tempList); // 打乱顺序
+        int endIndex = Math.min(tempList.size(), count);
+        return tempList.subList(0, endIndex);
+    }
+
+    /**
+     * 重新计算并推荐给用户
+     * @param userId
+     * @return
+     */
+    private List<String> addNewRecommendBlogs(Long userId){
+
+        List<Recommendation> recommendationsByItem = itemCF.recommendForUser(userId, 100);
+        List<Recommendation> recommendationsByUser = userCF.recommendForUser(userId, 100);
+
+        List<Long> resultList = new ArrayList<>(recommendationsByItem.stream().map(Recommendation::getBlogId).toList());
+        resultList.addAll(recommendationsByUser.stream().map(Recommendation::getBlogId).toList());
+        List<String> result = new ArrayList<>(resultList.stream().map(String::valueOf).toList());
+        // 当为用户推荐时 数量较低 添加兜底保证每次查询能够返回给用户
+        if(resultList.size()<20){
+            List<String> safeNetList = safetyNetSelect(userId);
+            result.addAll(safeNetList);
+        }
+        return result;
+    }
 
 
     @Override
-    public PageDTO<BlogDTO> getBlogByPage(int current, int pageSize, String type) {
+    public List<BlogDTO> getHomeBlogs(LoginUser loginUser) {
+        List<String> blogIds = recommendUserBlogs(loginUser.getUserId());
+        List<Long> ids = blogIds.stream().map(Long::valueOf).toList();
+        if(ids.isEmpty()){
+            return Collections.emptyList();
+        }
+
+        // 获取博客类别类别信息
+        Map<String,List<String>> blogTypeMap = new ConcurrentHashMap<>();
+        blogIds.forEach(id->{
+            List<String> list = redisUtil.getList(RedisPrefix.ITEM_TYPE + id);
+            blogTypeMap.put(id,list);
+        });
+        return list(Wrappers.<Blog>lambdaQuery()
+                .in(Blog::getId, ids)
+        ).stream().map(i -> BlogDTO.builder()
+                .id(String.valueOf(i.getId()))
+                .title(i.getTitle())
+                .userId(String.valueOf(i.getUserId()))
+                .userName(i.getAuthor())
+                .introduce(i.getIntroduce())
+                .createTime(i.getCreateTime())
+                .updateTime(i.getUpdateTime())
+                .status(i.getStatus())
+                .typeList(blogTypeMap.get(String.valueOf(i)))
+                .star(String.valueOf(i.getStar()))
+                .kudos(String.valueOf(i.getKudos()))
+                .watch(String.valueOf(i.getWatch()))
+                .commentNum(String.valueOf(i.getCommentNum()))
+                .build()
+        ).toList();
+    }
+
+    @Override
+    public PageDTO<BlogDTO> getBlogByPage(int current, int pageSize, String type, LoginUser  loginUser) {
         IPage<Blog> page = new Page<>(current, pageSize);
         Map<Long, String> userNameMap = userFeign.getUserNameMap();
         if (type == null || type.isEmpty()) {

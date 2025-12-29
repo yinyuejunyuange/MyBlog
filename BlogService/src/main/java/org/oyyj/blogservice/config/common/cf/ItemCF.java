@@ -151,7 +151,7 @@ public class ItemCF {
 
         // 获取用户喜欢的博客相似的博客
         userBlogMap.forEach((k,v)->{
-            Map<Long, Double> similarityItems = getSimilarityItems(k, 50);
+            Map<Long, Double> similarityItems = getSimilarityItems(k, 200);
             for (Map.Entry<Long, Double> entry : similarityItems.entrySet()) {
                 Long similarItemId = entry.getKey();
                 Double similarValue = entry.getValue();
@@ -180,7 +180,7 @@ public class ItemCF {
      * @param k
      * @return
      */
-    private Map<Long, Double> getSimilarityItems(Long itemId, int k){
+    private Map<Long, Double> getSimilarityItems(Long itemId, int k ){
         Map<Long, Double> similarityItems = redisUtil.getHashWithLongDouble(RedisPrefix.ITEM_SIMILARITY+itemId);
         return similarityItems.entrySet().stream()
                 .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))

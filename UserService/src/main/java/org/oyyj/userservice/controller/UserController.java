@@ -10,12 +10,12 @@ import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
+import org.oyyj.mycommon.annotation.RequestUser;
+import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.userservice.dto.*;
 import org.oyyj.userservice.Feign.AnnouncementFeign;
 import org.oyyj.userservice.Feign.BlogFeign;
-import org.oyyj.userservice.pojo.JWTUser;
-import org.oyyj.userservice.pojo.LoginUser;
 import org.oyyj.userservice.pojo.User;
 import org.oyyj.userservice.pojo.UserReport;
 import org.oyyj.userservice.service.IUserReportService;
@@ -28,8 +28,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -96,20 +94,15 @@ public class UserController {
 
     // 用户存储 头像  todo 重写
     @RequestMapping("/makeHead")
-    public Map<String,Object> makeUserHead(@RequestParam("file")MultipartFile file) throws IOException {
+    public Map<String,Object> makeUserHead(@RequestParam("file")MultipartFile file ,@RequestUser LoginUser principal) throws IOException {
         String fileName= UUID.randomUUID().toString().substring(0,10)+file.getOriginalFilename();
         // String filePath= ResourceUtils.getURL("classpath:").getPath()+"static/image/"+fileName;
         String filePath= "H:/10516/Test/image/"+fileName;
 
         FileUtils.copyInputStreamToFile(file.getInputStream(),new File(servletContext.getContextPath()+"/"+filePath));
 
-
-        // 从上下文环境获取到数据
-        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-
         // 存储用户头像
-        boolean update = userService.update(Wrappers.<User>lambdaUpdate().eq(User::getId,principal.getUser().getId())
+        boolean update = userService.update(Wrappers.<User>lambdaUpdate().eq(User::getId,principal.getUserId())
                 .set(User::getImageUrl, fileName));// 存储用户头像
         if(update){
             return ResultUtil.successMap("http://localhost:8080/myBlog/user/getHead/"+fileName,"存储成功");
@@ -205,8 +198,8 @@ public class UserController {
 
 
     @GetMapping("/getBlogUserInfo")
-    public Map<String,Object> getBlogUserInfo(@RequestParam("userId")String userId){
-        BlogUserInfoDTO blogUserInfo = userService.getBlogUserInfo(userId);
+    public Map<String,Object> getBlogUserInfo(@RequestParam("userId")String userId ,@RequestUser LoginUser principal){
+        BlogUserInfoDTO blogUserInfo = userService.getBlogUserInfo(userId,principal);
         if(blogUserInfo==null){
             return ResultUtil.failMap("参数不合法");
         }
@@ -455,11 +448,8 @@ public class UserController {
     }
 
     @GetMapping("/getAnnouncement")
-    public Map<String,Object> getAnnouncement(@RequestParam("currentIndex") Integer currentIndex){
-        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-
-        List<AnnouncementUserVO> announcementByUser = announcementFeign.getAnnouncementByUser(principal.getUser().getId(), currentIndex,principal.getUser().getCreateTime());
+    public Map<String,Object> getAnnouncement(@RequestParam("currentIndex") Integer currentIndex, @RequestUser LoginUser principal){
+                List<AnnouncementUserVO> announcementByUser = announcementFeign.getAnnouncementByUser(principal.getUserId(), currentIndex,new Date());
         List<AnnouncementUserDTO> list = announcementByUser.stream().map(i -> AnnouncementUserDTO.builder()
                 .id(String.valueOf(i.getId()))
                 .isUserRead(i.getIsUserRead())
@@ -472,10 +462,9 @@ public class UserController {
     }
 
     @PutMapping("/readAnnouncement")
-    public Map<String,Object> readAnnouncement(@RequestParam(value = "announcementId" )String announcementId) throws AuthenticationException {
-        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-        boolean b = announcementFeign.readAnnouncement(principal.getUser().getId(), Long.parseLong(announcementId));
+    public Map<String,Object> readAnnouncement(@RequestParam(value = "announcementId" )String announcementId,@RequestUser LoginUser principal) throws AuthenticationException {
+
+        boolean b = announcementFeign.readAnnouncement(principal.getUserId(), Long.parseLong(announcementId));
         if(b){
             return ResultUtil.successMap(b,"操作成功");
         }else{
@@ -497,8 +486,8 @@ public class UserController {
 
     // 用户举报 用户
     @PutMapping("/reportUser")
-    public Map<String,Object> reportUser(@RequestBody ReportUserDTO reportUserDTO ) throws AuthenticationException {
-        return  userReportService.reportUser(reportUserDTO);
+    public Map<String,Object> reportUser(@RequestBody ReportUserDTO reportUserDTO ,@RequestUser LoginUser principal) throws AuthenticationException {
+        return  userReportService.reportUser(reportUserDTO,principal);
     }
 
     // 管理员查询举报信息
@@ -549,30 +538,21 @@ public class UserController {
 
     // 用户举报 博客
     @PutMapping("/reportBlog")
-    public Map<String,Object> reportBlog(@RequestBody BlogReportDTO blogReportDTO ) throws AuthenticationException {
-        UsernamePasswordAuthenticationToken authentication =
-                (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-        blogReportDTO.setUserId(String.valueOf(principal.getUser().getId()));
+    public Map<String,Object> reportBlog(@RequestBody BlogReportDTO blogReportDTO, @RequestUser LoginUser principal ) throws AuthenticationException {
+        blogReportDTO.setUserId(String.valueOf(principal.getUserId()));
         return  blogFeign.reportBlogs(blogReportDTO);
     }
 
     // 用户举报 评论
     @PutMapping("/reportComment")
-    public Map<String,Object> reportComment(@RequestBody CommentReportDTO commentReportDTO ) throws AuthenticationException {
-        UsernamePasswordAuthenticationToken authentication =
-                (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-        commentReportDTO.setUserId(String.valueOf(principal.getUser().getId()));
+    public Map<String,Object> reportComment(@RequestBody CommentReportDTO commentReportDTO, @RequestUser LoginUser principal ) throws AuthenticationException {
+        commentReportDTO.setUserId(String.valueOf(principal.getUserId()));
         return  blogFeign.reportComments(commentReportDTO);
     }
     // 用户举报
     @PutMapping("/reportReply")
-    public Map<String,Object> reportReply(@RequestBody ReplyReportDTO replyReportDTO ) throws AuthenticationException {
-        UsernamePasswordAuthenticationToken authentication =
-                (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
-        LoginUser principal = (LoginUser) authentication.getPrincipal();
-        replyReportDTO.setUserId(String.valueOf(principal.getUser().getId()));
+    public Map<String,Object> reportReply(@RequestBody ReplyReportDTO replyReportDTO ,@RequestUser LoginUser principal) throws AuthenticationException {
+        replyReportDTO.setUserId(String.valueOf(principal.getUserId()));
         return  blogFeign.reportReply(replyReportDTO);
     }
 

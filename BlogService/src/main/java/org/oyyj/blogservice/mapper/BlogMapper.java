@@ -35,4 +35,10 @@ public interface BlogMapper extends BaseMapper<Blog> {
 
     List<BlogTypeDTO> getBlogTypeList( @Param("blogIds") List<Long> blogIds);
 
+    /**
+     * 基于分片 随机获取blogId
+     * @return
+     */
+    List<Long> selectBlogIdRand();
+
 }

@@ -109,3 +109,13 @@ BlogService:
 
 server:
   port: 8080
+
+logging:
+  level:
+    # Gateway核心路由匹配包：打印路由匹配结果
+    org.springframework.cloud.gateway.route.RoutePredicateHandlerMapping: DEBUG
+    # Gateway转发核心包：打印转发目标、状态
+    org.springframework.cloud.gateway.handler.FilteringWebHandler: INFO
+    # 可选：打印HTTP请求详情
+    org.springframework.http.server.reactive: INFO
+    reactor.netty.http.client: INFO

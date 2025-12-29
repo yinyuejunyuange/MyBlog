@@ -2,7 +2,6 @@ package org.oyyj.userservice;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import org.junit.jupiter.api.Test;
-import org.oyyj.userservice.pojo.LoginUser;
 import org.oyyj.userservice.pojo.User;
 import org.oyyj.userservice.pojo.UserStar;
 import org.oyyj.userservice.service.IUserStarService;

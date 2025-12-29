@@ -23,4 +23,5 @@ public class RedisPrefix {
 
     public static final String ITEM_SIMILARITY="item:similarity:"; // redis 前缀 存储博客相似度
 
+    public static final String RECOMMEND_USER="recommend:user:"; // redis为用户推荐 的博客列表
 }

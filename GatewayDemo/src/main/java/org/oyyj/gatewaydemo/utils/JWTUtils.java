@@ -1,4 +1,4 @@
-package org.oyyj.userservice.utils;
+package org.oyyj.gatewaydemo.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -9,14 +9,16 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
-import org.oyyj.userservice.pojo.LoginUser;
+import org.oyyj.gatewaydemo.pojo.auth.AuthUser;
+import org.oyyj.mycommonbase.common.auth.LoginUser;
+
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
 @Slf4j
-public class TokenProvider {
+public class JWTUtils {
     /*@ApiModelProperty("盐")*/
     private static final String SALT_KEY="oyyjblogzlyhelppqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$"; // 64 的字节长度 满足 hs512算法
 //    @ApiModelProperty("令牌有效期")
@@ -42,7 +44,7 @@ private static final Key SECRET_KEY = Keys.hmacShaKeyFor(SALT_KEY.getBytes(Stand
     * @Param clientId 用于区别 客户端，移动端 网页端
     * @Param role 角色权限
     * */
-    public static String createToken(LoginUser loginUser, String clientId  , String role) throws JsonProcessingException {
+    public static String createToken(AuthUser loginUser, String clientId  , String role) throws JsonProcessingException {
 
         ObjectMapper objectMapper=new ObjectMapper();
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -50,7 +52,7 @@ private static final Key SECRET_KEY = Keys.hmacShaKeyFor(SALT_KEY.getBytes(Stand
 
         Date validity=new Date((new Date()).getTime()+TOKEN_VALIDITY);
         return Jwts.builder()
-                .setSubject(String.valueOf(loginUser.getUser().getId())) // 代表JWT主体 即所有人 设置JWT的主体为用户ID，表示JWT的主要内容。
+                .setSubject(String.valueOf(loginUser.getUserId())) // 代表JWT主体 即所有人 设置JWT的主体为用户ID，表示JWT的主要内容。
                 .setIssuer("")// 代表JWT的签发主体 通常可以填入应用名称或标识。
                 .setIssuedAt(new Date()) // 是一个时间戳 代表JWT的签发时间 设置JWT的签发时间为当前时间。
                 .setAudience(clientId) // 代表JWT接收对象 设置JWT的接收者为clientId，用于区分不同的客户端。
@@ -60,36 +62,6 @@ private static final Key SECRET_KEY = Keys.hmacShaKeyFor(SALT_KEY.getBytes(Stand
                 .signWith(SECRET_KEY, SignatureAlgorithm.HS512)//过期时间: 设置JWT的过期时间为之前计算的validity。 --更正 使用redis 方便刷新令牌
                 .compact(); // 完成构建
     }
-
-    /*
-    * 校验 token
-    *
-    *
-    * */
-
-//    public static JwtUser checkToken(String token) {
-//        if(validateToken(token)){
-//            Claims claims =Jwts.parser().setSigningKey(SECRET_KEY).parseClaimsJws(token).getBody();
-//            /*
-//            * 使用JWT解析器解析token，并使用SECRET_KEY进行签名验证。
-//                getBody()方法返回包含在JWT中的声明（claims），这些声明是关于用户的信息。
-//            * */
-//            String userId = claims.get("userId",String.class);
-//            String role = claims.get("role",String.class);
-//            String audience = claims.getAudience();
-//            /*
-//            * 从claims中提取userId、role和audience（接收者）信息。
-//            * */
-//
-//            JwtUser jwtUser=new JwtUser().setUserId(userId).setRole(role).setValid(true);
-//            /*创建一个JwtUser对象，并设置用户ID、角色和有效状态为true。*/
-//
-//            log.info("===token有效{},客户端{}",jwtUser,audience);
-//            return jwtUser;
-//        }
-//        log.error("xxx客户端无效xxx");
-//        return new JwtUser();
-//    }
 
     public static boolean validateToken(String token) {
         try {
@@ -104,7 +76,7 @@ private static final Key SECRET_KEY = Keys.hmacShaKeyFor(SALT_KEY.getBytes(Stand
     /**
      * 解析token 获取 userId
      */
-    public static LoginUser parseTokenAndGetUserId(String token) {
+    public static AuthUser parseTokenAndGetUserId(String token) {
         try {
             // 解析 JWT token
             ObjectMapper objectMapper=new ObjectMapper();
@@ -118,7 +90,7 @@ private static final Key SECRET_KEY = Keys.hmacShaKeyFor(SALT_KEY.getBytes(Stand
             // 获取 JWT 中的主体信息，即 userId
             Claims claims = claimsJws.getBody();
             String userJson= (String) claims.get("userInfo");
-            return objectMapper.readValue(userJson, LoginUser.class);
+            return objectMapper.readValue(userJson, AuthUser.class);
         } catch (Exception e) {
             // 解析失败，可能是签名无效、Token 过期等原因
             e.printStackTrace();

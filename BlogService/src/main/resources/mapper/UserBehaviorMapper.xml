@@ -25,4 +25,24 @@
         ORDER BY weightedActivity DESC , lastActTime DESC
         LIMIT 5000
     </select>
+    <select id="getBlogActivityLevel" resultType="org.oyyj.blogservice.config.pojo.BlogActivityLevel">
+        SELECT
+            blog_id AS blogId,
+            SUM(weight *
+                CASE
+                    WHEN DATEDIFF(NOW(),create_time) > 7 THEN 0.5
+                    WHEN DATEDIFF(NOW(),create_time) > 30 THEN 0.3
+                    ELSE 1.0
+                    END
+            ) AS weightedActivity
+        FROM user_behavior
+        <where>
+            <if test="userId != '' and userId != null ">
+                 blog_id NOT IN (SELECT blog_id FROM user_behavior WHERE user_id = #{userId})
+            </if>
+        </where>
+        GROUP BY blog_id
+        ORDER BY weightedActivity DESC , lastActTime DESC
+            LIMIT 5000
+    </select>
 </mapper>

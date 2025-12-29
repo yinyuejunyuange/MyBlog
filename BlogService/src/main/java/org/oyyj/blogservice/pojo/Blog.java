@@ -28,6 +28,8 @@ public class Blog {
     private String context;
     @TableField("user_id")
     private Long userId;
+    @TableField("author")
+    private String author;
     @TableField("create_time")
     private Date createTime;
     @TableField("update_time")

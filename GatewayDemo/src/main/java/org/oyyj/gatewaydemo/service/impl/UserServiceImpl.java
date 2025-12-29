@@ -6,12 +6,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import org.oyyj.gatewaydemo.mapper.SysPermissionMapper;
 import org.oyyj.gatewaydemo.mapper.SysRoleMapper;
 import org.oyyj.gatewaydemo.mapper.UserMapper;
-import org.oyyj.mycommonbase.common.auth.AuthUser;
+import org.oyyj.gatewaydemo.pojo.auth.AuthUser;
+import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.gatewaydemo.pojo.User;
 import org.oyyj.gatewaydemo.pojo.dto.RegisterDTO;
 import org.oyyj.gatewaydemo.pojo.vo.JWTUserVO;
 import org.oyyj.gatewaydemo.service.IUserService;
-import org.oyyj.mycommonbase.utils.JWTUtils;
+import org.oyyj.gatewaydemo.utils.JWTUtils;
 import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
@@ -57,15 +58,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         // 封装 userdetails信息
             // 登录成功后 authentication中的Principal 中会存储用户的信息
-        AuthUser loginUser = (AuthUser) authentication.getPrincipal();
+        AuthUser authUser = (AuthUser) authentication.getPrincipal();
 
-        String token = JWTUtils.createToken(loginUser, "web", "USER"); // 获取到token
+        String token = JWTUtils.createToken(authUser, "web", "USER"); // 获取到token
         // 将token存储到redis中
-        redisUtil.set(String.valueOf(loginUser.getUserId()), token,24, TimeUnit.HOURS); // 存储并设置时间24小时
+        redisUtil.set(String.valueOf(authUser.getUserId()), token,24, TimeUnit.HOURS); // 存储并设置时间24小时
         return JWTUserVO.builder()
-                .id(String.valueOf(loginUser.getUserId()))
-                .username(loginUser.getUsername())
-                .imageUrl(loginUser.getImageUrl())
+                .id(String.valueOf(authUser.getUserId()))
+                .username(authUser.getUsername())
+                .imageUrl(authUser.getImageUrl())
                 .token(token)
                 .isValid(true)
                 .build();
@@ -77,7 +78,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     public void LoginOut() {
         UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken=
                 (UsernamePasswordAuthenticationToken)SecurityContextHolder.getContext().getAuthentication();
-        AuthUser loginUser = (AuthUser) usernamePasswordAuthenticationToken.getPrincipal();
+        LoginUser loginUser = (LoginUser) usernamePasswordAuthenticationToken.getPrincipal();
         // 删除redis中用户的信息
         redisUtil.delete(String.valueOf(loginUser.getUserId()));
     }
@@ -132,9 +133,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                 throw new RuntimeException("登录失败 用户名或密码错误");
             }
 
-            AuthUser principal = (AuthUser) authentication.getPrincipal();
+            AuthUser authUser = (AuthUser) authentication.getPrincipal();
 
-            String token = JWTUtils.createToken(principal, "web", "USER");
+            String token = JWTUtils.createToken(authUser, "web", "USER");
             redisUtil.set(String.valueOf(build.getId()),token,24,TimeUnit.HOURS);
 
             return JWTUserVO.builder()

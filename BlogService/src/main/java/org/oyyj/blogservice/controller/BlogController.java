@@ -18,6 +18,8 @@ import org.oyyj.blogservice.pojo.*;
 import org.oyyj.blogservice.service.*;
 import org.oyyj.blogservice.util.ResultUtil;
 import org.oyyj.blogservice.vo.*;
+import org.oyyj.mycommon.annotation.RequestUser;
+import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -149,12 +151,18 @@ public class BlogController {
 
     }
 
+//    // 分页查询 博客文章
+//    @GetMapping("/list")
+//    public Map<String,Object> getBlogList(@RequestParam int pageNow, @RequestParam(required = false) String type , @RequestUser(required = false ) LoginUser loginUser) {
+//        PageDTO<BlogDTO> blogByPage = blogService.getBlogByPage(pageNow, PAGE_SIZE, type,loginUser);
+//        return ResultUtil.successMap(blogByPage,"查询成功");
+//    }
+
     // 分页查询 博客文章
-    @GetMapping("/list")
-    // 从1 开始查询
-    public Map<String,Object> getBlogList(@RequestParam int pageNow,@RequestParam(required = false) String type){
-        PageDTO<BlogDTO> blogByPage = blogService.getBlogByPage(pageNow, PAGE_SIZE, type);
-        return ResultUtil.successMap(blogByPage,"查询成功");
+    @GetMapping("/homeBlogs")
+    public Map<String,Object> homeBlogs( @RequestUser(required = false ) LoginUser loginUser) {
+        List<BlogDTO> homeBlogs = blogService.getHomeBlogs(loginUser);
+        return ResultUtil.successMap(homeBlogs,"查询成功");
     }
 
 
