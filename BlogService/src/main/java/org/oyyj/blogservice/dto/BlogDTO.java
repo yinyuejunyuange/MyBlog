@@ -28,4 +28,5 @@ public class BlogDTO {
     private String star;
     private String watch;
     private String commentNum;
+    private Double score; // 评分
 }

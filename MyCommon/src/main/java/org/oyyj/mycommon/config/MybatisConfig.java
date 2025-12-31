@@ -1,4 +1,4 @@
-package org.oyyj.blogservice.config;
+package org.oyyj.mycommon.config;
 
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;

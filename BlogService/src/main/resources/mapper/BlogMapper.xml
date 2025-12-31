@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.oyyj.blogservice.mapper.BlogMapper">
+    <update id="updateBlogBatch">
+        UPDATE blog
+        SET watch = CASE
+            <foreach collection="items" item="item" separator=" ">
+                WHEN id = #{item.blogId} THEN #{item.readCount}
+            </foreach>
+        END
+        WHERE id IN
+        <foreach collection="items" item="item" separator="," open="(" close=")">
+            #{item.blogId}
+        </foreach>
+    </update>
 
 
     <select id="getBlogTypeList" resultType="org.oyyj.blogservice.dto.BlogTypeDTO">
@@ -24,5 +36,59 @@
         FROM blog
         WHERE MOD(id,1000) = FLOOR(RAND()*1000)
         LIMIT 1000
+    </select>
+    <sql id="selectBlogHot">
+        SELECT
+            blog_id,
+            -- 计算总热度（兜底0，避免负数）
+            GREATEST(
+                    (read_count * 0.1) +
+                    (like_count * 2) +
+                    (share_count * 3) +
+                    (collect_count * 2) +
+                    (good_comment * 1) -
+                    (bad_comment * 1) -
+                    (attack_comment * 2),
+                    0
+            ) AS hot_score
+        FROM blog
+    </sql>
+    <select id="selectBlogSearch" resultType="org.oyyj.blogservice.dto.BlogSearchDTO">
+        <include refid="selectBlogHot"/>
+        <where>
+            <if test="userId != null">
+                user_id = #{userId}
+            </if>
+            <if test="typeList != null and  typeList.size() > 0 ">
+                id IN (
+                    SELECT
+                        b.id AS blogId,
+                    FROM blog b
+                    INNER JOIN type_blog tb ON tb.blog_id = b.id
+                    INNER JOIN type_table tt ON tt.id = tb.type_id
+                    WHERE tt.name IN
+                    <foreach collection="typeList" item="item" separator="," open="(" close=")" >
+                        #{item}
+                    </foreach>
+                )
+            </if>
+        </where>
+        ORDER BY
+        <choose>
+            <when test="orderBy != null and orderBy == 'blog_hot' ">
+                hot_score
+            </when>
+            <otherwise>
+                create_time
+            </otherwise>
+        </choose>
+        <choose>
+            <when test="orderWay != null and orderWay == 'ASC'">
+                ASC
+            </when>
+            <otherwise>
+                DESC
+            </otherwise>
+        </choose>
     </select>
 </mapper>

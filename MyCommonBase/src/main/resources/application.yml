@@ -12,3 +12,7 @@ spring:
           max-active: 16
           max-wait: -1ms
           max-idle: 8
+ase:
+  key:  MmNkdTByamdjMm95eWoyeA==  # 16字节
+  iv-prefix: cm9qeWd5Y2o=  # 随机IV 前缀配置
+  iv-prefix-length: 8 # 随机IV 前缀长度

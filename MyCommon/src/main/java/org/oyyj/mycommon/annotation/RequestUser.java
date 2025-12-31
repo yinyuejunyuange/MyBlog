@@ -7,6 +7,8 @@ import java.lang.annotation.*;
 @Documented // 生成文档
 public @interface RequestUser {
 
+    // todo 添加幂等
+
     boolean required() default true; // 默认使用注解必须存在用户信息
 
 }

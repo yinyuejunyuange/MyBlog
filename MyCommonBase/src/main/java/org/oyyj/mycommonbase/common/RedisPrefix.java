@@ -5,6 +5,9 @@ import lombok.Data;
 @Data
 public class RedisPrefix {
 
+    /**
+     * 初始化以及评分矩阵相关
+     */
     public static final String INIT_RATING = "init:rating:"; // redis加载的 初始化 分布式锁
 
     public static final String INIT_LOCK = "init:lock:"; // redis加载的 初始化加锁 分布式锁
@@ -24,4 +27,24 @@ public class RedisPrefix {
     public static final String ITEM_SIMILARITY="item:similarity:"; // redis 前缀 存储博客相似度
 
     public static final String RECOMMEND_USER="recommend:user:"; // redis为用户推荐 的博客列表
+
+    /**
+     * 博客相关
+     */
+    public static final String BLOG_READ_COUNT= "blog:read:count:"; // 博客阅读次数
+
+    public static final String BLOG_INGO = "blog:info:"; // 博客文章详情
+
+    public static final String BLOG_VIEW_COUNT = "blog:view:count:"; // 博客短时间内的阅读次数
+
+    public static final String LOCK_BLOG_INGO="lock:blog:info:"; // 博客文章详情 分布式锁
+
+    public static final String BLOG_USER_READ="blog:user:read:"; // 一个小时内是否阅读了
+
+    public static final String BLOG_READ_UPDATE="blog:info:update"; // 博客是否更新 需要设置存货时间
+
+    public static final String BLOG_READ_LOCK="blog:read:lock"; // 更新热门博客信息的锁
+
+
+
 }

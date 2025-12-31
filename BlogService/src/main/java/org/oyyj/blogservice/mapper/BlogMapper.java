@@ -1,9 +1,12 @@
 package org.oyyj.blogservice.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.oyyj.blogservice.dto.BlogReadDTO;
+import org.oyyj.blogservice.dto.BlogSearchDTO;
 import org.oyyj.blogservice.dto.BlogTypeDTO;
 import org.oyyj.blogservice.dto.IncreaseDTO;
 import org.oyyj.blogservice.pojo.Blog;
@@ -40,5 +43,21 @@ public interface BlogMapper extends BaseMapper<Blog> {
      * @return
      */
     List<Long> selectBlogIdRand();
+
+
+    /**
+     * 评分查询
+     * @param userId
+     * @param orderWay
+     * @return
+     */
+    List<BlogSearchDTO> selectBlogSearch( IPage<Blog> page, @Param("userid") Long userId, @Param("typeList") List<String> typeList, @Param("orderBy") String orderBy,  @Param("orderWay")String orderWay);
+
+    /**
+     * 批量处理阅读数
+     * @param readDTOS
+     * @return
+     */
+    Integer updateBlogBatch(@Param("items") List<BlogReadDTO> readDTOS);
 
 }

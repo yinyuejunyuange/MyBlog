@@ -15,7 +15,7 @@ public interface UserFeign {
     Map<Long,String> getUserNameMap();
 
     @GetMapping("/myBlog/user/blog/isUserKudos")
-    Boolean isUserKudos(@RequestParam("blogId") Long blogId,@RequestParam("userInfoKey") String userInfoKey);
+    Boolean isUserKudos(@RequestParam("blogId") Long blogId,@RequestParam("userId") String userInfoKey);
 
     @GetMapping("/myBlog/user/blog/isUserStar")
     Boolean isUserStar(@RequestParam("blogId") Long blogId,@RequestParam("userInfoKey")String userInfoKey);

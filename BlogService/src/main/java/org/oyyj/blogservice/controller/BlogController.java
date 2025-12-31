@@ -92,9 +92,8 @@ public class BlogController {
     }
 
     @GetMapping("/read")
-    public Map<String, Object> readBlog(@RequestParam("blogId") String  id,@RequestParam(value = "userInfoKey",required = false) String userInfoKey,
-                                        @RequestParam(value = "userId",required = false) Long userId) {
-        ReadDTO readDTO = blogService.ReadBlog(Long.valueOf(id),userInfoKey,userId);
+    public Map<String, Object> readBlog(@RequestParam("blogId") String  id,@RequestUser LoginUser loginUser) {
+        ReadDTO readDTO = blogService.ReadBlog(Long.valueOf(id),loginUser);
         if(Objects.isNull(readDTO)){
             return ResultUtil.failMap("查询失败");
         }
@@ -349,22 +348,16 @@ public class BlogController {
         return ResultUtil.successMap(blogByName,"查询成功");
     }
 
-    @GetMapping("/getBlogByTypeList")
-    public Map<String,Object> getBlogByTypeList(@RequestParam("typeList") List<String> typeList
-            ,@RequestParam("current")int current){
-        PageDTO<BlogDTO> blogByName = blogService.getBlogByTypeList(current, PAGE_SIZE, typeList);
+    @GetMapping("/getBlogBySearch")
+    public Map<String,Object> getBlogByUserId(@RequestParam("userId") Long userId,
+                                              @RequestParam("current")int current,
+                                              @RequestParam("pageSize") int pageSize,
+                                              @RequestParam(value = "orderBy",required = false) String orderBy,
+                                              @RequestParam(value = "orderWay",required = false) String orderWay,
+                                              @RequestParam(value = "typeList",required = false) String typeList){
+        PageDTO<BlogDTO> blogByName = blogService.getBlogByUserId(current, pageSize, userId,List.of(typeList.split(",")) ,orderBy,orderWay);
         if(Objects.isNull(blogByName)){
-            return ResultUtil.failMap("参数不合法");
-        }
-        return ResultUtil.successMap(blogByName,"查询成功");
-    }
-
-    @GetMapping("/getBlogByUserId")
-    public Map<String,Object> getBlogByUserId(@RequestParam("userId") Long userId
-            ,@RequestParam("current")int current){
-        PageDTO<BlogDTO> blogByName = blogService.getBlogByUserId(current, PAGE_SIZE, userId);
-        if(Objects.isNull(blogByName)){
-            return ResultUtil.failMap("参数不合法");
+            return ResultUtil.failMap("查询失败");
         }
         return ResultUtil.successMap(blogByName,"查询成功");
     }

@@ -23,4 +23,10 @@ public class RequestHeadItems {
 
     public static String X_USER_AGENT = "X-User-Agent";
 
+    /**
+     * 获取 数据来源
+     */
+    public static String X_SOURCE = "X-Source";
+
+    public static String X_SOURCE_IV =  "X-Source-IV";
 }

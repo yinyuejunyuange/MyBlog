@@ -21,7 +21,7 @@ import java.util.Map;
 public interface IBlogService extends IService<Blog> {
     void saveBlog(Blog blog);
 
-    ReadDTO ReadBlog(Long id,String UserInfoKey,Long userId);
+    ReadDTO ReadBlog(Long id, LoginUser loginUser);
 
     PageDTO<BlogDTO> getBlogByPage(int current, int pageSize, String type, LoginUser loginUser);
 
@@ -42,9 +42,18 @@ public interface IBlogService extends IService<Blog> {
 
     PageDTO<BlogDTO> getBlogByName(int current,int pageSize,String blogName);
 
-    PageDTO<BlogDTO> getBlogByUserId(int current,int pageSize,Long userId);
+    /**
+     * 根据作者查询博客信息
+     * @param current 当前页数
+     * @param pageSize 查询量
+     * @param userId 作者ID
+     * @param typeList 博客类别
+     * @param orderBy 排序依据的字段
+     * @param isDesc 正序or倒序
+     * @return
+     */
+    PageDTO<BlogDTO> getBlogByUserId(int current,int pageSize,Long userId, List<String> typeList,String orderBy,String isDesc);
 
-    PageDTO<BlogDTO> getBlogByTypeList(int current,int pageSize,List<String> typeList);
 
     PageDTO<BlogDTO> getBlogByIds(int current, int pageSize, List<Long> blogs);
 

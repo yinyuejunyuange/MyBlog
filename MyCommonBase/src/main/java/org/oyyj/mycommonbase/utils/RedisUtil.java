@@ -1,5 +1,6 @@
 package org.oyyj.mycommonbase.utils;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -13,6 +14,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Component
 public class RedisUtil {
 
@@ -45,6 +47,45 @@ public class RedisUtil {
         redisTemplate.opsForValue().set(key, value, seconds, TimeUnit.SECONDS);
     }
 
+    /**
+     * 重置式延期：将Key的过期时间设为固定秒数（覆盖原有过期时间）
+     * @param key Redis Key
+     * @param expireSeconds 过期时间（秒）
+     * @return 是否延期成功（Key存在则返回true，不存在返回false）
+     */
+    public boolean resetExpire(String key, long expireSeconds) {
+        // expire方法：原子操作，直接重置过期时间
+        return redisTemplate.expire(key, expireSeconds, TimeUnit.SECONDS);
+    }
+
+    /**
+     * 增量式续期：在 Key 剩余过期时间基础上增加指定时长
+     * 场景：需精准控制剩余时长（如剩余 10 分钟，再加 5 分钟）
+     * @param key Redis Key
+     * @param addSeconds 要增加的秒数
+     * @return true=续期成功，false=续期失败（Key 不存在/永不过期）
+     */
+    public boolean incrementExpire(String key, long addSeconds,TimeUnit unit) {
+        try {
+            // 1. 获取 Key 剩余过期时间（秒）：-1=永不过期，-2=不存在/已过期
+            Long remainSeconds = redisTemplate.getExpire(key, unit);
+            if (remainSeconds == -2) {
+                log.warn("Redis Key 不存在/已过期，无法增量续期，key:{}", key);
+                return false;
+            }
+            // 2. 永不过期的 Key 需先设初始过期时间，再增量
+            if (remainSeconds == -1) {
+                return redisTemplate.expire(key, addSeconds, unit);
+            }
+            // 3. 计算新过期时间并续期
+            long newExpire = remainSeconds + addSeconds;
+            return redisTemplate.expire(key, newExpire, unit);
+        } catch (Exception e) {
+            log.error("Redis 增量式续期失败，key:{}，addSeconds:{}", key, addSeconds, e);
+            return false;
+        }
+    }
+
     // 获取值
     public Object get(String key) {
         return redisTemplate.opsForValue().get(key);
@@ -55,6 +96,28 @@ public class RedisUtil {
         Object obj = redisTemplate.opsForValue().get(key);
         return obj == null ? null : obj.toString();
     }
+
+    /**
+     * 获取 INTEGER 的数据
+     * @param key
+     * @return
+     */
+    public Integer getInteger(String key) {
+        String integer = stringRedisTemplate.opsForValue().get(key);
+        if (Objects.isNull(integer)){
+            return null;
+        }
+        return Integer.valueOf(integer);
+    }
+
+    /**
+     * 加一
+     * @param key
+     */
+    public void incr(String key) {
+        stringRedisTemplate.opsForValue().increment(key);
+    }
+
 
 
     /**
@@ -74,6 +137,27 @@ public class RedisUtil {
     }
 
     /**
+     * 存储key和value全是String的Map
+     * @param key
+     * @param map
+     */
+    public void setHashWithString(String key, Map<String, String> map) {
+        redisTemplate.opsForHash().putAll(key, map);
+    }
+
+    /**
+     * 存储HashMap并设置过期时间
+     * @param key
+     * @param map
+     * @param expireSeconds
+     * @param unit
+     */
+    public void setHashWithString(String key, Map<String, String> map, long expireSeconds, TimeUnit unit) {
+        redisTemplate.opsForHash().putAll(key, map);
+        redisTemplate.expire(key, expireSeconds, unit);
+    }
+
+    /**
      * 读取Redis Hash为Map<Long, Double>
      * @param key Redis key
      * @return 解析后的Map
@@ -85,6 +169,20 @@ public class RedisUtil {
                 .collect(Collectors.toMap(
                         entry -> Long.parseLong(entry.getKey().toString()),
                         entry -> Double.parseDouble(entry.getValue().toString())
+                ));
+    }
+
+    /**
+     * 取Redis Hash为Map<String, String>
+     * @param key
+     * @return
+     */
+    public Map<String, String> getHashWithString(String key) {
+        Map<Object, Object> hashEntries = redisTemplate.opsForHash().entries(key);
+        return hashEntries.entrySet().stream()
+                .collect(Collectors.toMap(
+                        entry -> String.valueOf(entry.getKey()),
+                        entry -> String.valueOf(entry.getValue())
                 ));
     }
 

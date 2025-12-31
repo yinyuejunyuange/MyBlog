@@ -18,8 +18,10 @@ import org.oyyj.userservice.Feign.AnnouncementFeign;
 import org.oyyj.userservice.Feign.BlogFeign;
 import org.oyyj.userservice.pojo.User;
 import org.oyyj.userservice.pojo.UserReport;
+import org.oyyj.userservice.pojo.UserStar;
 import org.oyyj.userservice.service.IUserReportService;
 import org.oyyj.userservice.service.IUserService;
+import org.oyyj.userservice.service.IUserStarService;
 import org.oyyj.userservice.vo.AdminUpdateUserReportVO;
 import org.oyyj.userservice.vo.AnnouncementUserVO;
 import org.slf4j.Logger;
@@ -56,41 +58,15 @@ public class UserController {
     private AnnouncementFeign announcementFeign;
 
     @Autowired
+    private IUserStarService userStarService;
+
+    @Autowired
     private IUserReportService userReportService;
     @Autowired
     private BlogFeign blogFeign;
 
     @Value("${user.header-url}")
     private String userHeadUrl;
-
-
-
-//    // 用户登录
-//    @PostMapping("/login")
-//    public Map<String,Object> UserLogin(@RequestBody UserDTO userDTO) throws JsonProcessingException {
-//
-//        JWTUser login = userService.login(userDTO.getUsername(), userDTO.getPassword());
-//        return ResultUtil.successMap(login,"登录成功");
-//    }
-//
-//    // 用户注册
-//    @PostMapping("/register")
-//    public Map<String,Object> UserRegister(@RequestBody RegisterDTO registerDTO) throws IOException {
-//        JWTUser jwtUser = userService.registerUser(registerDTO);
-//        if(Objects.isNull(jwtUser)){
-//            return ResultUtil.failMap("用户名重复 请重新注册");
-//        }
-//        return ResultUtil.successMap(jwtUser,"注册成功 已登录");
-//    }
-//
-//
-//    // 用户登出
-//    @GetMapping("/logout")
-//    public Map<String,Object> UserLogout() {
-//        userService.LoginOut();
-//        return ResultUtil.successMap(null,"退出成功");
-//    }
-
 
     // 用户存储 头像  todo 重写
     @RequestMapping("/makeHead")
@@ -208,9 +184,9 @@ public class UserController {
 
     // 用户关注作者
     @PutMapping("/starBlogAuthor")
-    public Map<String,Object> starBlogAuthor(@RequestParam("authorId")String authorId){
+    public Map<String,Object> starBlogAuthor(@RequestParam("authorId")String authorId, @RequestUser LoginUser principal) throws Exception {
 
-        Boolean b = userService.starBlogAuthor(authorId);
+        Boolean b = userService.starBlogAuthor(authorId,principal);
         if(b){
             return ResultUtil.successMap(b,"关注成功");
         }else{
@@ -219,9 +195,9 @@ public class UserController {
     }
 
     @PutMapping("/cancelStarBlogAuthor")
-    public Map<String,Object> cancelStarBlogAuthor(@RequestParam("authorId")String authorId){
+    public Map<String,Object> cancelStarBlogAuthor(@RequestParam("authorId")String authorId, @RequestUser LoginUser principal) throws Exception {
 
-        Boolean b = userService.cancelStarBlogAuthor(authorId);
+        Boolean b = userService.cancelStarBlogAuthor(authorId,principal);
         if(b){
             return ResultUtil.successMap(b,"取消关注成功");
         }else{
@@ -229,11 +205,11 @@ public class UserController {
         }
     }
 
-//    // 用户改变个人信息
-//
+    // 用户改变个人信息
+
     @PostMapping("/changeUserInfo")
-    public Map<String,Object> changeUserInfo(@RequestBody ChangeUserDTO changeUserDTO){
-        return userService.changeUserInfo(changeUserDTO);
+    public Map<String,Object> changeUserInfo(@RequestBody ChangeUserDTO changeUserDTO, @RequestUser LoginUser principal){
+        return userService.changeUserInfo(changeUserDTO,principal);
     }
 
 
@@ -249,15 +225,15 @@ public class UserController {
      * 用户的搜索
      */
     @GetMapping("/getUserSearch")
-    public Map<String,Object> getUserSearch(){
-        List<String> userSearch = userService.getUserSearch();
+    public Map<String,Object> getUserSearch(@RequestUser LoginUser loginUser){
+        List<String> userSearch = userService.getUserSearch(loginUser);
         return ResultUtil.successMap(userSearch,"查询成功");
     }
 
     // 用户删除自己的搜索记录
     @DeleteMapping("deleteUserSearchByName")
-    public Map<String,Object> deleteUserSearchByName( @RequestParam("name") String name){
-        boolean b = userService.deleteUserSearchByName(name);
+    public Map<String,Object> deleteUserSearchByName( @RequestParam("name") String name ,@RequestUser LoginUser loginUser){
+        boolean b = userService.deleteUserSearchByName(name,loginUser);
         if(b){
             return ResultUtil.successMap(null,"删除成功");
         }else{
@@ -266,8 +242,8 @@ public class UserController {
     }
 
     @DeleteMapping("deleteUserAllSearch")
-    public Map<String,Object> deleteUserAllSearch( ){
-        boolean b = userService.deleteUserAllSearch();
+    public Map<String,Object> deleteUserAllSearch( @RequestUser LoginUser loginUser){
+        boolean b = userService.deleteUserAllSearch(loginUser);
         if(b){
             return ResultUtil.successMap(null,"删除成功");
         }else{
@@ -556,6 +532,83 @@ public class UserController {
         return  blogFeign.reportReply(replyReportDTO);
     }
 
+    // 获取用户关注的博客作者
+    @GetMapping("/getUserStarAuthor")
+    public Map<String,Object> getUserStarAuthor(@RequestParam("current")int current ,@RequestUser LoginUser user){
+        PageDTO<BlogUserInfoDTO> userStarBlogAuthor = userService.getUserStarBlogAuthor(String.valueOf(user.getUserId()), current);
+        if(Objects.isNull(userStarBlogAuthor)){
+            return ResultUtil.successMap(null,"此用户没有关注的对象");
+        }
+        return ResultUtil.successMap(userStarBlogAuthor,"查询成功");
+    }
+
+    // 用户点赞评论
+    @GetMapping("/kudosComment")
+    public Map<String,Object> kudosComment(@RequestParam("commentId")String commentId,@RequestParam("bytes")Byte bytes,@RequestUser LoginUser loginUser){
+
+        if(bytes!=1&&bytes!=2){
+            log.error("bytes 参数错误："+bytes);
+            return ResultUtil.failMap("参数错误");
+        }
+
+        Boolean b = userService.kudosComment(commentId,bytes,loginUser.getUserId());
+        if(b){
+            return ResultUtil.successMap(true,"操作成功");
+        }else{
+            return ResultUtil.failMap("操作失败");
+        }
+
+    }
+
+    // 用户取消收藏
+    @PutMapping("/cancelStar")
+    public Map<String,Object> cancelStar(@RequestParam("blogId") String blogId ,@RequestUser LoginUser loginUser){
+        boolean user = userStarService.remove(Wrappers.<UserStar>lambdaQuery()
+                .eq(UserStar::getUserId, loginUser.getUserId())
+                .eq(UserStar::getBlogId, Long.valueOf(blogId))
+        );
+        // 对应博客的点赞数减一
+        Boolean blog = blogFeign.cancelStar(blogId);
+        if(user&&blog){
+            return ResultUtil.successMap(true,"取消成功");
+        }else{
+            return ResultUtil.failMap("取消失败");
+        }
+    }
+
+
+    // 用户点赞回复
+    @GetMapping("/kudosReply")
+    public Map<String,Object> kudosReply(@RequestParam("replyId")String replyId,@RequestParam("bytes")Byte bytes , @RequestUser LoginUser loginUser){
+
+        if(bytes!=1&&bytes!=2){
+            log.error("bytes 参数错误："+bytes);
+            return ResultUtil.failMap("参数错误");
+        }
+        Boolean b = userService.kudosReply(replyId, bytes,loginUser.getUserId());
+
+        if(b){
+            return ResultUtil.successMap(true,"操作成功");
+        }else{
+            return ResultUtil.failMap("操作失败");
+        }
+    }
+
+
+    // 用户收藏
+    @PutMapping("/userStar")
+    public Map<String,Object> userStar(@RequestParam("blogId") String blogId ,@RequestUser LoginUser loginUser) throws Exception {
+        // 用户收藏表中添加对应的用户博客id；
+        boolean userStar = userService.userStar(blogId,loginUser.getUserId());
+        // 修改博客信息中star加一
+        Boolean blogStar = blogFeign.blogStar(blogId);
+
+        if(userStar&&blogStar){
+            return ResultUtil.successMap(true,"收藏成功");
+        }else{
+            return ResultUtil.failMap("收藏失败");
+        }
+    }
 
 
 }

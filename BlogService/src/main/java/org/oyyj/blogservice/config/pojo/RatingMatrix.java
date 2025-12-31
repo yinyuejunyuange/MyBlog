@@ -275,7 +275,17 @@ public class RatingMatrix {
      */
     @Scheduled(cron = "0 0 */1 * * ?")
     public void calculateBlogAvgScore(){
-        List<UserBehavior> userBehaviors = userBehaviorMapper.selectList(Wrappers.<UserBehavior>lambdaQuery());
+        calculateBlogAvgScore(null);
+    }
+
+    /**
+     * 计算博客的平均得分
+     * @param id 博客ID
+     */
+    public void calculateBlogAvgScore(Long id){
+        List<UserBehavior> userBehaviors = userBehaviorMapper.selectList(Wrappers.<UserBehavior>lambdaQuery()
+                .eq( Objects.nonNull(id), UserBehavior::getBlogId,id)
+        );
         Set<Long> blogIds = userBehaviors.parallelStream().map(UserBehavior::getBlogId).collect(Collectors.toSet());
         blogIds.parallelStream().forEach(blogId -> {
             Map<Long, Double> hashWithLongDouble = redisUtil.getHashWithLongDouble(RedisPrefix.RATING_MATRIX_ITEM + blogId);

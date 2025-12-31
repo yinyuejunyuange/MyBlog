@@ -2,6 +2,7 @@ package org.oyyj.userservice.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.userservice.dto.*;
@@ -15,39 +16,20 @@ import java.util.Map;
 
 
 public interface IUserService extends IService<User> {
-//
-//    JWTUser login(String username, String password) throws JsonProcessingException;
-//
-//    // 登出
-//    void LoginOut();
-//
-//    JWTUser registerUser(RegisterDTO registerDTO) throws IOException;
-//
-//    Map<String,Object> saveBlog(BlogDTO blogDTO);
-//
-//    Map<String,Object> readBlog(String blogId,String userInfoKey);
-//
-//    Object uploadPict(MultipartFile file);
-//
-//    void downloadFile(String fileName, HttpServletResponse response);
-//
-//    boolean userKudos(String blogId);
-//
-//    boolean userStar(String blogId);
-//
-//    Long addComment(CommentDTO commentDTO);
-//
-//    Long addReply(ReplyDTO replyDTO);
-//
-//    Boolean kudosComment(String commentId,Byte bytes);
-//
-//    Boolean kudosReply(String replyId,Byte bytes);
+
+    boolean userKudos(String blogId, LoginUser loginUser) throws Exception;
+
+    boolean userStar(String blogId, Long userId) throws Exception;
+
+    Boolean kudosComment(String commentId,Byte bytes,Long userId);
+
+    Boolean kudosReply(String replyId,Byte bytes,Long userId);
 
     BlogUserInfoDTO getBlogUserInfo(String userId, LoginUser principal);
 
-    Boolean starBlogAuthor(String authorId);
+    Boolean starBlogAuthor(String authorId,LoginUser user) throws Exception;
 
-    Boolean cancelStarBlogAuthor(String authorId);
+    Boolean cancelStarBlogAuthor(String authorId,LoginUser user);
 
     Map<String,Object> getUserStarBlog(String userId,int current);
 
@@ -55,19 +37,19 @@ public interface IUserService extends IService<User> {
 
     Map<String,Object> getUsersBlog(Long userId,int current);
 
-    Map<String,Object> changeUserInfo(ChangeUserDTO changeUserDTO);
+    Map<String,Object> changeUserInfo(ChangeUserDTO changeUserDTO,LoginUser loginUser);
 
     void upLoadBlogToAI(BlogDTO blogDTO);
 
     Map<String,Object> getHotSearch();
 
-    List<String> getUserSearch();
+    List<String> getUserSearch(LoginUser loginUser);
 
-    boolean addUserSearch(List<String> names);
+    boolean addUserSearch(List<String> names, LoginUser loginUser);
 
-    boolean deleteUserSearchByName(String name);
+    boolean deleteUserSearchByName(String name ,LoginUser loginUser);
 
 
-    boolean deleteUserAllSearch();
+    boolean deleteUserAllSearch(LoginUser loginUser);
 
 }
