@@ -5,7 +5,9 @@ import org.oyyj.gatewaydemo.mapper.SysPermissionMapper;
 import org.oyyj.gatewaydemo.mapper.SysRoleMapper;
 import org.oyyj.gatewaydemo.mapper.UserMapper;
 import org.oyyj.gatewaydemo.pojo.User;
+import org.oyyj.gatewaydemo.pojo.auth.AuthUser;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
+import org.oyyj.mycommonbase.common.commonEnum.YesOrNoEnum;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -46,7 +48,7 @@ public class ReactiveUserDetailsServiceImpl implements ReactiveUserDetailsServic
                     List<String> roles = sysRoleMapper.selectUserRole(one.getId());
 
                     // 3. 封装为AuthUser（和原有逻辑一致）
-                    return (UserDetails) new LoginUser(one.getId(), one.getName(), null, permissions, roles);
+                    return (UserDetails) new AuthUser(one.getId(), one.getName(), null, permissions, roles, YesOrNoEnum.YES.getCode());
 
                 })
                 // 将同步IO操作（查库）放到弹性线程池，避免阻塞网关

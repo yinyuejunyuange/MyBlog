@@ -194,42 +194,42 @@ public class BlogSimilarityService {
                 .limit(topN)
                 .collect(Collectors.toList());
     }
-
-    public static void main(String[] args) {
-        // 1. 构造测试博客数据（5篇博客，覆盖不同类别和数值特征）
-        List<Blog> allBlogs = List.of(
-                // 目标博客：Java+后端，高观看/点赞/评论，正面情绪
-                new Blog(1L, null,null,null,null,null,null,null, List.of("java", "后端"),null, 67L,null, 687L, 5L, new BigDecimal("0.9")),
-                // 相似博客1：Java+后端，中等数值，正面情绪（高相似）
-                new Blog(2L,null,null,null,null,null,null,null, List.of("VUE", "前端","界面美化"),null, 908L, null ,15000L, 1L, new BigDecimal("0.8")),
-                // 相似博客2：Java+人工智能，高数值，正面情绪（中相似）
-                new Blog(3L,null,null,null,null,null,null,null, List.of("C++", "游戏"),null, 90L,null, 1800L, 4L, new BigDecimal("0.9")),
-                // 相似博客3：Python+前端，低数值，中性情绪（低相似）
-                new Blog(4L, null,null,null,null,null,null,null, List.of("python", "前端"),null , 3L, null, 50L, 2L, new  BigDecimal("0.5")),
-                // 相似博客4：后端，低数值，负面情绪（极低相似）
-                new Blog(5L,null,null,null,null,null,null,null,  List.of("后端"), null ,2L, null, 30L, 5L, new BigDecimal("0.2"))
-        );
-
-        // 2. 初始化相似度服务
-        BlogSimilarityService similarityService = new BlogSimilarityService(allBlogs);
-
-        // 3. 计算目标博客（B001）与其他博客的相似度
-        System.out.println("=== 博客B001与其他博客的相似度 ===");
-        for (Blog blog : allBlogs) {
-            if (blog.getId() != 1L) {
-                double similarity = similarityService.calculateBlogSimilarity(
-                        allBlogs.get(0), blog);
-                System.out.printf("B001 vs %s：相似度=%.3f%n", blog.getId(), similarity);
-            }
-        }
-
-        // 4. 查找与B001最相似的Top2博客
-        System.out.println("\n=== 与B001最相似的Top2博客 ===");
-        List<Map.Entry<Long, Double>> topSimilar = similarityService.findTopSimilarBlogs(1L, 2);
-        for (Map.Entry<Long, Double> entry : topSimilar) {
-            System.out.printf("博客ID：%s，相似度=%.3f%n", entry.getKey(), entry.getValue());
-        }
-    }
+//
+//    public static void main(String[] args) {
+//        // 1. 构造测试博客数据（5篇博客，覆盖不同类别和数值特征）
+//        List<Blog> allBlogs = List.of(
+//                // 目标博客：Java+后端，高观看/点赞/评论，正面情绪
+//                new Blog(1L, null,null,null,null,null,null,null, List.of("java", "后端"),null, 67L,null, 687L, 5L, new BigDecimal("0.9")),
+//                // 相似博客1：Java+后端，中等数值，正面情绪（高相似）
+//                new Blog(2L,null,null,null,null,null,null,null, List.of("VUE", "前端","界面美化"),null, 908L, null ,15000L, 1L, new BigDecimal("0.8")),
+//                // 相似博客2：Java+人工智能，高数值，正面情绪（中相似）
+//                new Blog(3L,null,null,null,null,null,null,null, List.of("C++", "游戏"),null, 90L,null, 1800L, 4L, new BigDecimal("0.9")),
+//                // 相似博客3：Python+前端，低数值，中性情绪（低相似）
+//                new Blog(4L, null,null,null,null,null,null,null, List.of("python", "前端"),null , 3L, null, 50L, 2L, new  BigDecimal("0.5")),
+//                // 相似博客4：后端，低数值，负面情绪（极低相似）
+//                new Blog(5L,null,null,null,null,null,null,null,  List.of("后端"), null ,2L, null, 30L, 5L, new BigDecimal("0.2"))
+//        );
+//
+//        // 2. 初始化相似度服务
+//        BlogSimilarityService similarityService = new BlogSimilarityService(allBlogs);
+//
+//        // 3. 计算目标博客（B001）与其他博客的相似度
+//        System.out.println("=== 博客B001与其他博客的相似度 ===");
+//        for (Blog blog : allBlogs) {
+//            if (blog.getId() != 1L) {
+//                double similarity = similarityService.calculateBlogSimilarity(
+//                        allBlogs.get(0), blog);
+//                System.out.printf("B001 vs %s：相似度=%.3f%n", blog.getId(), similarity);
+//            }
+//        }
+//
+//        // 4. 查找与B001最相似的Top2博客
+//        System.out.println("\n=== 与B001最相似的Top2博客 ===");
+//        List<Map.Entry<Long, Double>> topSimilar = similarityService.findTopSimilarBlogs(1L, 2);
+//        for (Map.Entry<Long, Double> entry : topSimilar) {
+//            System.out.printf("博客ID：%s，相似度=%.3f%n", entry.getKey(), entry.getValue());
+//        }
+//    }
 
 
 }

@@ -44,5 +44,8 @@ server:
 user:
   header-url: H:/10516/Test/image/
 
+cors:
+  allow: http://localhost:8001/  # 规定前端允许的域名
+
 
 

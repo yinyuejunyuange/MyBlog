@@ -33,15 +33,18 @@ public class AuthUser implements UserDetails {
 
     private String ip; //  用户的IP
 
+    private Integer isUserLogin;
+
     @JsonIgnore
     private List<SimpleGrantedAuthority> authorities;
 
-    public AuthUser(Long userId, String userName, String password, List<String> permissions, List<String> roles) {
+    public AuthUser(Long userId, String userName, String password, List<String> permissions, List<String> roles,Integer isUserLogin) {
         this.userId = userId;
         this.userName = userName;
         this.password = password;
         this.permissions = permissions;
         this.roles = roles;
+        this.isUserLogin = isUserLogin;
     }
 
 

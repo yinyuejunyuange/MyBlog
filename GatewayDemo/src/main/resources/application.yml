@@ -90,6 +90,7 @@ spring:
             allowed-origins:
               - "http://localhost:5173" # 允许区域
               - "http://localhost:8079" # 允许区域
+              - "http://localhost:8001" # 允许区域
             allowed-methods:
               - "GET"
               - "POST"
@@ -112,10 +113,12 @@ server:
 
 logging:
   level:
-    # Gateway核心路由匹配包：打印路由匹配结果
+    # Gateway核心路由匹配、转发日志
+    org.springframework.cloud.gateway: DEBUG
+    # WebFlux请求处理日志（看请求入/出方向）
+    org.springframework.web.server: DEBUG
+    # 路由定位器（看匹配到哪个路由）
     org.springframework.cloud.gateway.route.RoutePredicateHandlerMapping: DEBUG
-    # Gateway转发核心包：打印转发目标、状态
-    org.springframework.cloud.gateway.handler.FilteringWebHandler: INFO
-    # 可选：打印HTTP请求详情
-    org.springframework.http.server.reactive: INFO
-    reactor.netty.http.client: INFO
+    # HTTP客户端（看转发到微服务的请求/响应）
+    reactor.netty.http.client: DEBUG
+    reactor.netty.http.server: DEBUG

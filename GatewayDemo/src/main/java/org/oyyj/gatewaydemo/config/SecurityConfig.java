@@ -64,7 +64,7 @@ public class SecurityConfig {
                .authorizeExchange(exchanges -> exchanges
                        .pathMatchers("myBlog/user/login","myBlog/user/register","/myBlog/user/blog/read",
                                "/myBlog/user/blog/file/download/**","http://localhost:8080/myBlog/user/blog/read/**",
-                               "/myBlog/user/verify/getCode","myBlog/user/verify/checkCode","/myBlog/user/getHead/**","/myBlog/user/getUserName",
+                               "/myBlog/user/verify/getCode","/myBlog/user/verify/checkCode","/myBlog/user/getHead/**","/myBlog/user/getUserName",
                                "/myBlog/user/blog/getBlogList","/myBlog/user/blog/isUserStar**","/myBlog/user/blog/isUserKudos**",
                                "/myBlog/user/getImageInIds**","/myBlog/user/getNameInIds**","/myBlog/user/blog/getUserKudosReply**",
                                "/myBlog/user/blog/getUserKudosComment**","/myBlog/user/getBlogUserInfo**","/myBlog/user/blog/getBlogByName**",
@@ -76,7 +76,6 @@ public class SecurityConfig {
                        .anyExchange().authenticated()
                )
                .addFilterAt(jwtAuthenticationTokenFilter, SecurityWebFiltersOrder.AUTHENTICATION)
-               .cors(cors->cors.disable())
                .build();
     }
 

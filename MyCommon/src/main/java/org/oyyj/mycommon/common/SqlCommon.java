@@ -6,16 +6,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 public class SqlCommon {
     /**
      * 倒序
      */
-    public static  String DESC = "desc";
+    public static final  String DESC = "desc";
     /**
      * 正序
      */
-    public static String ASC = " asc";
+    public static final String ASC = " asc";
 
 }
