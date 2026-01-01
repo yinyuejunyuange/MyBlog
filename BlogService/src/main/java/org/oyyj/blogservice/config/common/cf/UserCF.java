@@ -89,6 +89,10 @@ public class UserCF {
 
         List<Long> similarUsers = findSimilarUsers(userId, 150);
 
+        if(userId == null|| similarUsers.isEmpty()){
+            return List.of();
+        }
+
         // 获取这些用户喜欢的物品（排除目标已经接触的）
         // 3. 初始化两个Map用于加权平均
         Map<Long, Double> weightedScores = new HashMap<>(); // 加权分数和

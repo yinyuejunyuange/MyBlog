@@ -76,3 +76,7 @@ tokenBucket:
   # 物品相似度矩阵存储的物品数量
 similarty:
   blog-max-item-num: 1000
+
+
+cors:
+  allow: http://localhost:8001/  # 规定前端允许的域名

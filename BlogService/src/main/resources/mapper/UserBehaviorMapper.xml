@@ -42,7 +42,7 @@
             </if>
         </where>
         GROUP BY blog_id
-        ORDER BY weightedActivity DESC , lastActTime DESC
+        ORDER BY weightedActivity DESC
             LIMIT 5000
     </select>
 </mapper>

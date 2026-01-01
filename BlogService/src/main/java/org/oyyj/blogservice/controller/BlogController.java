@@ -41,7 +41,7 @@ import java.nio.file.Paths;
 import java.util.*;
 
 @RestController
-@RequestMapping("/blog")
+@RequestMapping("/myBlog/blog")
 public class BlogController {
 
     private static final Logger log = LoggerFactory.getLogger(BlogController.class);

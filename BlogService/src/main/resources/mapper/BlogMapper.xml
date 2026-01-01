@@ -34,8 +34,8 @@
     <select id="selectBlogIdRand" resultType="java.lang.Long">
         SELECT id
         FROM blog
-        WHERE MOD(id,1000) = FLOOR(RAND()*1000)
-        LIMIT 1000
+        ORDER BY RAND()
+            LIMIT 200
     </select>
     <sql id="selectBlogHot">
         SELECT

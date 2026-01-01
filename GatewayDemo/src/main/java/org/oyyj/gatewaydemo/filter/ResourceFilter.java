@@ -25,20 +25,21 @@ public class ResourceFilter implements GlobalFilter , Ordered {
 
         exchange= exchange.mutate().request(request).build();
 
-        return getVoidMono(exchange,chain);
+        //return getVoidMono(exchange,chain);
+        return chain.filter(exchange);
     }
 
-    // 配置跨域否则不生效果
-    private Mono<Void> getVoidMono(ServerWebExchange exchange, GatewayFilterChain chain) {
-        return chain.filter(exchange).then(Mono.defer(() -> {
-            exchange.getResponse().getHeaders().entrySet().stream()
-                    .filter(kv -> kv.getValue() != null && kv.getValue().size() > 1)
-                    .filter(kv -> kv.getKey().equals(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN)
-                            || kv.getKey().equals(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS))
-                    .forEach(kv -> kv.setValue(Collections.singletonList(kv.getValue().get(0))));
-            return chain.filter(exchange);
-        }));
-    }
+//    // 配置跨域否则不生效果
+//    private Mono<Void> getVoidMono(ServerWebExchange exchange, GatewayFilterChain chain) {
+//        return chain.filter(exchange).then(Mono.defer(() -> {
+//            exchange.getResponse().getHeaders().entrySet().stream()
+//                    .filter(kv -> kv.getValue() != null && kv.getValue().size() > 1) // 只处理多值 CORS头
+//                    .filter(kv -> kv.getKey().equals(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN) // 过滤敏感的头
+//                            || kv.getKey().equals(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS))
+//                    .forEach(kv -> kv.setValue(Collections.singletonList(kv.getValue().get(0)))); // 解决去重 避免浏览器报错
+//            return Mono.empty(); // 返回空
+//        }));
+//    }
 
 
     @Override
