@@ -18,6 +18,8 @@ import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFac
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -27,6 +29,7 @@ import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 @Component
 @Slf4j
@@ -81,8 +84,13 @@ public class LocalRequestFilter extends AbstractGatewayFilterFactory<LocalReques
                     }
 
                     try {
-                        JWTUserVO login = userService.login(loginRequest.getUsername(), loginRequest.getPassword());
-                        return writeSuccessResponse(response,login);
+                        return userService.login(loginRequest.getUsername(), loginRequest.getPassword())
+                                .flatMap(loginVO->{
+                                    return writeSuccessResponse(response,loginVO);
+                                })
+                                .onErrorResume(e->{
+                                    return writeErrorResponse(response,HttpStatus.UNAUTHORIZED,"用户名或密码错误");
+                                });
                     } catch (JsonProcessingException e) {
                         log.error("登录失败：{}",e.getMessage(),e);
                         return writeErrorResponse(response,HttpStatus.INTERNAL_SERVER_ERROR,"登录失败!");
@@ -110,8 +118,15 @@ public class LocalRequestFilter extends AbstractGatewayFilterFactory<LocalReques
                     }
 
                     try {
-                        JWTUserVO jwtUserVO = userService.registerUser(registerDTO);
-                        return writeSuccessResponse(response,jwtUserVO);
+                        return userService.registerUser(registerDTO)
+                                .flatMap(jwtUserVO -> {
+                                    return writeSuccessResponse(response,jwtUserVO);
+                                })
+                                .onErrorResume(e->{
+                                    log.error("注册失败：{}",e.getMessage(),e);
+                                    return writeErrorResponse(response,HttpStatus.INTERNAL_SERVER_ERROR,"注册失败!");
+                                });
+
                     } catch (IOException e) {
                         log.error("注册失败：{}",e.getMessage(),e);
                         return writeErrorResponse(response,HttpStatus.INTERNAL_SERVER_ERROR,"注册失败!");
@@ -139,8 +154,8 @@ public class LocalRequestFilter extends AbstractGatewayFilterFactory<LocalReques
         try {
             response.setStatusCode(HttpStatus.OK);
             response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-
-            String responseBody = objectMapper.writeValueAsString(responseInfo);
+            Map<String, Object> stringObjectMap = ResultUtil.successMap(response, "");
+            String responseBody = objectMapper.writeValueAsString(stringObjectMap);
             byte[] bytes = responseBody.getBytes(StandardCharsets.UTF_8);
             DataBuffer buffer = BUFFER_FACTORY.wrap(bytes);
 

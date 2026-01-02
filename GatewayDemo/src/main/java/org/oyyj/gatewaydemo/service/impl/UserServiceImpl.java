@@ -48,29 +48,36 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
 
     @Override // 返回相关结果
-    public JWTUserVO login(String username, String password) throws JsonProcessingException {
+    public Mono<JWTUserVO> login(String username, String password){
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(username, password);
-        Mono<Authentication> authenticate = authenticationManager.authenticate(authenticationToken);
-        Authentication authentication = authenticate.block();
-        if(Objects.isNull(authentication)){
-            // 认证失败
-            throw new RuntimeException("登录失败 用户名或密码错误");
-        }
-        // 封装 userdetails信息
-            // 登录成功后 authentication中的Principal 中会存储用户的信息
-        AuthUser authUser = (AuthUser) authentication.getPrincipal();
+       // Authentication authentication = authenticate.block();  // 不能使用block阻塞 官方要求 保留特性
+        return authenticationManager.authenticate(authenticationToken)
+                .flatMap(authentication -> {
+                    if(Objects.isNull(authentication)){
+                        // 认证失败
+                        throw new RuntimeException("登录失败 用户名或密码错误");
+                    }
+                    // 封装 userdetails信息
+                    // 登录成功后 authentication中的Principal 中会存储用户的信息
+                    AuthUser authUser = (AuthUser) authentication.getPrincipal();
 
-        String token = JWTUtils.createToken(authUser, "web", "USER"); // 获取到token
-        // 将token存储到redis中
-        redisUtil.set(String.valueOf(authUser.getUserId()), token,24, TimeUnit.HOURS); // 存储并设置时间24小时
-        return JWTUserVO.builder()
-                .id(String.valueOf(authUser.getUserId()))
-                .username(authUser.getUsername())
-                .imageUrl(authUser.getImageUrl())
-                .token(token)
-                .isValid(true)
-                .build();
+                    String token = null; // 获取到token
+                    try {
+                        token = JWTUtils.createToken(authUser, "web", "USER");
+                    } catch (JsonProcessingException e) {
+                        throw new RuntimeException(e);
+                    }
 
+                    // 将token存储到redis中
+                    redisUtil.set(String.valueOf(authUser.getUserId()), token,24, TimeUnit.HOURS); // 存储并设置时间24小时
+                    return Mono.just(JWTUserVO.builder()
+                            .id(String.valueOf(authUser.getUserId()))
+                            .username(authUser.getUsername())
+                            .imageUrl(authUser.getImageUrl())
+                            .token(token)
+                            .isValid(true)
+                            .build());
+                }); // 统一外层处理异常
     }
 
     // 从上下文环境中 securitycontextHolder 获取到用户的信息
@@ -84,27 +91,19 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     }
 
     @Override
-    public JWTUserVO registerUser(RegisterDTO registerDTO) throws IOException {
+    public Mono<JWTUserVO> registerUser(RegisterDTO registerDTO) throws IOException {
         User one = getOne(Wrappers.<User>lambdaQuery().eq(User::getName, registerDTO.getUsername()));
         if(!Objects.isNull(one)){
             return null;
         }
-
-
         // todo 后续添加默认头像图片
-        //String resourcePath;
-        //        if(registerDTO.getSex()==1){
-        //            resourcePath="man.jpg";
-        //        }else{
-        //            resourcePath="woman.jpg";
-        //        }
-        // String imageUrl = servletContext.getContextPath()+"/"+ resourcePath; // 获取资源路径
+
         Date date = new Date();
         User build = User.builder()
                 .name(registerDTO.getUsername())
                 .sex(registerDTO.getSex())
                 .email(registerDTO.getEmail())
-                .imageUrl(null)
+                .imageUrl("123")
                 .createTime(date)
                 .updateTime(date)
                 .isDelete(0)
@@ -126,24 +125,31 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
             // 生成token 并存储到redis
             UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(registerDTO.getUsername(), registerDTO.getPassword());
-            Mono<Authentication> authenticate = authenticationManager.authenticate(usernamePasswordAuthenticationToken);
-            Authentication authentication = authenticate.block();
-            if(Objects.isNull(authentication)){
-                // 认证失败
-                throw new RuntimeException("登录失败 用户名或密码错误");
-            }
+            return authenticationManager.authenticate(usernamePasswordAuthenticationToken)
+                    .flatMap(authentication -> {
+                        if(Objects.isNull(authentication)){
+                            // 认证失败
+                            throw new RuntimeException("登录失败 用户名或密码错误");
+                        }
 
-            AuthUser authUser = (AuthUser) authentication.getPrincipal();
+                        AuthUser authUser = (AuthUser) authentication.getPrincipal();
 
-            String token = JWTUtils.createToken(authUser, "web", "USER");
-            redisUtil.set(String.valueOf(build.getId()),token,24,TimeUnit.HOURS);
+                        String token = null;
+                        try {
+                            token = JWTUtils.createToken(authUser, "web", "USER");
+                        } catch (JsonProcessingException e) {
+                            throw new RuntimeException(e);
+                        }
+                        redisUtil.set(String.valueOf(build.getId()),token,24,TimeUnit.HOURS);
 
-            return JWTUserVO.builder()
-                    .id(String.valueOf(build.getId()))
-                    .isValid(true)
-                    .token(token)
-                    .username(build.getName())
-                    .build();
+                        return Mono.just(JWTUserVO.builder()
+                                .id(String.valueOf(build.getId()))
+                                .isValid(true)
+                                .token(token)
+                                .username(build.getName())
+                                .build());
+                    });
+
         }else{
             throw  new RuntimeException("注册失败");
         }

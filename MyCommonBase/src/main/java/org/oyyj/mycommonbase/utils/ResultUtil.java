@@ -1,8 +1,11 @@
 package org.oyyj.mycommonbase.utils;
 
+import lombok.Data;
+
 import java.util.HashMap;
 import java.util.Map;
 
+@Data
 public class ResultUtil<T> {
     private int code;
     private String message;

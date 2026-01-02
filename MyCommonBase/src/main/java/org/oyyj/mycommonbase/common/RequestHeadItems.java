@@ -5,6 +5,8 @@ import lombok.Data;
 @Data
 public class RequestHeadItems {
 
+    public static String  ACCESS_CONTROL_EXPOSE_HEADERS="Access-Control-Expose-Headers";
+
     public static String X_REAL_IP="X-Real-IP";
 
     public static String X_USER_ID = "X-User-Id";
@@ -29,4 +31,8 @@ public class RequestHeadItems {
     public static String X_SOURCE = "X-Source";
 
     public static String X_SOURCE_IV =  "X-Source-IV";
+
+    public static String X_VERIFY_TOKEN = "X-Verify-Token";
+
+
 }

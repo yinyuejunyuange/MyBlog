@@ -48,7 +48,7 @@ public class ReactiveUserDetailsServiceImpl implements ReactiveUserDetailsServic
                     List<String> roles = sysRoleMapper.selectUserRole(one.getId());
 
                     // 3. 封装为AuthUser（和原有逻辑一致）
-                    return (UserDetails) new AuthUser(one.getId(), one.getName(), null, permissions, roles, YesOrNoEnum.YES.getCode());
+                    return (UserDetails) new AuthUser(one.getId(), one.getName(), one.getPassword(), permissions, roles, YesOrNoEnum.YES.getCode());
 
                 })
                 // 将同步IO操作（查库）放到弹性线程池，避免阻塞网关

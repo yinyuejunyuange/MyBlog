@@ -2,6 +2,8 @@ package org.oyyj.userservice.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.oyyj.mycommonbase.common.RedisPrefix;
+import org.oyyj.mycommonbase.common.RequestHeadItems;
 import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.userservice.utils.VerifyUtil;
@@ -14,6 +16,8 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.OutputStream;
+import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -29,11 +33,10 @@ public class VerifyController {
      * 生成验证码的接口
      *
      * @param response Response对象
-     * @param request  Request对象
      * @throws Exception
      */
     @GetMapping("/getCode")
-    public void getCode(HttpServletResponse response, HttpServletRequest request) throws Exception {
+    public void getCode(HttpServletResponse response) throws Exception {
 
         // 利用图片工具生成图片
         // 返回的数组第一个参数是生成的验证码，第二个参数是生成的图片
@@ -63,8 +66,8 @@ public class VerifyController {
         redisUtil.set(token, objs[0],60, TimeUnit.SECONDS); //保存 1分钟
 
         // 将token返回给前端
-        response.setHeader("verifytoken", token);
-
+        response.setHeader(RequestHeadItems.X_VERIFY_TOKEN, token);
+        response.setHeader(RequestHeadItems.ACCESS_CONTROL_EXPOSE_HEADERS, RequestHeadItems.X_VERIFY_TOKEN); // 允许暴露 否则浏览器无法读取
         // 将图片输出给浏览器
         BufferedImage image = (BufferedImage) objs[1];
         response.setContentType("image/png");
@@ -82,8 +85,7 @@ public class VerifyController {
     @GetMapping("/checkCode")
     public Map<String,Object> checkCode(String code, HttpServletRequest request) {
         // 从请求中 获取 token
-        String token = request.getHeader("verifyToken");
-
+        String token = request.getHeader(RequestHeadItems.X_VERIFY_TOKEN.toLowerCase());
         String s = (String) redisUtil.get(token);
 
         if(s.isEmpty()){
@@ -91,7 +93,7 @@ public class VerifyController {
         }
 
         // 校验验证码
-        if (null == s || null == code || !s.equalsIgnoreCase(code)) {
+        if ( !s.equalsIgnoreCase(code)) {
             System.out.println("验证码错误!");
             return ResultUtil.failMap("验证码错误!");
 
@@ -102,7 +104,5 @@ public class VerifyController {
 
         System.out.println("验证码正确!");
         return ResultUtil.successMap(null,"验证码正确");
-
-
     }
 }

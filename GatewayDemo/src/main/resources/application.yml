@@ -15,7 +15,7 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     type: com.alibaba.druid.pool.DruidDataSource
-    url: jdbc:mysql://localhost:3306/my_blog_blogDB?serverTimezone=UTC # ?前面是数据库名
+    url: jdbc:mysql://localhost:3306/my_blog_userDB?serverTimezone=UTC # ?前面是数据库名
     username: root
     password: OYyj0715
 
@@ -31,31 +31,31 @@ spring:
         - id: AuthLogin
           uri: no://op # 特殊URI 不需要转发
           predicates:
-            - Path=/auth/login
+            - Path=/myBlog/auth/login
           filters:
             - name: LocalRequestFilter # 指定处理登录/注册逻辑的过滤器
               args:
-                handle-type: LOGIN
+                handlerType: LOGIN
 
         # 当前服务处理 注册
         - id: AuthRegister
           uri: no://op
           predicates:
-            - Path=/auth/register
+            - Path=/myBlog/auth/register
           filters:
             - name: LocalRequestFilter
               args:
-                handle-type: REGISTER
+                handlerType: REGISTER
 
         # 3. 登出路由 - 本地处理
         - id: auth-logout
           uri: no://op
           predicates:
-            - Path=/auth/logout
+            - Path=/myBlog/auth/logout
           filters:
             - name: LocalRequestFilter
               args:
-                handler-type: LOGOUT
+                handlerType: LOGOUT
 
         - id: UserService
           uri: lb://UserService
@@ -81,6 +81,26 @@ spring:
           uri: lb://BlogService
           predicates:
             - Path=/myBlog/blog/**, /vipCache/** # 实现或关系  如果单独一行就是and关系
+      globalcors:  # 仅会对下游请求生效
+        add-to-simple-url-handler-mapping: true # 解决options请求被拦截的问题
+        cors-configurations:
+          '[/**]': # 匹配所有请求
+            allowed-origins:
+              - "http://localhost:5173" # 允许区域
+              - "http://localhost:8079" # 允许区域
+              - "http://localhost:8001" # 允许区域
+            allowed-methods:
+              - "GET"
+              - "POST"
+              - "PUT"
+              - "DELETE"
+              - "OPTIONS"
+            allowed-headers:
+              - "*"
+            allow-credentials: true
+            exposed-headers: # 用于允许暴露特定的响应头
+
+            max-age: 360000
 
 BlogService:
   ribbon:
