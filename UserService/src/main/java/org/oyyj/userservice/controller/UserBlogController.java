@@ -88,9 +88,7 @@ public class UserBlogController {
                 throw new AuthenticationException("请求来源不正确");
             }
 
-
-            String s = String.valueOf(redisUtil.get(userInfoKey));
-            Long id=Long.valueOf(s);
+            Long id=Long.valueOf(userInfoKey);
             UserStar one = userStarService.getOne(Wrappers.<UserStar>lambdaQuery().eq(UserStar::getUserId, id)
                     .eq(UserStar::getBlogId, blogId));
             if(Objects.isNull(one)){

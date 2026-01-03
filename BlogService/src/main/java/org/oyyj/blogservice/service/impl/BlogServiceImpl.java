@@ -42,6 +42,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -144,12 +145,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         String countKey = RedisPrefix.BLOG_INGO + id;
         // 1. 先查缓存
         Map<String, String> hashWithString = redisUtil.getHashWithString(countKey);
-        if (Objects.nonNull(hashWithString)) {
+        if (!hashWithString.isEmpty()) {
             try {
-                if(hashWithString.isEmpty()){
-                    // 缓存中的是空字符串 （缓存穿透）
-                    return new ReadDTO();
-                }
                 // 增加延期
                 redisUtil.resetExpire(countKey,1800L); // 信息延期30分钟
                 redisUtil.resetExpire(RedisPrefix.BLOG_READ_COUNT+id,1800L); // 同时初始时or修改后的记录数 也延期
@@ -469,7 +466,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         List<Long> result = new ArrayList<>(new ArrayList<>(blogActivityLevel).stream().map(BlogActivityLevel::getBlogId).toList());
         if( result.size() <= 20){
             // 用户浏览量较多其他用户浏览的商品 从数据库中随机抽取博客给用户
-            List<Long> blogIds = blogMapper.selectBlogIdRand();
+            // 生成动态随机种子（范围：1~Long.MAX_VALUE，避免固定值）
+            long randomSeed = ThreadLocalRandom.current().nextLong();
+            List<Long> blogIds = blogMapper.selectBlogIdRand(randomSeed);
             result.addAll(blogIds);
         }
         return  result.stream().map(String::valueOf).toList();

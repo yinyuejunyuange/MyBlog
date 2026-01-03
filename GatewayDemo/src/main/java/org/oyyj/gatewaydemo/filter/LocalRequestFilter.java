@@ -154,7 +154,7 @@ public class LocalRequestFilter extends AbstractGatewayFilterFactory<LocalReques
         try {
             response.setStatusCode(HttpStatus.OK);
             response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-            Map<String, Object> stringObjectMap = ResultUtil.successMap(response, "");
+            Map<String, Object> stringObjectMap = ResultUtil.successMap(responseInfo, "");
             String responseBody = objectMapper.writeValueAsString(stringObjectMap);
             byte[] bytes = responseBody.getBytes(StandardCharsets.UTF_8);
             DataBuffer buffer = BUFFER_FACTORY.wrap(bytes);

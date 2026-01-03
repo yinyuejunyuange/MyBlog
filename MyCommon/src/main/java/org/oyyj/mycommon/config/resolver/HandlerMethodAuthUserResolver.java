@@ -18,6 +18,7 @@ import org.springframework.web.method.support.ModelAndViewContainer;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 自定义参数解析器 从请求头中获取 参数 组成数据
@@ -25,8 +26,8 @@ import java.util.List;
 @Component
 public class HandlerMethodAuthUserResolver implements HandlerMethodArgumentResolver {
 
-    @Autowired
-    private ObjectMapper mapper;
+
+    private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public boolean supportsParameter(MethodParameter parameter) {

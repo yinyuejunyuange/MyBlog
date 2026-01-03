@@ -49,8 +49,6 @@ private static final Key SECRET_KEY = Keys.hmacShaKeyFor(SALT_KEY.getBytes(Stand
         ObjectMapper objectMapper=new ObjectMapper();
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         String s = objectMapper.writeValueAsString(loginUser);
-
-        Date validity=new Date((new Date()).getTime()+TOKEN_VALIDITY);
         return Jwts.builder()
                 .setSubject(String.valueOf(loginUser.getUserId())) // 代表JWT主体 即所有人 设置JWT的主体为用户ID，表示JWT的主要内容。
                 .setIssuer("")// 代表JWT的签发主体 通常可以填入应用名称或标识。
