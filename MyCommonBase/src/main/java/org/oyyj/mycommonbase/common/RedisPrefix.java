@@ -45,6 +45,15 @@ public class RedisPrefix {
 
     public static final String BLOG_READ_LOCK="blog:read:lock"; // 更新热门博客信息的锁
 
+    public static final String BLOG_START_LOCK="blog:start:lock:"; // 博客收藏数增加的锁
+
+    public static final String BLOG_KUDOS_LOCK="blog:kudos:lock:"; // 博客点赞数增加的锁
+
+    public static final String BLOG_COMMENT_LOCK =  "blog:comment:lock:"; // 博客评论数量
+
+    public static final String BLOG_COMMENT_KUDOS_LOCK = "blog:comment:kudos:lock:"; // 博客评论点赞数修改
+
+    public static final String BLOG_REPLY_KUDOS_LOCK = "blog:reply:kudos:lock:"; // 博客恢复点赞数修改
 
 
 }

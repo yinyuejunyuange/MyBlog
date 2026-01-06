@@ -23,13 +23,15 @@ public interface IBlogService extends IService<Blog> {
 
     ReadDTO ReadBlog(Long id, LoginUser loginUser);
 
+    void readBlogValid(Long id , LoginUser loginUser) throws Exception;
+
     PageDTO<BlogDTO> getBlogByPage(int current, int pageSize, String type, LoginUser loginUser);
 
     List<ReadCommentDTO> getBlogComment(String blogId,String userInfoKey);
 
-    Boolean changeCommentKudos(Long commentId,Byte bytes);
+    Boolean changeCommentKudos(Long commentId,Integer isAdd);
 
-    Boolean changeReplyKudos(Long replyId,Byte bytes);
+    Boolean changeReplyKudos(Long replyId,Integer isAdd);
 
     List<Long> getUserBlogNum(Long userId);
 
@@ -69,5 +71,41 @@ public interface IBlogService extends IService<Blog> {
                               Date endDate,  // spring框架默认是不支持前端 date的iso类型  所以要设置
                               String status,
                               Integer currentPage) throws JsonProcessingException;
+
+    /**
+     * 收藏博客--博客记录数+1
+     * @param blogId
+     * @return
+     */
+    boolean blogStar(Long blogId);
+
+    /**
+     * 取消收藏博客信息 -- 博客记录-1
+     * @param blogId
+     * @return
+     */
+    boolean cancelStar(Long blogId);
+
+    /**
+     * 点赞博客 -- 博客点赞数+1
+     * @param blogId
+     * @return
+     */
+    boolean blogKudos(Long blogId);
+
+    /**
+     * 取消点赞博客 -- 博客点赞数-1
+     * @param blogId
+     * @return
+     */
+    boolean cancelKudos(Long blogId);
+
+    /**
+     * 添加评论 博客评论数+1
+     * @param blogId
+     * @return
+     */
+    void blogComment(Long blogId);
+
 
 }

@@ -19,6 +19,7 @@ spring:
       discovery:
         service: UserService
         server-addr: localhost:8848
+        cluster-name: BJ
         # ip: 47.120.35.205  # 部署
 
   datasource:
@@ -27,6 +28,8 @@ spring:
     url: jdbc:mysql://localhost:3306/my_blog_userDB?serverTimezone=UTC # ?前面是数据库名
     username: root
     password: OYyj0715
+  application:
+    name: UserService
 
 mybatis-plus:
   global-config:
@@ -48,4 +51,8 @@ cors:
   allow: http://localhost:8001/  # 规定前端允许的域名
 
 
+# 雪花算法配置（不同服务/机器配置不同的worker-id，避免重复）
+snowflake:
+  worker-id: 2        # 机器ID（范围0-1023，分布式环境下每台机器唯一）
+  datacenter-id: 0    # 数据中心ID（范围0-31，可选）
 

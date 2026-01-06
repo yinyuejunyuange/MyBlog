@@ -1,4 +1,4 @@
-package org.oyyj.blogservice.config;
+package org.oyyj.mycommon.config;
 
 
 import org.springframework.context.annotation.Bean;

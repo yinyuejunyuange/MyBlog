@@ -30,6 +30,8 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static org.oyyj.mycommon.common.MqPrefix.*;
+
 
 @Slf4j
 @Configuration
@@ -279,11 +281,11 @@ public class ApiCacheManager {
      * 发送缓存失效的消息
      */
     private void sendInvalidationMessage(String key) {
-        RabbitMqMessage message = new RabbitMqMessage(key, null);
+        RabbitMqMessage message = new RabbitMqMessage(key, null , "");
         EnhancedCorrelationData ed=new EnhancedCorrelationData(UUID.randomUUID().toString(),message.toString());
         rabbitTemplate.convertAndSend(
-                RabbitMqConfig.CACHE_INVALIDATION_EXCHANGE,
-                RabbitMqConfig.CACHE_INVALIDATION_ROUTING_KEY,
+                CACHE_INVALIDATION_EXCHANGE,
+                CACHE_INVALIDATION_ROUTING_KEY,
                 message,
                 ed
         ); //  广播 也包括自己
@@ -293,7 +295,7 @@ public class ApiCacheManager {
     /**
      * 接受消息队列 并 确认消息  使用SqLe方法
      */
-    @RabbitListener(queues = "#{rabbitMqConfig.getCacheInvalidationQueue()}")
+    @RabbitListener(queues = "#{rabbitMqCacheInvalidationConfig.getCacheInvalidationQueue()}")
     public void handleInvalidationMessage(RabbitMqMessage message ,
                                           Channel channel,
                                           @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
@@ -348,8 +350,8 @@ public class ApiCacheManager {
             // 重复三次不再放入队列 进入死信队列中
             EnhancedCorrelationData ed=new EnhancedCorrelationData(UUID.randomUUID().toString(),message.toString());
             rabbitTemplate.convertAndSend(
-                    RabbitMqConfig.DXL_INVALIDATION_EXCHANGE,
-                    RabbitMqConfig.DXL_INVALIDATION_ROUTING_KEY,
+                    DXL_INVALIDATION_EXCHANGE,
+                    DXL_INVALIDATION_ROUTING_KEY,
                     message,
                     ed
             ); //  存储到死信队列中
@@ -361,7 +363,7 @@ public class ApiCacheManager {
         }
     }
 
-//    @RabbitListener(queues = "#{rabbitMqConfig.getCacheInvalidationQueue()}")
+//    @RabbitListener(queues = "#{rabbitMqCacheInvalidationConfig.getCacheInvalidationQueue()}")
 //    public void handleInvalidationMessage(RabbitMqMessage message,
 //                                          Channel channel,
 //                                          @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) {

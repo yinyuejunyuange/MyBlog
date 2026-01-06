@@ -77,6 +77,11 @@ tokenBucket:
 similarty:
   blog-max-item-num: 1000
 
+# 雪花算法配置（不同服务/机器配置不同的worker-id，避免重复）
+snowflake:
+  worker-id: 1        # 机器ID（范围0-1023，分布式环境下每台机器唯一）
+  datacenter-id: 0    # 数据中心ID（范围0-31，可选）
+
 
 cors:
   allow: http://localhost:8001/  # 规定前端允许的域名

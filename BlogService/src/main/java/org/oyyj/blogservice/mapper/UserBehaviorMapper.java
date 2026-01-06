@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 import org.oyyj.blogservice.config.pojo.BlogActivityLevel;
 import org.oyyj.blogservice.config.pojo.UserActivityLevel;
 import org.oyyj.blogservice.pojo.UserBehavior;
+import org.oyyj.mycommon.common.BehaviorEnum;
 
 import java.util.List;
 
@@ -31,5 +32,12 @@ public interface UserBehaviorMapper extends BaseMapper<UserBehavior> {
      */
     List<BlogActivityLevel> getBlogActivityLevel(@Param("userId")  Long userId);
 
+    /**
+     * 添加用户行为
+     * @param userId
+     * @param blogId
+     * @param behaviorEnum
+     */
+    Integer addUserBehavior(@Param("userId") Long userId, @Param("blogId")Long blogId, @Param("behaviorEnum")BehaviorEnum behaviorEnum);
 
 }

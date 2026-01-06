@@ -7,10 +7,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -23,13 +20,6 @@ public class RedisUtil {
 
     @Autowired
     private StringRedisTemplate stringRedisTemplate; // 处理String的存储 避免发生如 将List<String>全部序列化为字符串的情况
-
-    private static final Long RELEASE_SUCCESS = 1L;
-    private static final String RELEASE_SCRIPT = "if redis.call('get', KEYS[1]) == ARGV[1] then " +
-            "return redis.call('del', KEYS[1]) " +
-            "else " +
-            "return 0 " +
-            "end";;
 
 
     // 设置键值对
@@ -229,38 +219,95 @@ public class RedisUtil {
         return stringRedisTemplate.opsForList().remove(key,count,value);
     }
 
-    // 删除键
+    /**
+     * 删除脚本
+     * @param key
+     * @return
+     */
     public Boolean delete(String key) {
         return redisTemplate.delete(key);
     }
 
-    // 判断键是否存在
-    public Boolean hasKey(String key) {
-        return redisTemplate.hasKey(key);
+
+    /**
+     * LUA 脚本 原子性增加博客阅读
+     */
+    // 加载Lua脚本
+    private static final DefaultRedisScript<Long> READ_COUNT_SCRIPT;
+
+    static {
+        READ_COUNT_SCRIPT = new DefaultRedisScript<>();
+        // Lua脚本逻辑：
+        // KEYS[1] = 博客阅读数key（blog:info:{blogId}）
+        // KEYS[2] = 用户阅读标记key（blog:user:read:{blogId}:{userId}）
+        // ARGV[1] = 用户阅读标记过期时间（秒，默认3600=1小时）
+        // ARGV[2] = 阅读数key续期时间（秒，默认600=10分钟）
+        READ_COUNT_SCRIPT.setScriptText(
+                "local hasRead = redis.call('EXISTS', KEYS[2])\n" +
+                        "if hasRead == 1 then\n" +
+                        // 已阅读：续期用户标记，返回0（不计数）
+                        "    redis.call('EXPIRE', KEYS[2], ARGV[1])\n" +
+                        "    return 0\n" +
+                        "end\n" +
+                        // 未阅读：设置用户标记（带过期）+ 递增阅读数 + 续期阅读数key
+                        "redis.call('SET', KEYS[2], 1, 'EX', ARGV[1])\n" +
+                        "local current = redis.call('HINCRBY',KEYS[1],'watch') \n"+
+                        "redis.call('EXPIRE', KEYS[1], ARGV[2])\n" +
+                        "return current"
+        );
+        READ_COUNT_SCRIPT.setResultType(Long.class);
     }
 
-    // 如果不存在，则设置
-    public Boolean setNx(String key, Object value) {
-        return redisTemplate.opsForValue().setIfAbsent(key, value);
+    /**
+     * 原子性增加博客的阅读数量
+     * @param keys 1： 博客阅读数key（blog:info:{blogId}）  2：用户阅读标记key（blog:user:read:{blogId}:{userId}）
+     * @param args 1：用户阅读标记过期时间（秒，默认3600=1小时）  2：阅读数key续期时间（秒，默认600=10分钟）
+     * @return
+     */
+    public Long incrBlogReadNum(String []keys,String[] args ){
+        // 3. 执行Lua脚本（原子操作）
+        return  redisTemplate.execute(
+                READ_COUNT_SCRIPT,
+                Arrays.asList(keys),
+                args[0],
+                args[1]
+        );
     }
 
-    // 如果不存在，则设置，附带过期时间
-    public Boolean tryLock(String lockKey, String requestId, long seconds) {
-        return redisTemplate.opsForValue().setIfAbsent(lockKey, requestId, seconds, TimeUnit.SECONDS);
+    /**
+     * LUA 脚本原子性回滚 博客阅读数-1 同时删除用户博客阅读标志
+     */
+    private static final DefaultRedisScript<Long> READ_COUNT_SCRIPT_DECR;
+
+    static {
+        READ_COUNT_SCRIPT_DECR = new DefaultRedisScript<>();
+        // Lua脚本逻辑：
+        // KEYS[1] = 博客阅读数key（blog:info:{blogId}）
+        // KEYS[2] = 用户阅读标记key（blog:user:read:{blogId}:{userId}）
+        READ_COUNT_SCRIPT_DECR.setScriptText(
+                "local hasRead = redis.call('EXISTS', KEYS[2])\n" +
+                        //  避免重复回滚
+                "if hasRead == 1 then\n" +
+                        // 删除标志
+                "    redis.call('DEL', KEYS[2])\n" +
+                        // 数据减一
+                "    local current = redis.call('HINCRBY',KEYS[1],'watch',-1) \n"+
+                "    if current < 0 then\n" +
+                "       redis.cal('HSET', KEYS[1], 'watch',0)\n" +
+                "    end\n" +
+                "    return 1\n"+
+                "end\n" +
+                "return 0"
+        );
+        READ_COUNT_SCRIPT_DECR.setResultType(Long.class);
     }
 
-    // 如果不存在，则设置，附带过期时间
-    public Boolean tryLock(String lockKey, String requestId, long timeout, TimeUnit unit) {
-        return redisTemplate.opsForValue().setIfAbsent(lockKey, requestId, timeout, unit);
-    }
-
-    // 不存在返回true，存在则删除
-    public Boolean releaseLock(String lockKey, String requestId){
-        DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>();
-        redisScript.setScriptText(RELEASE_SCRIPT);
-        redisScript.setResultType(Long.class);
-        Long result = redisTemplate.execute(redisScript, Collections.singletonList(lockKey), Collections.singletonList(requestId));
-        return RELEASE_SUCCESS.equals(result);
+    public Long incrBlogReadNumRollBack(String []keys){
+        // 3. 执行Lua脚本（原子操作）
+        return  redisTemplate.execute(
+                READ_COUNT_SCRIPT_DECR,
+                Arrays.asList(keys)
+        );
     }
 
 }

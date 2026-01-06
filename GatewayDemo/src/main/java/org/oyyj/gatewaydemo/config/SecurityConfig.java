@@ -68,7 +68,7 @@ public class SecurityConfig {
                                "/myBlog/blog/homeBlogs","/myBlog/user/blog/isUserStar**","/myBlog/user/blog/isUserKudos**",
                                "/myBlog/user/getImageInIds**","/myBlog/user/getNameInIds**","/myBlog/user/blog/getUserKudosReply**",
                                "/myBlog/user/blog/getUserKudosComment**","/myBlog/user/getBlogUserInfo**","/myBlog/user/blog/getBlogByName**",
-                               "/myBlog/user/blog/getBlogByTypeList**","/myBlog/user/blog/getBlogByUserId**","/myBlog/user/blog/getHotBlog",
+                               "/myBlog/user/blog/getBlogByTypeList**","/myBlog/blog/getBlogBySelect**","/myBlog/user/blog/getHotBlog",
                                "/myBlog/user/getUserNum","/myBlog/user/getUserInfoList","/myBlog/user/updateUserStatus",
                                "/myBlog/user/deleteUser","/myBlog/user/getUserIdByName","/myBlog/user/isUserExist","/myBlog/user/getIdsLikeName**",
                                "/myBlog/user/getUserReports**","/myBlog/user/deleteUserReport**","/myBlog/user/updateUserReport"

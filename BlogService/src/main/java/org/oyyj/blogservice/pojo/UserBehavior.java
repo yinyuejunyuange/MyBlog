@@ -2,6 +2,7 @@ package org.oyyj.blogservice.pojo;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.*;
 
@@ -20,21 +21,10 @@ public class UserBehavior {
     private Long id;
     private Long userId;
     private Long blogId;
-    private BehaviorType behaviorType;
+    private Integer behaviorType;
     private Double weight;
     private Date createTime;
-
-    @Getter
-    public enum BehaviorType{
-        VIEW(0.3),
-        LIKE(0.6),
-        COMMENT(0.4),
-        COLLECT(0.7),
-        SHARE(0.5);
-        private double weight;
-        BehaviorType(double weight){
-            this.weight = weight;
-        }
-    }
+    @TableLogic
+    private Integer isDelete;
 
 }

@@ -7,13 +7,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.oyyj.blogservice.config.ApiCacheManager;
-import org.oyyj.blogservice.config.RabbitMqConfig;
 import org.oyyj.blogservice.config.Service.IApiConfigService;
 import org.oyyj.blogservice.config.pojo.ApiConfig;
 import org.oyyj.blogservice.config.pojo.EnhancedCorrelationData;
 import org.oyyj.blogservice.config.pojo.RabbitMqMessage;
 import org.oyyj.blogservice.dto.VIPMapVO;
 import org.oyyj.blogservice.util.ResultUtil;
+import org.oyyj.mycommon.config.RabbitMqConfig;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.amqp.core.Message;
@@ -33,6 +33,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import static org.oyyj.mycommon.common.MqPrefix.*;
+
 @Slf4j
 @RestController
 @RequestMapping("/vipCache")
@@ -48,7 +50,7 @@ public class VIPCatchController {
     private RedisTemplate<String, Object> redisTemplate;
 
     @Autowired
-    private StringRedisTemplate stringRedisTemplate;
+    private RabbitMqConfig  rabbitMqConfig;
 
     @Autowired
     private RabbitTemplate rabbitTemplate;
@@ -224,11 +226,11 @@ public class VIPCatchController {
      * 扣减库存 并绑定到用户
      */
     public void sendDelVipNum(Long userId){
-        RabbitMqMessage message = new RabbitMqMessage(String.valueOf(userId),null);
+        RabbitMqMessage message = new RabbitMqMessage(String.valueOf(userId),null,"");
         EnhancedCorrelationData enhancedCorrelationData = new EnhancedCorrelationData(UUID.randomUUID().toString(), message.toString());
         rabbitTemplate.convertAndSend(
-                RabbitMqConfig.VIP_NUM_EXCHANGE,
-                RabbitMqConfig.VIP_NUM_ROUTING_KEY,
+                VIP_NUM_EXCHANGE,
+                VIP_NUM_ROUTING_KEY,
                 message,
                 enhancedCorrelationData
         );
@@ -237,7 +239,7 @@ public class VIPCatchController {
     /**
      * 接受消息 扣除数据
      */
-    @RabbitListener(queues = RabbitMqConfig.VIP_NUM_QUEUE)
+    @RabbitListener(queues = VIP_NUM_QUEUE)
     public void handleVipNum(RabbitMqMessage message,
                              Channel channel,
                              @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
@@ -280,8 +282,8 @@ public class VIPCatchController {
             // 重复三次不再放入队列 进入死信队列中
             EnhancedCorrelationData ed=new EnhancedCorrelationData(UUID.randomUUID().toString(),message.toString());
             rabbitTemplate.convertAndSend(
-                    RabbitMqConfig.DXL_INVALIDATION_EXCHANGE,
-                    RabbitMqConfig.DXL_INVALIDATION_ROUTING_KEY,
+                    DXL_INVALIDATION_EXCHANGE,
+                    DXL_INVALIDATION_ROUTING_KEY,
                     message,
                     ed
             ); //  存储到死信队列中
@@ -299,11 +301,11 @@ public class VIPCatchController {
     @GetMapping("/markTask")
     public Map<String, Object> markTask(){
         String string = UUID.randomUUID().toString();
-        RabbitMqMessage message = new RabbitMqMessage(string,null);
+        RabbitMqMessage message = new RabbitMqMessage(string,null,"");
         EnhancedCorrelationData ed = new EnhancedCorrelationData(string,string);
         rabbitTemplate.convertAndSend(
-                RabbitMqConfig.DELAY_EXCHANGE,
-                RabbitMqConfig.DELAY_ROUTING_KEY,
+                DELAY_EXCHANGE,
+                DELAY_ROUTING_KEY,
                 message,
                 msg ->{
                     msg.getMessageProperties().setExpiration(String.valueOf(10000));
@@ -315,7 +317,7 @@ public class VIPCatchController {
     }
 
 
-    @RabbitListener(queues = "#{rabbitMqConfig.getDXLInvalidationQueue()}")
+    @RabbitListener(queues = "#{rabbitMqDxlInvalidationConfig.getDXLInvalidationQueue()}")
     public void handleDLXInfo(RabbitMqMessage message ,
                               Channel channel,
                               @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
