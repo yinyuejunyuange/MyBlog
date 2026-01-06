@@ -115,6 +115,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     @Autowired
     private RabbitMqUserBehaviorSender  rabbitMqUserBehaviorSender;
 
+    @Autowired
+    private IUserBehaviorService userBehaviorService; // 注意 循环依赖
+
     @Override
     public void saveBlog(Blog blog) {
         save(blog);
@@ -128,19 +131,16 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             blogTypeService.saveBatch(list);
         }
     }
-
-    // todo 消息队列 增加行动
     @Override
     public ReadDTO ReadBlog(Long id,LoginUser loginUser) {
         // 获取 blog的主要信息
-        ReadDTO blogInfo = getBlogInfo(id, loginUser);
-        return blogInfo;
+        return getBlogInfo(id, loginUser);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void readBlogValid(Long id, LoginUser loginUser) throws Exception {
-        Boolean call = RetryConfig.LOCK_RETRYER.call(() -> incrementReadCount(id, loginUser.getUserId()));
+        Boolean call = RetryConfig.LOCK_RETRYER.call(() -> userBehaviorService.incrementReadCount(id, loginUser.getUserId()));
         if(call != null && call){
             log.info("用户博客有效阅读 用户行为与博客阅读数+1");
             return;
@@ -302,36 +302,6 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         return readDTO;
     }
 
-    /**
-     * 增加阅读计数（使用Lua脚本保证原子性）
-     */
-    private boolean incrementReadCount(Long blogId, Long userId) throws Exception {
-        String countKey = RedisPrefix.BLOG_INGO + blogId;
-        String userReadKey = RedisPrefix.BLOG_USER_READ + blogId + ":" + userId;
-
-        // 用户短期内重新阅读
-        Integer addNum = userBehaviorMapper.addUserBehavior(userId, blogId, BehaviorEnum.VIEW);
-        if(Objects.isNull(addNum) || addNum == 0){
-            throw new Exception("用户行为添加失败");
-        }
-        // 2. 构造脚本参数
-        // KEYS：阅读数key、用户阅读标记key
-        String[] keys = new String[]{countKey, userReadKey};
-        // ARGV：用户标记过期时间（3600秒=1小时）、阅读数key续期时间（600秒=10分钟）
-        String[] args = new String[]{"3600", "600"};
-        Long execute = null;
-        try {
-            execute = redisUtil.incrBlogReadNum(keys, args);
-            if(Objects.isNull(execute)){
-                throw  new Exception("执行阅读数计数Lua脚本失败");
-            }
-            return true;
-        } catch (Exception e) {
-            // 5. 异常处理（降级,日志告警）
-            log.error("执行阅读数计数Lua脚本失败，blogId:{}，userId:{}", blogId, userId, e);
-            throw new RuntimeException("执行阅读数计数Lua脚本失败",e);
-        }
-    }
 
 
     // 定期从redis中得到数据存储到数据库中 保证数据的一致性   同时也避免高并发导致的数据问题
@@ -1201,32 +1171,45 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     @Override
     @Transactional
-    public boolean blogStar(Long blogId) {
-        return blogIncr(blogId,RedisPrefix.BLOG_START_LOCK);
+    public boolean blogStar(Long blogId,LoginUser loginUser) {
+        return blogIncr(blogId,RedisPrefix.BLOG_START_LOCK,loginUser.getUserId());
     }
 
     @Override
-    public boolean cancelStar(Long blogId) {
-        return blogDecr(blogId,RedisPrefix.BLOG_START_LOCK);
+    @Transactional
+    public boolean cancelStar(Long blogId , LoginUser loginUser) {
+        return blogDecr(blogId,RedisPrefix.BLOG_START_LOCK,loginUser.getUserId());
     }
 
     @Override
-    public boolean blogKudos(Long blogId) {
-        return blogIncr(blogId,RedisPrefix.BLOG_KUDOS_LOCK);
+    @Transactional
+    public boolean blogKudos(Long blogId , LoginUser loginUser) {
+        return blogIncr(blogId,RedisPrefix.BLOG_KUDOS_LOCK,loginUser.getUserId());
     }
 
     @Override
-    public boolean cancelKudos(Long blogId) {
-        return blogDecr(blogId,RedisPrefix.BLOG_KUDOS_LOCK);
+    @Transactional
+    public boolean cancelKudos(Long blogId , LoginUser loginUser) {
+        return blogDecr(blogId,RedisPrefix.BLOG_KUDOS_LOCK,loginUser.getUserId());
     }
 
     @Override
     @Async("taskExecutor")
-    public void blogComment(Long blogId) {
-        blogIncr(blogId,RedisPrefix.BLOG_COMMENT_LOCK);
+    public void blogComment(Long blogId , LoginUser loginUser) {
+        blogIncr(blogId,RedisPrefix.BLOG_COMMENT_LOCK,loginUser.getUserId());
     }
 
-    private boolean blogIncr(Long blogId,String prefix) {
+    private boolean blogIncr(Long blogId,String prefix,Long userId) {
+        Integer behaviorType = switch (prefix) {
+            case RedisPrefix.BLOG_START_LOCK -> BehaviorEnum.COLLECT.getCode();
+            case RedisPrefix.BLOG_KUDOS_LOCK -> BehaviorEnum.LIKE.getCode();
+            case RedisPrefix.BLOG_COMMENT_LOCK -> BehaviorEnum.COMMENT.getCode();
+            default -> null;
+        };
+        if(behaviorType == null) {
+            log.error("行为不正确,prefix:{}",prefix);
+            return false;
+        }
         String blogStarLock = prefix+blogId;
         RLock lock = redissonClient.getLock(blogStarLock);
         try {
@@ -1255,10 +1238,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             });
             // 分布式锁+重试成功：直接返回结果
             if (forUpdate != null && forUpdate) {
+                // mq 添加行为
+                rabbitMqUserBehaviorSender.sendUserBehaviorMessage(behaviorType,blogId ,userId);
                 return true;
             }
         } catch (RetryException  e) {
-            log.error("收藏博客 重试失败,id:{}",blogId,e);
+            log.error("用户操作博客 重试失败,id:{}",blogId,e);
         } catch ( ExecutionException e) {
             log.error("redisson分布式锁获取异常,id:{}",blogId,e);
         } finally {
@@ -1270,7 +1255,17 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         return backstopStrategyService.incrBlog(blogId,prefix);
     }
 
-    private boolean blogDecr(Long blogId,String prefix) {
+    private boolean blogDecr(Long blogId,String prefix,Long userId) {
+        Integer behaviorType = switch (prefix) {
+            case RedisPrefix.BLOG_START_LOCK -> BehaviorEnum.COLLECT.getCode();
+            case RedisPrefix.BLOG_KUDOS_LOCK -> BehaviorEnum.LIKE.getCode();
+            case RedisPrefix.BLOG_COMMENT_LOCK -> BehaviorEnum.COMMENT.getCode();
+            default -> null;
+        };
+        if(behaviorType == null) {
+            log.error("行为不正确,prefix:{}",prefix);
+            return false;
+        }
         String blogStarLock = prefix+blogId;
         RLock lock = redissonClient.getLock(blogStarLock);
         try {
@@ -1299,6 +1294,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             });
             // 分布式锁+重试成功：直接返回结果
             if (forUpdate != null && forUpdate) {
+                // 删除用户行为
+                userBehaviorMapper.delete(Wrappers.<UserBehavior>lambdaQuery()
+                        .eq(UserBehavior::getBlogId, blogId)
+                        .eq(UserBehavior::getUserId, userId)
+                        .eq(UserBehavior::getBehaviorType, behaviorType)
+                );
                 return true;
             }
         } catch (RetryException  e) {

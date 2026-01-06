@@ -67,18 +67,6 @@ public class BlogController {
 
     @Autowired
     private IReplyService replyService;
-    @Autowired
-    private UserFeign userFeign;
-
-    @Autowired
-    private IBlogReportService blogReportService;
-
-    @Autowired
-    private ICommentReportService commentReportService;
-
-    @Autowired
-    private IReplyReportService replyReportService;
-
 
     @CrossOrigin // 允许此方法跨域
     @PostMapping("/write")
@@ -188,29 +176,29 @@ public class BlogController {
     // 用户点赞博客 博客的属性 kudos加一
     @PutMapping("/blogKudos")
     @Transactional // 保证数据一致性
-    public Boolean blogKudos(@RequestParam("blogId")String blogId){
-        return blogService.blogKudos(Long.valueOf(blogId));
+    public Boolean blogKudos(@RequestParam("blogId")String blogId, @RequestUser() LoginUser loginUser){
+        return blogService.blogKudos(Long.valueOf(blogId),loginUser);
     }
 
     // 用户取消点赞 博客的属性kudos减一
 
     @PutMapping("/cancelKudos")
     @Transactional // 原子性 一致性
-    public Boolean cancelKudos(@RequestParam("blogId")String blogId){
-        return blogService.cancelKudos(Long.valueOf(blogId));
+    public Boolean cancelKudos(@RequestParam("blogId")String blogId , @RequestUser() LoginUser loginUser){
+        return blogService.cancelKudos(Long.valueOf(blogId),loginUser);
     }
 
     // 用户收藏博客 博客 收藏数加一
 
     @PutMapping("/blogStar")
-    public Boolean blogStar(@RequestParam("blogId")String blogId){
-        return blogService.blogStar(Long.valueOf(blogId));
+    public Boolean blogStar(@RequestParam("blogId")String blogId , @RequestUser() LoginUser loginUser){
+        return blogService.blogStar(Long.valueOf(blogId), loginUser);
     }
 
     @PutMapping("/cancelStar")
     @Transactional
-    public Boolean cancelStar(@RequestParam("blogId")String blogId){
-        return blogService.cancelStar(Long.valueOf(blogId));
+    public Boolean cancelStar(@RequestParam("blogId")String blogId, @RequestUser() LoginUser loginUser){
+        return blogService.cancelStar(Long.valueOf(blogId),loginUser);
     }
 
     // 编写评论
@@ -218,7 +206,8 @@ public class BlogController {
     @Transactional
     public Long writeComment(@RequestParam("userId") Long userId,
                                 @RequestParam("blogId")Long blogId,
-                                @RequestParam("context")String context){
+                                @RequestParam("context")String context,
+                                 @RequestUser() LoginUser loginUser){
         Date date = new Date();
 
         Comment build = Comment.builder()
@@ -232,7 +221,7 @@ public class BlogController {
                 .build();
         boolean save = commentService.save(build);
         if(save){
-            blogService.blogComment(blogId);
+            blogService.blogComment(blogId,loginUser);
             return build.getId();
         }else{
             log.warn("评论添加失败");

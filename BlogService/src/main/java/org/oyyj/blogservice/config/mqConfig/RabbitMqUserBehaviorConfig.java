@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @Slf4j
 public class RabbitMqUserBehaviorConfig {
-
+    // todo 不同服务对应 队列也不同
     @Bean
     public Queue userBehaviorQueue() {
         return new Queue(MqPrefix.USER_BEHAVIOR_QUEUE);

@@ -77,35 +77,35 @@ public interface IBlogService extends IService<Blog> {
      * @param blogId
      * @return
      */
-    boolean blogStar(Long blogId);
+    boolean blogStar(Long blogId , LoginUser loginUser);
 
     /**
      * 取消收藏博客信息 -- 博客记录-1
      * @param blogId
      * @return
      */
-    boolean cancelStar(Long blogId);
+    boolean cancelStar(Long blogId , LoginUser loginUser);
 
     /**
      * 点赞博客 -- 博客点赞数+1
      * @param blogId
      * @return
      */
-    boolean blogKudos(Long blogId);
+    boolean blogKudos(Long blogId , LoginUser loginUser);
 
     /**
      * 取消点赞博客 -- 博客点赞数-1
      * @param blogId
      * @return
      */
-    boolean cancelKudos(Long blogId);
+    boolean cancelKudos(Long blogId , LoginUser loginUser);
 
     /**
      * 添加评论 博客评论数+1
      * @param blogId
      * @return
      */
-    void blogComment(Long blogId);
+    void blogComment(Long blogId , LoginUser loginUser);
 
 
 }

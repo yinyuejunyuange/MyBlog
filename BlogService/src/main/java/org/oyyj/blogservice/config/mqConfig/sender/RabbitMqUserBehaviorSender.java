@@ -1,6 +1,7 @@
 package org.oyyj.blogservice.config.mqConfig.sender;
 
 import cn.hutool.core.lang.Snowflake;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -47,10 +48,11 @@ public class RabbitMqUserBehaviorSender {
      * @param userId
      */
     public void sendUserBehaviorMessage(Integer behaviorType, Long blogId, Long userId) {
+        // 兜底
+        // 雪花算法生成唯一ID
+        String snowflakeId = snowflakeUtil.getSnowflakeId();
         try {
-            // 兜底
-            // 雪花算法生成唯一ID
-            String snowflakeId = snowflakeUtil.getSnowflakeId();
+
             // 生成信息载荷
             Map<String , Long> readBlogMap = new HashMap<>();
             readBlogMap.put("blogId",blogId);
@@ -75,18 +77,34 @@ public class RabbitMqUserBehaviorSender {
             rabbitTemplate.convertAndSend(
                     MqPrefix.USER_BEHAVIOR_EXCHANGE,
                     MqPrefix.USER_BEHAVIOR_ROUTING_KEY,
-                    mqMessageRecord,
+                    rabbitMqMessage,
                     enhanceCorrelationData
             );
             log.info("发送用户行为MQ消息成功，msgId:{}, blogID:{},userId:{},behaviorType:{}",snowflakeId,mapStr,userId,behaviorType);
+            // 修改MQ记录表中信息的状态
+            updateMqStatus(snowflakeId,MqStatusEnum.PENDING.getCode());
+
         } catch (JsonProcessingException e){
             // 转换兜底
             log.error("MAP转换成 str错误 blogID:{},userId:{},behaviorType:{}",blogId,userId,behaviorType);
+
             throw new RuntimeException(e);
         } catch (RuntimeException e) {
             // 最终兜底
             log.error("消息发送失败，原因如下：{}",e.getMessage(),e);
+            updateMqStatus(snowflakeId,MqStatusEnum.FAIL_SEND.getCode());
             throw new RuntimeException(e);
+        }
+    }
+
+    private void updateMqStatus(String snowflakeId,Integer execStatus){
+        int update = mqMessageRecordMapper.update(Wrappers.<MqMessageRecord>lambdaUpdate()
+                .eq(MqMessageRecord::getMsgId, snowflakeId)
+                .eq(MqMessageRecord::getExecStatus, MqStatusEnum.NOT_SEND.getCode())
+                .set(MqMessageRecord::getExecStatus, execStatus)
+        );
+        if(update==0){
+            log.warn("消息记录信息修改该失败,msgID:{} , status:{} ",snowflakeId,execStatus);
         }
     }
 

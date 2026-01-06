@@ -19,4 +19,31 @@ public enum BehaviorEnum {
         this.weight = weight;
         this.name = name;
     }
+
+    public static BehaviorEnum getBehaviorEnum(Integer code){
+        for (BehaviorEnum behaviorEnum : BehaviorEnum.values()) {
+            if (behaviorEnum.getCode().equals(code)) {
+                return behaviorEnum;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 传入的参数是否合法
+     * @param code
+     * @return
+     */
+    public static boolean isStatusLaw(Integer code){
+        if(code == null){
+            return false;
+        }
+        for (BehaviorEnum behaviorEnum : BehaviorEnum.values()) {
+            if (behaviorEnum.getCode().equals(code)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 }
