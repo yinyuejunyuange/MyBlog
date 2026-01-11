@@ -148,6 +148,12 @@
             <artifactId>caffeine</artifactId>
         </dependency>
 
+        <!-- java分词工具 用于搜索引擎 -->
+        <dependency>
+            <groupId>com.github.magese</groupId>
+            <artifactId>ik-analyzer</artifactId>
+            <version>8.5.0</version>
+        </dependency>
 
 
 <!--        <dependency>-->

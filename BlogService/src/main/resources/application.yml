@@ -85,3 +85,13 @@ snowflake:
 
 cors:
   allow: http://localhost:8001/  # 规定前端允许的域名
+
+# minio 相关配置
+minio:
+  endpoint: http://127.0.0.1:9090
+  access-key: minioadmin
+  access-secret: minioadmin
+  image-bucket-name: image-bucket  # 存储头像 文章中的图片 等等图片存储桶
+  document-bucket-name: document-bucket # 存储用户的文档相关的桶
+  max-file-size: 10 # 单独上传最大限制 MB
+  part-file-size: 5 # 分片上传 片大小 MB

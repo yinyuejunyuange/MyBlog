@@ -48,7 +48,8 @@ public class BackstopStrategyServiceImpl implements IBackstopStrategyService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @Transactional(rollbackFor = Exception.class)  // for update 不要出现长事务 及其影响性能
+                                                    // 但是也需要事务否则锁直接失效 但是需要添加索引 否则就是表锁了
     public boolean decrBlog(Long blogId ,String prefix) {
         log.info("执行for update悲观锁兜底逻辑，blogId：{}",blogId);
         Blog one = blogMapper.selectOne(Wrappers.<Blog>lambdaQuery()
@@ -94,6 +95,7 @@ public class BackstopStrategyServiceImpl implements IBackstopStrategyService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean incrKudosReply(Long replyId) {
         Reply forUpdate = replyMapper.selectOne(Wrappers.<Reply>lambdaQuery()
                 .eq(Reply::getId, replyId)
@@ -107,6 +109,7 @@ public class BackstopStrategyServiceImpl implements IBackstopStrategyService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean decrKudosReply(Long replyId) {
         Reply forUpdate = replyMapper.selectOne(Wrappers.<Reply>lambdaQuery()
                 .eq(Reply::getId, replyId)

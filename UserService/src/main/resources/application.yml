@@ -56,3 +56,13 @@ snowflake:
   worker-id: 2        # 机器ID（范围0-1023，分布式环境下每台机器唯一）
   datacenter-id: 0    # 数据中心ID（范围0-31，可选）
 
+
+# minio 相关配置
+minio:
+  endpoint: http://127.0.0.1:9090
+  access-key: minioadmin
+  access-secret: minioadmin
+  image-bucket-name: image-bucket  # 存储头像 文章中的图片 等等图片存储桶
+  document-bucket-name: document-bucket # 存储用户的文档相关的桶
+  max-file-size: 10 # 单独上传最大限制 MB
+  part-file-size: 5 # 分片上传 片大小 MB

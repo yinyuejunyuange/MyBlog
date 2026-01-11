@@ -8,6 +8,7 @@ import org.oyyj.blogservice.mapper.UserBehaviorMapper;
 import org.oyyj.blogservice.pojo.UserBehavior;
 
 
+import org.oyyj.mycommon.common.BehaviorEnum;
 import org.oyyj.mycommonbase.common.RedisPrefix;
 import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.redisson.api.RLock;
@@ -200,11 +201,16 @@ public class RatingMatrix {
      */
     private double calculateRating(List<UserBehavior> behaviors){
         return  behaviors.stream().map(behavior -> {
-            double weight = behavior.getBehaviorType().getWeight();
+            Integer behaviorType = behavior.getBehaviorType();
+            BehaviorEnum behaviorEnum = BehaviorEnum.getBehaviorEnum(behaviorType);
+            if(Objects.nonNull(behaviorEnum)){
+                double weight = behaviorEnum.getWeight();
 
-            double timeDecay = calculateTimeDecay(behavior.getCreateTime());
-            // 计算综合评分 = 行为权重*时间衰减因子
-            return weight * timeDecay;
+                double timeDecay = calculateTimeDecay(behavior.getCreateTime());
+                // 计算综合评分 = 行为权重*时间衰减因子
+                return weight * timeDecay;
+            }
+            return 0.0;
         }).reduce(0d, Double::sum);
     }
 

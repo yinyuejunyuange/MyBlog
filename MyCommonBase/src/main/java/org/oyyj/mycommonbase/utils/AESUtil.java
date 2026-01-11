@@ -6,9 +6,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
+import javax.crypto.CipherInputStream;
+import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
 
@@ -18,6 +24,7 @@ public class AESUtil {
 
     // AES-CBC 固定配置
     private static final String AES_ALGORITHM = "AES/CBC/PKCS5Padding";
+    private static final String AES_NO_IV_ALGORITHM = "AES/ECB/PKCS5Padding";
     private static final String AES_KEY_ALGORITHM = "AES";
     private static final int FULL_IV_LENGTH = 16; // 完整IV必须16字节
 
@@ -114,6 +121,63 @@ public class AESUtil {
             return new String(decryptBytes, StandardCharsets.UTF_8);
         } catch (Exception e) {
             throw new RuntimeException("AES解密失败", e);
+        }
+    }
+
+    /**
+     * 加密文件流 ASE IV来自与文件名等等
+     */
+    public InputStream encryptInputStream(InputStream inputStream,byte[] fileIv) {
+        try {
+            // 获取到配置中的base64
+            byte[] keyBytes = Base64.getDecoder().decode(aesProperties.getKey());
+            SecretKeySpec secretKey = new SecretKeySpec(keyBytes, AES_KEY_ALGORITHM);
+            // 加密
+            Cipher cipher = Cipher.getInstance(AES_ALGORITHM);
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey, new IvParameterSpec(fileIv));
+            return new CipherInputStream(inputStream, cipher);
+        } catch (NoSuchAlgorithmException e) {
+            log.error("加密算法不存在",e);
+            throw new RuntimeException(e);
+        } catch (NoSuchPaddingException e) {
+            log.error("加密填充方式错误",e);
+            throw new RuntimeException(e);
+        } catch (InvalidKeyException e) {
+            log.error("密钥错误",e);
+            throw new RuntimeException(e);
+        } catch (InvalidAlgorithmParameterException e) {
+            log.error("IV初始化失败",e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * 解密 IV来自文件名
+     * @param inputStream
+     * @param fileIv
+     * @return
+     */
+    public InputStream decryptInputStream(InputStream inputStream,byte[] fileIv) {
+
+        try {
+            byte[] keyBytes = Base64.getDecoder().decode(aesProperties.getKey());
+            SecretKeySpec secretKey = new SecretKeySpec(keyBytes, AES_KEY_ALGORITHM);
+
+            Cipher cipher = Cipher.getInstance(AES_ALGORITHM);
+            cipher.init(Cipher.DECRYPT_MODE,secretKey,new IvParameterSpec(fileIv));
+            return new CipherInputStream(inputStream, cipher);
+        } catch (NoSuchAlgorithmException e) {
+            log.error("解密算法不存在",e);
+            throw new RuntimeException(e);
+        } catch (NoSuchPaddingException e) {
+            log.error("解密填充方式错误",e);
+            throw new RuntimeException(e);
+        } catch (InvalidKeyException e) {
+            log.error("密钥错误",e);
+            throw new RuntimeException(e);
+        } catch (InvalidAlgorithmParameterException e) {
+            log.error("IV初始化失败",e);
+            throw new RuntimeException(e);
         }
     }
 

@@ -728,7 +728,6 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     // 评论点赞数加一或者减一
     @Override
-    @Transactional
     public Boolean changeCommentKudos(Long commentId, Integer isAdd) {
         String changeLock = RedisPrefix.BLOG_COMMENT_KUDOS_LOCK + commentId;
         RLock lock = redissonClient.getLock(changeLock);
