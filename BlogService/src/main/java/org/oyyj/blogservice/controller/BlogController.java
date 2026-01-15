@@ -70,13 +70,13 @@ public class BlogController {
 
     @CrossOrigin // 允许此方法跨域
     @PostMapping("/write")
-    public Map<String, Object> writeBlog(@RequestBody BlogDTO blogDTO) {
+    public Map<String, Object> writeBlog(@RequestBody BlogDTO blogDTO ,@RequestUser LoginUser loginUser ) {
         Date date=new Date();
 
         Blog build = Blog.builder()
                 .title(blogDTO.getTitle())
                 .context(blogDTO.getContext())
-                .userId(Long.parseLong(blogDTO.getUserId()))
+                .userId(loginUser.getUserId())
                 .createTime(date)
                 .updateTime(date)
                 .status(blogDTO.getStatus())
@@ -85,8 +85,13 @@ public class BlogController {
                 .isDelete(0)
                 .build();
 
-        blogService.saveBlog(build);
-        return ResultUtil.successMap(build.getId(),"博客保存成功");
+        boolean success = blogService.saveBlog(build);
+        if(!success){
+            log.error("用户添加博客失败 userId:{}",loginUser.getUserId());
+        }
+        return success
+                ? ResultUtil.successMap(build.getId(),"博客保存成功")
+                : ResultUtil.failMap("服务繁忙请稍后重试");
     }
 
     /**
@@ -96,7 +101,7 @@ public class BlogController {
      * @return
      */
     @GetMapping("/read")
-    public Map<String, Object> readBlog(@RequestParam("id") String  id,@RequestUser LoginUser loginUser) {
+    public Map<String, Object> readBlog(@RequestParam("id") String  id,@RequestUser(required = false) LoginUser loginUser) {
         ReadDTO readDTO = blogService.ReadBlog(Long.valueOf(id),loginUser);
         if(Objects.isNull(readDTO)){
             return ResultUtil.failMap("查询失败");

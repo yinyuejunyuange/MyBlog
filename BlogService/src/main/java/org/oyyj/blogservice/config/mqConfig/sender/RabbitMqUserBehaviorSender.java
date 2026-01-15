@@ -63,7 +63,7 @@ public class RabbitMqUserBehaviorSender {
             // 先存储到数据库中
             MqMessageRecord mqMessageRecord = new MqMessageRecord();
             mqMessageRecord.setMsgId(snowflakeId);
-            mqMessageRecord.setExecStatus(MqStatusEnum.FAIL_SEND.getCode());
+            mqMessageRecord.setExecStatus(MqStatusEnum.NOT_SEND.getCode());
             mqMessageRecord.setMsgContent(mapStr);
             mqMessageRecord.setTargetQueue(MqPrefix.USER_BEHAVIOR_QUEUE);
             mqMessageRecordMapper.insert(mqMessageRecord);
@@ -83,11 +83,9 @@ public class RabbitMqUserBehaviorSender {
             log.info("发送用户行为MQ消息成功，msgId:{}, blogID:{},userId:{},behaviorType:{}",snowflakeId,mapStr,userId,behaviorType);
             // 修改MQ记录表中信息的状态
             updateMqStatus(snowflakeId,MqStatusEnum.PENDING.getCode());
-
         } catch (JsonProcessingException e){
             // 转换兜底
             log.error("MAP转换成 str错误 blogID:{},userId:{},behaviorType:{}",blogId,userId,behaviorType);
-
             throw new RuntimeException(e);
         } catch (RuntimeException e) {
             // 最终兜底

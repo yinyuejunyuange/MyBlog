@@ -39,4 +39,10 @@ public class MqPrefix {
     public static final String USER_BEHAVIOR_QUEUE="user.behavior.queue"; // 队列前缀
     public static final String USER_BEHAVIOR_ROUTING_KEY="user.behavior.routing.key"; // 消息路由
 
+    /**
+     * ES数据库同步队列
+     */
+    public static final String ES_BLOG_EXCHANGE="es.blog.exchange"; // 交换机
+    public static final String ES_BLOG_QUEUE="es.blog.queue"; // 队列
+    public static final String ES_BLOG_ROUTING_KEY="es.blog.routing.key"; // 消息路由
 }

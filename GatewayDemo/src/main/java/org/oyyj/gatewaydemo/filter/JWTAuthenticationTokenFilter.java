@@ -54,6 +54,7 @@ public class JWTAuthenticationTokenFilter implements WebFilter { // 原来的过
         ServerHttpRequest mutatedRequest;
         String clientRealIp = getClientRealIp(request);
         if(Objects.isNull(clientRealIp)){
+            log.error("无IP源的请求");
             return handleError(response,"请求无IP来源",HttpStatus.INTERNAL_SERVER_ERROR);
         }
         // 获取token
@@ -61,6 +62,7 @@ public class JWTAuthenticationTokenFilter implements WebFilter { // 原来的过
         // token 为空交给 SpringSecurity的authorizeExchange决定
         if (!StringUtils.hasText(token)) {
             // 匿名请求 获取访问者的IP信息
+            log.warn("token为空 当前请求者是匿名请求");
             mutatedRequest=request.mutate()
                     .header("X-Real-IP", clientRealIp)
                     .build();
@@ -69,11 +71,13 @@ public class JWTAuthenticationTokenFilter implements WebFilter { // 原来的过
 
         AuthUser authUser = JWTUtils.parseTokenAndGetUserId(token);
         if(Objects.isNull(authUser)|| authUser.getUserId() == null){
+            log.error("token无效");
             return handleError(response,"token无效",HttpStatus.UNAUTHORIZED);
         }
 
         String redisToken = (String) redisUtil.get(String.valueOf(authUser.getUserId()));
         if(redisToken == null || !redisToken.equals(token)){
+            log.error("token过期需要用户重新登录");
             return handleError(response,"会话过期，请重新登录",HttpStatus.UNAUTHORIZED);
         }
 

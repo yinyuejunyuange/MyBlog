@@ -44,7 +44,7 @@ public class RatingMatrix {
 
     /**
      * 项目启动时初始化
-     * 逻辑： 先查询查询用户基数 如果用户基数小于等于5万 则  直接将表存入到本地 如果大于5万 则存储到redis中 本地仅存储 活跃度前20%的用户
+     * 逻辑：
      *
      */
     @PostConstruct
@@ -90,7 +90,7 @@ public class RatingMatrix {
                 calculateBlogAvgScore();
                 redisUtil.set(RedisPrefix.INIT_RATING,RedisPrefix.INIT_FINISH);
             }else{
-                // 锁获取失败 添加重试机制
+                // 锁获取失败 添加重试机制 todo 重试机制
 
             }
 

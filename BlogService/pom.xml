@@ -155,6 +155,18 @@
             <version>8.5.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.elasticsearch</groupId>
+            <artifactId>elasticsearch</artifactId>
+            <version>8.5.1</version>
+        </dependency>
+
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
+        </dependency>
+
 
 <!--        <dependency>-->
 <!--            <groupId>org.mybatis.spring.boot</groupId>-->

@@ -28,7 +28,6 @@ public class UserCF {
     @Autowired
     private UserBehaviorMapper  userBehaviorMapper;
 
-    private Map<Long,Map<Long,Double>> userSimilarityMatrix; // 用户相似度矩阵
 
 
     /**

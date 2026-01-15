@@ -11,6 +11,7 @@ import com.github.rholder.retry.*;
 import lombok.extern.slf4j.Slf4j;
 import org.oyyj.blogservice.config.common.cf.ItemCF;
 import org.oyyj.blogservice.config.common.cf.UserCF;
+import org.oyyj.blogservice.config.mqConfig.sender.RabbitMqEsSender;
 import org.oyyj.blogservice.config.mqConfig.sender.RabbitMqUserBehaviorSender;
 import org.oyyj.blogservice.config.pojo.BlogActivityLevel;
 import org.oyyj.blogservice.dto.*;
@@ -19,8 +20,10 @@ import org.oyyj.blogservice.mapper.BlogMapper;
 import org.oyyj.blogservice.mapper.TypeTableMapper;
 import org.oyyj.blogservice.mapper.UserBehaviorMapper;
 import org.oyyj.blogservice.pojo.*;
+import org.oyyj.blogservice.repository.EsBlogRepository;
 import org.oyyj.blogservice.service.*;
 import org.oyyj.mycommon.common.BehaviorEnum;
+import org.oyyj.mycommon.common.EsBlogWork;
 import org.oyyj.mycommon.common.MqStatusEnum;
 import org.oyyj.mycommon.config.pojo.EnhanceCorrelationData;
 import org.oyyj.mycommon.mapper.MqMessageRecordMapper;
@@ -63,16 +66,6 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     @Autowired
     private TypeTableMapper typeTableMapper;
-
-    @Autowired
-    private RabbitTemplate rabbitTemplate;
-
-
-    @Autowired
-    private MqMessageRecordMapper mqMessageRecordMapper;
-
-    @Autowired
-    private SnowflakeUtil  snowflakeUtil;
 
     @Autowired
     private ItemCF itemCF;
@@ -118,18 +111,35 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     @Autowired
     private IUserBehaviorService userBehaviorService; // 注意 循环依赖
 
+    @Autowired
+    private RabbitMqEsSender rabbitMqEsSender;
+
     @Override
-    public void saveBlog(Blog blog) {
-        save(blog);
-        Long id = blog.getId();
+    @Transactional(rollbackFor = Exception.class)
+    public boolean saveBlog(Blog blog) {
+        boolean save = save(blog);
+        if(save){
+            Long id = blog.getId();
+            if (blog.getTypeList() != null && !blog.getTypeList().isEmpty()) {
+                // 相关联的类型
+                List<TypeTable> typeTables = typeTableMapper.selectList(Wrappers.<TypeTable>lambdaQuery().in(TypeTable::getName, blog.getTypeList()));
 
-        if (blog.getTypeList() != null && !blog.getTypeList().isEmpty()) {
-            // 相关联的类型
-            List<TypeTable> typeTables = typeTableMapper.selectList(Wrappers.<TypeTable>lambdaQuery().in(TypeTable::getName, blog.getTypeList()));
+                List<BlogType> list = typeTables.stream().map(i -> BlogType.builder().blogId(id).typeId(i.getId()).build()).toList(); // 流式处理
+                boolean saveTypes = blogTypeService.saveBatch(list);
+                if(saveTypes){
+                    // 发布MQ消息
+                    RabbitMqEsSender.EsMqDTO esMqDTO = new RabbitMqEsSender.EsMqDTO();
+                    esMqDTO.setBlogId(String.valueOf(blog.getId()));
+                    esMqDTO.setTitle(blog.getTitle());
+                    esMqDTO.setContent(blog.getContext());
+                    esMqDTO.setEsBlogWork(EsBlogWork.SAVE);
+                    rabbitMqEsSender.sendEsMessage(esMqDTO);
+                }
 
-            List<BlogType> list = typeTables.stream().map(i -> BlogType.builder().blogId(id).typeId(i.getId()).build()).toList(); // 流式处理
-            blogTypeService.saveBatch(list);
+            }
         }
+        return save;
+
     }
     @Override
     public ReadDTO ReadBlog(Long id,LoginUser loginUser) {
@@ -293,7 +303,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             readDTO.setTypeList(typeList);
         }
 
-        if(Objects.nonNull(loginUser)){
+        if(Objects.nonNull(loginUser) && Objects.nonNull(loginUser.getUserId())){
             Boolean userKudos = userFeign.isUserKudos(id, String.valueOf(loginUser.getUserId()));
             readDTO.setIsUserKudos(Objects.nonNull(userKudos)?userKudos:false);
             Boolean userStar = userFeign.isUserStar(id, String.valueOf(loginUser.getUserId()));

@@ -19,7 +19,7 @@ import java.util.Map;
 
 
 public interface IBlogService extends IService<Blog> {
-    void saveBlog(Blog blog);
+    boolean saveBlog(Blog blog);
 
     ReadDTO ReadBlog(Long id, LoginUser loginUser);
 
