@@ -9,8 +9,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.elasticsearch.common.Strings;
-import org.oyyj.mycommon.common.MqPrefix;
-import org.oyyj.mycommon.common.MqStatusEnum;
+import org.oyyj.mycommon.common.mq.MqPrefix;
+import org.oyyj.mycommon.common.mq.MqStatusEnum;
 import org.oyyj.mycommon.config.pojo.EnhanceCorrelationData;
 import org.oyyj.mycommon.config.pojo.RabbitMqMessage;
 import org.oyyj.mycommon.mapper.MqMessageRecordMapper;
@@ -20,12 +20,9 @@ import org.oyyj.mycommonbase.config.RetryConfig;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.retry.support.RetryTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 

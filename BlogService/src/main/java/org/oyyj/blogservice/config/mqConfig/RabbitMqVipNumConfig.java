@@ -8,7 +8,7 @@ import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.context.annotation.Bean;
 
-import static org.oyyj.mycommon.common.MqPrefix.*;
+import static org.oyyj.mycommon.common.mq.MqPrefix.*;
 
 @Configuration
 @Slf4j

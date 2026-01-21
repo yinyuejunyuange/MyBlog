@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import static org.oyyj.mycommon.common.MqPrefix.*;
+import static org.oyyj.mycommon.common.mq.MqPrefix.*;
 
 @Configuration
 @Slf4j

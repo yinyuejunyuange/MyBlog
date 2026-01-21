@@ -2,9 +2,6 @@ package org.oyyj.blogservice.controller;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.rabbitmq.client.Channel;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.oyyj.blogservice.config.ApiCacheManager;
 import org.oyyj.blogservice.config.Service.IApiConfigService;
@@ -16,16 +13,12 @@ import org.oyyj.blogservice.util.ResultUtil;
 import org.oyyj.mycommon.config.RabbitMqConfig;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
-import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.Cache;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.handler.annotation.Header;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -33,7 +26,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-import static org.oyyj.mycommon.common.MqPrefix.*;
+import static org.oyyj.mycommon.common.mq.MqPrefix.*;
 
 @Slf4j
 @RestController

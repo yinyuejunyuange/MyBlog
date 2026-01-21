@@ -20,6 +20,7 @@ import org.oyyj.blogservice.util.ResultUtil;
 import org.oyyj.blogservice.vo.*;
 import org.oyyj.mycommon.annotation.RequestUser;
 import org.oyyj.mycommon.config.RabbitMqConfig;
+import org.oyyj.mycommon.service.IUploadMetadataService;
 import org.oyyj.mycommonbase.common.RedisPrefix;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.redisson.Redisson;
@@ -53,6 +54,7 @@ public class BlogController {
     private static final Logger log = LoggerFactory.getLogger(BlogController.class);
     private final int PAGE_SIZE = 6;
 
+
     @Autowired
     private IBlogService blogService;
 
@@ -67,6 +69,9 @@ public class BlogController {
 
     @Autowired
     private IReplyService replyService;
+
+    @Autowired
+    private IUploadMetadataService uploadMetadataService;
 
     @CrossOrigin // 允许此方法跨域
     @PostMapping("/write")
@@ -345,6 +350,43 @@ public class BlogController {
         }
     }
 
+    // todo 测试文件上传 待会删除
+    @PostMapping("/testUploadFile")
+    public Map<String,Object> testUploadFile(@RequestPart("file")MultipartFile file,
+                                             @RequestPart("fileUploadDTO")FileUploadDTO fileUploadDTO ){
+        try {
+            fileUploadDTO.setFile(file);
+            blogService.uploadFileChunk(fileUploadDTO);
+            return ResultUtil.successMap(null,"分片上传成功成功");
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return ResultUtil.failMap("查询失败");
+        }
+    }
+
+    // todo 测试文件上传 待会删除
+    @PostMapping("/testMergeFile")
+    public Map<String,Object> testMergeFile( @RequestBody FileMergeDTO filemergeDTO){
+        try {
+            blogService.mergeFileChunk(filemergeDTO.getFileNo(), filemergeDTO.getTotalFileChunks(), filemergeDTO.getOrgFileName());
+            return ResultUtil.successMap(null,"分片上传成功成功");
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return ResultUtil.failMap("查询失败");
+        }
+    }
+
+    // todo 测试文件上传 待会删除
+    @PostMapping("/testExistFile")
+    public Map<String,Object> testExistFile( @RequestParam("fileNo")String fileNo){
+        try {
+            List<Long> existsChunks = uploadMetadataService.getExistsChunks(fileNo);
+            return ResultUtil.successMap(existsChunks,"分片上传成功成功");
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return ResultUtil.failMap("查询失败");
+        }
+    }
 
 }
 

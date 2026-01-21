@@ -1,16 +1,13 @@
 package org.oyyj.blogservice.config;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import com.rabbitmq.client.Channel;
 import lombok.extern.slf4j.Slf4j;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.oyyj.blogservice.config.Service.IApiConfigService;
 import org.oyyj.blogservice.config.pojo.ApiConfig;
 import org.oyyj.blogservice.config.pojo.EnhancedCorrelationData;
 import org.oyyj.blogservice.config.pojo.RabbitMqMessage;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,14 +20,13 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
-import org.springframework.util.concurrent.ListenableFutureCallback;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static org.oyyj.mycommon.common.MqPrefix.*;
+import static org.oyyj.mycommon.common.mq.MqPrefix.*;
 
 
 @Slf4j

@@ -20,15 +20,10 @@ import org.oyyj.blogservice.mapper.BlogMapper;
 import org.oyyj.blogservice.mapper.TypeTableMapper;
 import org.oyyj.blogservice.mapper.UserBehaviorMapper;
 import org.oyyj.blogservice.pojo.*;
-import org.oyyj.blogservice.repository.EsBlogRepository;
 import org.oyyj.blogservice.service.*;
 import org.oyyj.mycommon.common.BehaviorEnum;
 import org.oyyj.mycommon.common.EsBlogWork;
-import org.oyyj.mycommon.common.MqStatusEnum;
-import org.oyyj.mycommon.config.pojo.EnhanceCorrelationData;
-import org.oyyj.mycommon.mapper.MqMessageRecordMapper;
-import org.oyyj.mycommon.pojo.MqMessageRecord;
-import org.oyyj.mycommon.utils.SnowflakeUtil;
+import org.oyyj.mycommon.utils.FileUtil;
 import org.oyyj.mycommonbase.common.RedisPrefix;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.mycommonbase.common.commonEnum.YesOrNoEnum;
@@ -37,13 +32,11 @@ import org.oyyj.mycommonbase.utils.ObjectMapUtil;
 import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.connection.RedisKeyCommands;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -57,7 +50,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -113,6 +105,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     @Autowired
     private RabbitMqEsSender rabbitMqEsSender;
+
+    @Autowired
+    private FileUtil fileUtil;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -1206,6 +1201,25 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     @Async("taskExecutor")
     public void blogComment(Long blogId , LoginUser loginUser) {
         blogIncr(blogId,RedisPrefix.BLOG_COMMENT_LOCK,loginUser.getUserId());
+    }
+
+    @Override
+    public Map<String,Object> uploadFileChunk(FileUploadDTO fileUploadDTO) {
+        Map<String, Object> stringObjectMap = fileUtil.uploadChunk(fileUploadDTO.getFileNo(),
+                fileUploadDTO.getChunkNum(),
+                fileUploadDTO.getFileFullMd5(),
+                fileUploadDTO.getFile(),
+                fileUploadDTO.getMd5(),
+                fileUploadDTO.getAllChunks());
+        log.info("上传结果"+stringObjectMap);
+        return stringObjectMap;
+    }
+
+    @Override
+    public Map<String,Object> mergeFileChunk(String fileNo,Long totalFileChunks, String orgFileName) {
+        Map<String, Object> stringObjectMap = fileUtil.mergeChunk(fileNo,totalFileChunks,orgFileName);
+        log.info("上传结果"+stringObjectMap);
+        return stringObjectMap;
     }
 
     private boolean blogIncr(Long blogId,String prefix,Long userId) {

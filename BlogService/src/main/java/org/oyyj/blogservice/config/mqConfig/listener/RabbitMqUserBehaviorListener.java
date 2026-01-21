@@ -8,12 +8,11 @@ import com.rabbitmq.client.Channel;
 import lombok.extern.slf4j.Slf4j;
 import org.oyyj.blogservice.service.IUserBehaviorService;
 import org.oyyj.mycommon.common.BehaviorEnum;
-import org.oyyj.mycommon.common.MqPrefix;
-import org.oyyj.mycommon.common.MqStatusEnum;
+import org.oyyj.mycommon.common.mq.MqPrefix;
+import org.oyyj.mycommon.common.mq.MqStatusEnum;
 import org.oyyj.mycommon.config.pojo.RabbitMqMessage;
 import org.oyyj.mycommon.mapper.MqMessageRecordMapper;
 import org.oyyj.mycommon.pojo.MqMessageRecord;
-import org.oyyj.mycommonbase.common.RedisPrefix;
 import org.oyyj.mycommonbase.config.RetryConfig;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.AmqpHeaders;
@@ -23,7 +22,6 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
 @Component

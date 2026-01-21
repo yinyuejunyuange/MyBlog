@@ -32,6 +32,10 @@ public class MinioConfig {
      */
     private String documentBucketName;
     /**
+     * 分片文件信息
+     */
+    private String fileChunkBucketName;
+    /**
      * 单独上传最大文件
      */
     private Integer maxFileSize;

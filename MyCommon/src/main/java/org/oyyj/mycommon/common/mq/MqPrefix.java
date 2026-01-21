@@ -1,4 +1,4 @@
-package org.oyyj.mycommon.common;
+package org.oyyj.mycommon.common.mq;
 
 import lombok.Data;
 

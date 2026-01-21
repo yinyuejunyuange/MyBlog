@@ -100,5 +100,11 @@ minio:
   access-secret: minioadmin
   image-bucket-name: image-bucket  # 存储头像 文章中的图片 等等图片存储桶
   document-bucket-name: document-bucket # 存储用户的文档相关的桶
+  file-chunk-bucket-name: file-chunk-bucket # 分片桶
   max-file-size: 10 # 单独上传最大限制 MB
   part-file-size: 5 # 分片上传 片大小 MB
+  buckets: image-bucket,document-bucket,file-chunk-bucket
+
+  # 文件临时目录
+  temp-file-path: D:\oyyj\Documents\temp
+  local-file-path: D:\oyyj\Documents\local

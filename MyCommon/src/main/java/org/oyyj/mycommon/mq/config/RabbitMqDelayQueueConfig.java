@@ -1,4 +1,4 @@
-package org.oyyj.blogservice.config.mqConfig;
+package org.oyyj.mycommon.mq.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Bean;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import static org.oyyj.mycommon.common.MqPrefix.*;
+import static org.oyyj.mycommon.common.mq.MqPrefix.*;
 
 @Configuration
 @Slf4j
@@ -25,6 +25,7 @@ public class RabbitMqDelayQueueConfig {
         Map<String, Object> args = new LinkedHashMap<>();
         args.put("x-dead-letter-exchange", DXL_INVALIDATION_EXCHANGE);
         args.put("x-dead-letter-routing-key", DXL_INVALIDATION_ROUTING_KEY);
+        args.put("x-message-ttl", 60000); // 设置默认TTL为60秒（可选）
         return new Queue(DELAY_QUEUE, true, false, false, args);
     }
 

@@ -3,10 +3,7 @@ package org.oyyj.blogservice.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import org.oyyj.blogservice.dto.BlogDTO;
-import org.oyyj.blogservice.dto.PageDTO;
-import org.oyyj.blogservice.dto.ReadCommentDTO;
-import org.oyyj.blogservice.dto.ReadDTO;
+import org.oyyj.blogservice.dto.*;
 import org.oyyj.blogservice.pojo.Blog;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.springframework.data.domain.Page;
@@ -106,6 +103,13 @@ public interface IBlogService extends IService<Blog> {
      * @return
      */
     void blogComment(Long blogId , LoginUser loginUser);
+
+    // todo 测试使用待会删除
+    Map<String,Object> uploadFileChunk(FileUploadDTO fileUploadDTO);
+
+    // todo 测试使用待会删除
+    Map<String,Object> mergeFileChunk(String fileNo,Long totalFileChunks, String orgFileName);
+
 
 
 }

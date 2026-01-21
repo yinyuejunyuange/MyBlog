@@ -1,7 +1,7 @@
 package org.oyyj.blogservice.config.mqConfig;
 
 import lombok.extern.slf4j.Slf4j;
-import org.oyyj.mycommon.common.MqPrefix;
+import org.oyyj.mycommon.common.mq.MqPrefix;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Queue;

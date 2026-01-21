@@ -1,7 +1,6 @@
 package org.oyyj.blogservice.config.mqConfig.listener;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.rholder.retry.RetryException;
 import com.rabbitmq.client.Channel;
@@ -9,9 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.oyyj.blogservice.config.mqConfig.sender.RabbitMqEsSender;
 import org.oyyj.blogservice.pojo.es.EsBlog;
 import org.oyyj.blogservice.repository.EsBlogRepository;
-import org.oyyj.mycommon.common.BehaviorEnum;
 import org.oyyj.mycommon.common.EsBlogWork;
-import org.oyyj.mycommon.common.MqStatusEnum;
+import org.oyyj.mycommon.common.mq.MqStatusEnum;
 import org.oyyj.mycommon.config.pojo.RabbitMqMessage;
 import org.oyyj.mycommon.mapper.MqMessageRecordMapper;
 import org.oyyj.mycommon.pojo.MqMessageRecord;
@@ -22,7 +20,6 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 @Component

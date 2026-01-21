@@ -1,26 +1,22 @@
-package org.oyyj.blogservice.config.mqConfig.sender;
+package org.oyyj.mycommon.common.mq;
 
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.oyyj.mycommon.common.mq.MqPrefix;
-import org.oyyj.mycommon.common.mq.MqStatusEnum;
 import org.oyyj.mycommon.config.pojo.EnhanceCorrelationData;
 import org.oyyj.mycommon.config.pojo.RabbitMqMessage;
 import org.oyyj.mycommon.mapper.MqMessageRecordMapper;
 import org.oyyj.mycommon.pojo.MqMessageRecord;
 import org.oyyj.mycommon.utils.SnowflakeUtil;
+import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import java.util.HashMap;
-import java.util.Map;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Slf4j
-public class RabbitMqUserBehaviorSender {
+public class MqCommon {
 
     @Autowired
     private RabbitTemplate rabbitTemplate;
@@ -31,30 +27,9 @@ public class RabbitMqUserBehaviorSender {
     @Autowired
     private MqMessageRecordMapper mqMessageRecordMapper;
 
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
-
-    /**
-     * 发送用户行为消息
-     * @param behaviorType
-     * @param blogId
-     * @param userId
-     */
-    public void sendUserBehaviorMessage(Integer behaviorType, Long blogId, Long userId) {
-        // 兜底
-        // 雪花算法生成唯一ID
-        String snowflakeId = snowflakeUtil.getSnowflakeId();
+    @Transactional(rollbackFor = Exception.class)
+    public void sendMessageToMq(String snowflakeId, String mapStr){
         try {
-
-            // 生成信息载荷
-            Map<String , Long> readBlogMap = new HashMap<>();
-            readBlogMap.put("blogId",blogId);
-            readBlogMap.put("userId",userId);
-            readBlogMap.put("typeId", Long.valueOf(behaviorType)); // 行为属于啥
-            String mapStr = null;
-            mapStr = objectMapper.writeValueAsString(readBlogMap);
-            // 先存储到数据库中
             MqMessageRecord mqMessageRecord = new MqMessageRecord();
             mqMessageRecord.setMsgId(snowflakeId);
             mqMessageRecord.setExecStatus(MqStatusEnum.NOT_SEND.getCode());
@@ -63,7 +38,7 @@ public class RabbitMqUserBehaviorSender {
             mqMessageRecordMapper.insert(mqMessageRecord);
             // 发送MQ
             EnhanceCorrelationData enhanceCorrelationData = new EnhanceCorrelationData(snowflakeId, mapStr, 0);
-            RabbitMqMessage  rabbitMqMessage = new RabbitMqMessage();
+            RabbitMqMessage rabbitMqMessage = new RabbitMqMessage();
             rabbitMqMessage.setMessageId(snowflakeId);
             rabbitMqMessage.setRetryCount(0);
             rabbitMqMessage.setPayLoad(mapStr);
@@ -74,15 +49,9 @@ public class RabbitMqUserBehaviorSender {
                     rabbitMqMessage,
                     enhanceCorrelationData
             );
-            log.info("发送用户行为MQ消息成功，msgId:{}, blogID:{},userId:{},behaviorType:{}",snowflakeId,mapStr,userId,behaviorType);
             // 修改MQ记录表中信息的状态
             updateMqStatus(snowflakeId,MqStatusEnum.PENDING.getCode());
-        } catch (JsonProcessingException e){
-            // 转换兜底
-            log.error("MAP转换成 str错误 blogID:{},userId:{},behaviorType:{}",blogId,userId,behaviorType);
-            throw new RuntimeException(e);
-        } catch (RuntimeException e) {
-            // 最终兜底
+        } catch (AmqpException e) {
             log.error("消息发送失败，原因如下：{}",e.getMessage(),e);
             updateMqStatus(snowflakeId,MqStatusEnum.FAIL_SEND.getCode());
             throw new RuntimeException(e);
