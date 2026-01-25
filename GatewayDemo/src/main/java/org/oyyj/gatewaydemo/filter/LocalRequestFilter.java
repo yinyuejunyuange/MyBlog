@@ -104,7 +104,7 @@ public class LocalRequestFilter extends AbstractGatewayFilterFactory<LocalReques
     private Mono<Void> handleRegister(ServerHttpRequest request, ServerHttpResponse response){
         return parseRequestBody(request, RegisterDTO.class)
                 .flatMap(registerDTO -> {
-                    if(StringUtils.isEmpty(registerDTO.getEmail())||
+                    if(StringUtils.isEmpty(registerDTO.getUsername())||
                     StringUtils.isEmpty(registerDTO.getPassword())){
                         return writeErrorResponse(response,HttpStatus.BAD_REQUEST,"用户名和密码不可为空！");
                     }

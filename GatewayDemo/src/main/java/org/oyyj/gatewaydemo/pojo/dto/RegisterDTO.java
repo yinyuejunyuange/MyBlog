@@ -14,9 +14,6 @@ import java.util.List;
 public class RegisterDTO {
     private String username;
     private String password;
-    private Integer sex;
-    private String email;
-    private String phone;
-    private List<String> searchList;
+    private String code;
 
 }

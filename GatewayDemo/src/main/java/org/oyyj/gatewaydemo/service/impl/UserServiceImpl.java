@@ -45,7 +45,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     @Autowired
     private SysPermissionMapper sysPermissionMapper;
 
-
+    // 用户默认头像
+    private static final String USER_HEAD = "userhead.png";
 
     @Override // 返回相关结果
     public Mono<JWTUserVO> login(String username, String password){
@@ -101,9 +102,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         Date date = new Date();
         User build = User.builder()
                 .name(registerDTO.getUsername())
-                .sex(registerDTO.getSex())
-                .email(registerDTO.getEmail())
-                .imageUrl("123")
+                .imageUrl(USER_HEAD)
                 .createTime(date)
                 .updateTime(date)
                 .isDelete(0)
