@@ -6,7 +6,10 @@ import io.minio.*;
 import io.minio.errors.*;
 import io.minio.http.Method;
 import jakarta.annotation.PostConstruct;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.compress.utils.IOUtils;
+import org.apache.logging.log4j.util.FilteredObjectInputStream;
 import org.oyyj.mycommon.config.MinioConfig;
 import org.oyyj.mycommon.pojo.UploadMetadata;
 import org.oyyj.mycommon.service.IUploadMetadataService;
@@ -51,6 +54,9 @@ public class FileUtil {
 
     @Value("${minio.file-chunk-bucket-name}")
     private String fileChunkBucketName;
+
+    @Value("${minio.image-bucket-name}")
+    private String imageBucket;
 
     @Value("${minio.buckets}")
     private String buckets;
@@ -419,6 +425,24 @@ public class FileUtil {
         }
 
 
+    }
+
+
+    public void getHeadImgUrl(String objectName, HttpServletResponse response) {
+        try {
+            GetObjectResponse object = minioClient.getObject(
+                    GetObjectArgs.builder()
+                            .bucket(imageBucketName)
+                            .object(objectName)
+                            .build()
+            );
+
+            response.setContentType("image/jpeg");
+            IOUtils.copy(object, response.getOutputStream());
+        } catch (Exception e) {
+            log.error("获取头像{}文件错误",objectName,e);
+            throw new RuntimeException(e);
+        }
     }
 
 }

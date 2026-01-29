@@ -92,24 +92,7 @@ public class UserController {
     // 获取用户头像的方法  todo 重写
     @GetMapping("/getHead/{fileName}")
     public void getUserHead(@PathVariable("fileName") String fileName , HttpServletResponse response) throws IOException {
-        // String filePath= ResourceUtils.getURL("classpath:").getPath()+"static/image/"+fileName;
-        //String filePath= "H:/10516/Test/image/"+fileName;
-        String filePath= userHeadUrl+fileName;
-        String encodedFileName = URLEncoder.encode(filePath, StandardCharsets.UTF_8); // 避免有中文名 设置字符
-        System.out.println("head path:"+filePath);
-
-        File file=new File(filePath);
-        if(!file.exists()){
-            response.sendError(HttpServletResponse.SC_NOT_FOUND);
-            return ;
-        }
-
-        // 设置响应头
-        response.setContentType(MediaType.APPLICATION_OCTET_STREAM_VALUE);
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename=\""+encodedFileName+"\"");
-
-        Files.copy(file.toPath(),response.getOutputStream());
-        response.getOutputStream().flush();
+        userService.getImageUrl(fileName,response);
     }
 
     @GetMapping(value = "/getUserName")

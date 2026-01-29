@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 public class JWTUserVO {
     private String id;
     private String username;
-    private String imageUrl;
+    private String image;
     private String token;
 
     private Boolean isValid=false; // 默认都是false

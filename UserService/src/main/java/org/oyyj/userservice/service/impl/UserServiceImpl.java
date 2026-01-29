@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletResponse;
+import org.oyyj.mycommon.utils.FileUtil;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.oyyj.mycommonbase.utils.ResultUtil;
@@ -59,6 +60,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Autowired
     private ISearchService searchService;
+
+    @Autowired
+    private FileUtil fileUtils;
 
     @Override
     public boolean userKudos(String blogId,LoginUser loginUser) {
@@ -480,5 +484,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                 .eq(Search::getUserId, loginUser.getUserId())
                 .set(Search::getIsUserDelete, 1)
         );
+    }
+
+    @Override
+    public void getImageUrl(String objectName,HttpServletResponse response) {
+        fileUtils.getHeadImgUrl(objectName,response);
     }
 }

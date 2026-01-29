@@ -175,7 +175,7 @@ public class BlogController {
         response.getOutputStream().flush();
 
     }
-    // 分页查询 博客文章
+    // 博客文章
     @GetMapping("/homeBlogs")
     public Map<String,Object> homeBlogs( @RequestUser(required = false ) LoginUser loginUser) {
         List<BlogDTO> homeBlogs = blogService.getHomeBlogs(loginUser);

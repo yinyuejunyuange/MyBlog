@@ -1,6 +1,5 @@
 package org.oyyj.mycommon.common.mq;
 
-import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import lombok.extern.slf4j.Slf4j;
 import org.oyyj.mycommon.config.pojo.EnhanceCorrelationData;

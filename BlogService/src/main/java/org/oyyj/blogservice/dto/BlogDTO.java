@@ -24,9 +24,10 @@ public class BlogDTO {
     private Date updateTime;
     private Integer status;
     private List<String> typeList;
-    private String kudos;
+    private String like;
     private String star;
-    private String watch;
+    private String view;
     private String commentNum;
     private Double score; // 评分
+    private String userHead;// 作者头像
 }

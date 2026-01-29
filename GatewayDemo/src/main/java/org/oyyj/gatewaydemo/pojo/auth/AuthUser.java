@@ -38,13 +38,15 @@ public class AuthUser implements UserDetails {
     @JsonIgnore
     private List<SimpleGrantedAuthority> authorities;
 
-    public AuthUser(Long userId, String userName, String password, List<String> permissions, List<String> roles,Integer isUserLogin) {
+    public AuthUser(Long userId, String userName, String password, List<String> permissions, List<String> roles,Integer isUserLogin,String imageUrl) {
         this.userId = userId;
         this.userName = userName;
         this.password = password;
+        this.imageUrl = imageUrl;
         this.permissions = permissions;
         this.roles = roles;
         this.isUserLogin = isUserLogin;
+
     }
 
 

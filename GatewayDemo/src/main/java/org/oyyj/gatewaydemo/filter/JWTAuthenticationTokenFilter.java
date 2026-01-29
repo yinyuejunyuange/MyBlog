@@ -72,13 +72,22 @@ public class JWTAuthenticationTokenFilter implements WebFilter { // 原来的过
         AuthUser authUser = JWTUtils.parseTokenAndGetUserId(token);
         if(Objects.isNull(authUser)|| authUser.getUserId() == null){
             log.error("token无效");
-            return handleError(response,"token无效",HttpStatus.UNAUTHORIZED);
+            // 不是错误 不能报错
+            mutatedRequest=request.mutate()
+                    .header("X-Real-IP", clientRealIp)
+                    .build();
+            return chain.filter(exchange.mutate().request(mutatedRequest).build());
         }
 
         String redisToken = (String) redisUtil.get(String.valueOf(authUser.getUserId()));
         if(redisToken == null || !redisToken.equals(token)){
             log.error("token过期需要用户重新登录");
-            return handleError(response,"会话过期，请重新登录",HttpStatus.UNAUTHORIZED);
+            // 不是错误 不能报错
+//            return handleError(response,"会话过期，请重新登录",HttpStatus.UNAUTHORIZED);
+            mutatedRequest=request.mutate()
+                    .header("X-Real-IP", clientRealIp)
+                    .build();
+            return chain.filter(exchange.mutate().request(mutatedRequest).build());
         }
 
         // 刷新redis中token有效期

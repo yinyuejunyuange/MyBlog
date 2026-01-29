@@ -51,7 +51,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     @Override // 返回相关结果
     public Mono<JWTUserVO> login(String username, String password){
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(username, password);
-       // Authentication authentication = authenticate.block();  // 不能使用block阻塞 官方要求 保留特性
         return authenticationManager.authenticate(authenticationToken)
                 .flatMap(authentication -> {
                     if(Objects.isNull(authentication)){
@@ -74,7 +73,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                     return Mono.just(JWTUserVO.builder()
                             .id(String.valueOf(authUser.getUserId()))
                             .username(authUser.getUsername())
-                            .imageUrl(authUser.getImageUrl())
+                            .image(authUser.getImageUrl())
                             .token(token)
                             .isValid(true)
                             .build());

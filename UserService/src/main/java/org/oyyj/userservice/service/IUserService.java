@@ -52,4 +52,11 @@ public interface IUserService extends IService<User> {
 
     boolean deleteUserAllSearch(LoginUser loginUser);
 
+    /**
+     * 获取用户头像信息
+     * @param objectName minio对象名称
+     * @return
+     */
+    void getImageUrl(String objectName,HttpServletResponse response);
+
 }

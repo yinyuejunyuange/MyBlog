@@ -5,6 +5,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.oyyj.mycommon.pojo.UploadMetadata;
 
+
 @Mapper
 public interface UploadMetadataMapper extends BaseMapper<UploadMetadata> {
     /**

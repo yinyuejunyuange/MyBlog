@@ -532,13 +532,13 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         if(ids.isEmpty()){
             return Collections.emptyList();
         }
-
         // 获取博客类别类别信息
         Map<String,List<String>> blogTypeMap = new ConcurrentHashMap<>();
         blogIds.forEach(id->{
             List<String> list = redisUtil.getList(RedisPrefix.ITEM_TYPE + id);
             blogTypeMap.put(id,list);
         });
+        // todo 增加用户头像
         return list(Wrappers.<Blog>lambdaQuery()
                 .in(Blog::getId, ids)
         ).stream().map(i -> BlogDTO.builder()
@@ -552,8 +552,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .status(i.getStatus())
                 .typeList(blogTypeMap.get(String.valueOf(i)))
                 .star(String.valueOf(i.getStar()))
-                .kudos(String.valueOf(i.getKudos()))
-                .watch(String.valueOf(i.getWatch()))
+                .like(String.valueOf(i.getKudos()))
+                .view(String.valueOf(i.getWatch()))
                 .commentNum(String.valueOf(i.getCommentNum()))
                 .build()
         ).toList();
@@ -579,8 +579,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                                 return typeTable.getName();
                             }).toList())
                     .star(String.valueOf(i.getStar()))
-                    .kudos(String.valueOf(i.getKudos()))
-                    .watch(String.valueOf(i.getWatch()))
+                    .like(String.valueOf(i.getKudos()))
+                    .view(String.valueOf(i.getWatch()))
                     .commentNum(String.valueOf(i.getCommentNum()))
                     .build()
             ).toList();
@@ -613,8 +613,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                                     return typeTables.getName();
                                 }).toList())
                         .star(String.valueOf(i.getStar()))
-                        .kudos(String.valueOf(i.getKudos()))
-                        .watch(String.valueOf(i.getWatch()))
+                        .like(String.valueOf(i.getKudos()))
+                        .view(String.valueOf(i.getWatch()))
                         .commentNum(String.valueOf(i.getCommentNum()))
                         .build()
                 ).toList();
@@ -868,9 +868,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                             TypeTable typeTables = typeTableMapper.selectOne(Wrappers.<TypeTable>lambdaQuery().eq(TypeTable::getId, j.getTypeId()));
                             return typeTables.getName();
                         }).toList())
-                .kudos(String.valueOf(i.getKudos()))
+                .like(String.valueOf(i.getKudos()))
                 .star(String.valueOf(i.getStar()))
-                .watch(String.valueOf(i.getWatch()))
+                .view(String.valueOf(i.getWatch()))
                 .commentNum(String.valueOf(i.getCommentNum()))
                 .build()
         ).toList();
@@ -939,9 +939,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .typeList(blogTypesMap.containsKey(i.getId())
                         ? blogTypesMap.get(i.getId()).stream().map(BlogTypeDTO::getBlogType).collect(Collectors.toList())
                         : List.of())
-                .kudos(String.valueOf(i.getKudos()))
+                .like(String.valueOf(i.getKudos()))
                 .star(String.valueOf(i.getStar()))
-                .watch(String.valueOf(i.getWatch()))
+                .view(String.valueOf(i.getWatch()))
                 .commentNum(String.valueOf(i.getCommentNum()))
                 .build()
         ).toList();
@@ -983,9 +983,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                             TypeTable typeTables = typeTableMapper.selectOne(Wrappers.<TypeTable>lambdaQuery().eq(TypeTable::getId, j.getTypeId()));
                             return typeTables.getName();
                         }).toList())
-                .kudos(String.valueOf(i.getKudos()))
+                .like(String.valueOf(i.getKudos()))
                 .star(String.valueOf(i.getStar()))
-                .watch(String.valueOf(i.getWatch()))
+                .view(String.valueOf(i.getWatch()))
                 .commentNum(String.valueOf(i.getCommentNum()))
                 .build()).toList();
 
@@ -1016,9 +1016,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .createTime(i.getCreateTime())
                 .updateTime(i.getUpdateTime())
                 .status(i.getStatus())
-                .kudos(String.valueOf(i.getKudos()))
+                .like(String.valueOf(i.getKudos()))
                 .star(String.valueOf(i.getStar()))
-                .watch(String.valueOf(i.getWatch()))
+                .view(String.valueOf(i.getWatch()))
                 .commentNum(String.valueOf(i.getCommentNum()))
                 .typeList(blogTypeService.list(Wrappers.<BlogType>lambdaQuery().eq(BlogType::getBlogId, i.getId()))
                         .stream().map(j -> {

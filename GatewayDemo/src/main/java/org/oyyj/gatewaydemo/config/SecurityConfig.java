@@ -62,7 +62,7 @@ public class SecurityConfig {
                .securityContextRepository(NoOpServerSecurityContextRepository.getInstance()) // 无状态，不存储安全上下文
                 // 允许匿名访问的url
                .authorizeExchange(exchanges -> exchanges
-                       .pathMatchers("/myBlog/auth/login","/myBlog/auth/register","/myBlog/blog/read",
+                       .pathMatchers("/myBlog/auth/login","/myBlog/auth/register","/myBlog/blog/read","/myBlog/user/getHead/**",
                                "/myBlog/user/blog/file/download/**","/myBlog/blog/testUploadFile","/myBlog/blog/testMergeFile","/myBlog/blog/testExistFile",
                                "/myBlog/user/verify/getCode","/myBlog/user/verify/checkCode","/myBlog/user/getHead/**","/myBlog/user/getUserName",
                                "/myBlog/blog/homeBlogs","/myBlog/user/blog/isUserStar**","/myBlog/user/blog/isUserKudos**",
