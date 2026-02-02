@@ -120,3 +120,4 @@ logging:
     # HTTP客户端（看转发到微服务的请求/响应）
     reactor.netty.http.client: DEBUG
     reactor.netty.http.server: DEBUG
+    org.springframework.security: DEBUG

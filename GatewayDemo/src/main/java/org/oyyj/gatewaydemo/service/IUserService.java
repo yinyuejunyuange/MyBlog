@@ -17,7 +17,7 @@ public interface IUserService extends IService<User> {
     Mono<JWTUserVO> login(String username, String password) throws JsonProcessingException;
 
     // 登出
-    void LoginOut();
+    Mono<Void> LoginOut();
 
     Mono<JWTUserVO> registerUser(RegisterDTO registerDTO) throws IOException;
 

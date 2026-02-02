@@ -190,11 +190,7 @@ public class LocalRequestFilter extends AbstractGatewayFilterFactory<LocalReques
      * @return
      */
     private String extractToken(ServerHttpRequest request) {
-        String authHeader = request.getHeaders().getFirst("Authorization");
-        if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
-            return authHeader.substring(7);
-        }
-        return null;
+        return request.getHeaders().getFirst("X-Token");
     }
 
     private <T> Mono<T> parseRequestBody(ServerHttpRequest request, Class<T> clazz) {

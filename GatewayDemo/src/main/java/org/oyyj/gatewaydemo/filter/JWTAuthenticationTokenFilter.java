@@ -3,6 +3,7 @@ package org.oyyj.gatewaydemo.filter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.http.auth.AuthenticationException;
 import org.apache.logging.log4j.util.Strings;
 import org.oyyj.gatewaydemo.pojo.auth.AuthUser;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
@@ -10,12 +11,14 @@ import org.oyyj.gatewaydemo.utils.JWTUtils;
 import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextImpl;
@@ -29,6 +32,7 @@ import reactor.core.publisher.Mono;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -55,8 +59,14 @@ public class JWTAuthenticationTokenFilter implements WebFilter { // 原来的过
         String clientRealIp = getClientRealIp(request);
         if(Objects.isNull(clientRealIp)){
             log.error("无IP源的请求");
-            return handleError(response,"请求无IP来源",HttpStatus.INTERNAL_SERVER_ERROR);
+            return Mono.error(new AuthenticationException("会话过期，请重新登录"));
         }
+
+        // 浏览器的 CORS 预检 OPTIONS 请求，永远不会带 Authorization token
+        if (exchange.getRequest().getMethod() == HttpMethod.OPTIONS) {
+            return chain.filter(exchange);
+        }
+
         // 获取token
         String token = request.getHeaders().getFirst("X-Token");
         // token 为空交给 SpringSecurity的authorizeExchange决定
@@ -73,21 +83,15 @@ public class JWTAuthenticationTokenFilter implements WebFilter { // 原来的过
         if(Objects.isNull(authUser)|| authUser.getUserId() == null){
             log.error("token无效");
             // 不是错误 不能报错
-            mutatedRequest=request.mutate()
-                    .header("X-Real-IP", clientRealIp)
-                    .build();
-            return chain.filter(exchange.mutate().request(mutatedRequest).build());
+            return Mono.error(new AuthenticationException("会话过期，请重新登录"));
         }
 
         String redisToken = (String) redisUtil.get(String.valueOf(authUser.getUserId()));
         if(redisToken == null || !redisToken.equals(token)){
             log.error("token过期需要用户重新登录");
-            // 不是错误 不能报错
-//            return handleError(response,"会话过期，请重新登录",HttpStatus.UNAUTHORIZED);
-            mutatedRequest=request.mutate()
-                    .header("X-Real-IP", clientRealIp)
-                    .build();
-            return chain.filter(exchange.mutate().request(mutatedRequest).build());
+             // 不是错误 不能报错 返回结果 让前端清空所有localstore 同时弹出登录界面
+            // 清空 token
+            return Mono.error(new AuthenticationException("会话过期，请重新登录"));
         }
 
         // 刷新redis中token有效期
@@ -107,17 +111,25 @@ public class JWTAuthenticationTokenFilter implements WebFilter { // 原来的过
             throw new RuntimeException(e);
         }
 
-        // 构建认证对象提供给 SpringSecurity webFlux
-        UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(authUser.getUsername(), authUser.getPassword());
+        // 构建 Spring Security 所需的权限对象
+        List<SimpleGrantedAuthority> authorities = new java.util.ArrayList<>(authUser.getRoles().stream()
+                .map(SimpleGrantedAuthority::new).toList());
 
-        SecurityContext securityContext = new SecurityContextImpl();
-        securityContext.setAuthentication(authenticationToken);
+        // 如果你还有 permission，可以一起加
+        authorities.addAll(authUser.getPermissions().stream()
+                .map(SimpleGrantedAuthority::new)
+                .toList());
+
+        UsernamePasswordAuthenticationToken authenticationToken =
+                new UsernamePasswordAuthenticationToken(authUser, null, authorities);
+
+        SecurityContext securityContext = new SecurityContextImpl(authenticationToken);
 
         try {
             return chain.filter(exchange.mutate().request(mutatedRequest).build())
                     .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(Mono.just(securityContext)));
         } catch (Exception e) {
-            return handleError(response,"过滤器异常",HttpStatus.INTERNAL_SERVER_ERROR);
+            return Mono.error(new AuthenticationException("JWT过滤器异常"));
         }
 
     }

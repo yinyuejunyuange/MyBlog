@@ -5,6 +5,7 @@ import org.oyyj.gatewaydemo.filter.JWTAuthenticationTokenFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.authentication.UserDetailsRepositoryReactiveAuthenticationManager;
@@ -62,6 +63,7 @@ public class SecurityConfig {
                .securityContextRepository(NoOpServerSecurityContextRepository.getInstance()) // 无状态，不存储安全上下文
                 // 允许匿名访问的url
                .authorizeExchange(exchanges -> exchanges
+                       .pathMatchers(HttpMethod.OPTIONS).permitAll()  // 放行所有预检查的请求
                        .pathMatchers("/myBlog/auth/login","/myBlog/auth/register","/myBlog/blog/read","/myBlog/user/getHead/**",
                                "/myBlog/user/blog/file/download/**","/myBlog/blog/testUploadFile","/myBlog/blog/testMergeFile","/myBlog/blog/testExistFile",
                                "/myBlog/user/verify/getCode","/myBlog/user/verify/checkCode","/myBlog/user/getHead/**","/myBlog/user/getUserName",

@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -82,12 +83,20 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     // 从上下文环境中 securitycontextHolder 获取到用户的信息
     @Override
-    public void LoginOut() {
-        UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken=
-                (UsernamePasswordAuthenticationToken)SecurityContextHolder.getContext().getAuthentication();
-        LoginUser loginUser = (LoginUser) usernamePasswordAuthenticationToken.getPrincipal();
-        // 删除redis中用户的信息
-        redisUtil.delete(String.valueOf(loginUser.getUserId()));
+    public Mono<Void> LoginOut() {
+        return ReactiveSecurityContextHolder.getContext()
+                .map(securityContext -> {
+                    UsernamePasswordAuthenticationToken authentication =
+                            (UsernamePasswordAuthenticationToken) securityContext.getAuthentication();
+                    LoginUser loginUser = (LoginUser) authentication.getPrincipal();
+                    redisUtil.delete(String.valueOf(loginUser.getUserId()));
+                    System.out.println("当前用户：" + loginUser.getUserName());
+                    return loginUser;
+                }).then(Mono.fromRunnable(() -> {
+                    // 执行退出逻辑
+                    System.out.println("注销操作完成");
+                }));
+
     }
 
     @Override
@@ -96,8 +105,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         if(!Objects.isNull(one)){
             return null;
         }
-        // todo 后续添加默认头像图片
-
         Date date = new Date();
         User build = User.builder()
                 .name(registerDTO.getUsername())
