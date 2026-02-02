@@ -9,6 +9,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.rholder.retry.*;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.util.Strings;
 import org.oyyj.blogservice.config.common.cf.ItemCF;
 import org.oyyj.blogservice.config.common.cf.UserCF;
 import org.oyyj.blogservice.config.mqConfig.sender.RabbitMqEsSender;
@@ -44,6 +45,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -538,10 +541,16 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             List<String> list = redisUtil.getList(RedisPrefix.ITEM_TYPE + id);
             blogTypeMap.put(id,list);
         });
-        // todo 增加用户头像
-        return list(Wrappers.<Blog>lambdaQuery()
+
+        List<Blog> list = list(Wrappers.<Blog>lambdaQuery()
                 .in(Blog::getId, ids)
-        ).stream().map(i -> BlogDTO.builder()
+        );
+        List<String> userIds = list.stream().map(Blog::getUserId)
+                .filter(Objects::nonNull).map(String::valueOf).toList();
+
+        Map<Long, String> imageInIds = userFeign.getImageInIds(userIds);
+
+        List<BlogDTO> result = list.stream().map(i -> BlogDTO.builder()
                 .id(String.valueOf(i.getId()))
                 .title(i.getTitle())
                 .userId(String.valueOf(i.getUserId()))
@@ -551,12 +560,36 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .updateTime(i.getUpdateTime())
                 .status(i.getStatus())
                 .typeList(blogTypeMap.get(String.valueOf(i)))
-                .star(String.valueOf(i.getStar()))
-                .like(String.valueOf(i.getKudos()))
-                .view(String.valueOf(i.getWatch()))
-                .commentNum(String.valueOf(i.getCommentNum()))
+                .star(numberStr(i.getStar()))
+                .like(numberStr(i.getKudos()))
+                .view(numberStr(i.getWatch()))
+                .commentNum(numberStr(i.getCommentNum()))
+                .userHead(imageInIds.get(i.getUserId()))
                 .build()
         ).toList();
+
+        return result;
+    }
+
+    /**
+     * 处理数据转换 转换成 数字 or 数据K or 数据W
+     * @param num
+     * @return
+     */
+    private String numberStr(Long num){
+        BigDecimal bigDecimal = new BigDecimal(num);
+        if(bigDecimal.compareTo(new BigDecimal(1000))<0){
+            return String.valueOf(num);
+        }
+        if(bigDecimal.compareTo(new BigDecimal(1000))>=0 && bigDecimal.compareTo(new BigDecimal(10000))<0 ){
+            BigDecimal divide = bigDecimal.divide(new BigDecimal(1000), 2, RoundingMode.HALF_UP);
+            return divide.toString()+"K";
+        }
+        if(bigDecimal.compareTo(new BigDecimal(10000))>=0){
+            BigDecimal divide = bigDecimal.divide(new BigDecimal(10000), 2, RoundingMode.HALF_UP);
+            return divide.toString()+"W";
+        }
+        return "0";
     }
 
     @Override

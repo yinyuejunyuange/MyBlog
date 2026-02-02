@@ -65,8 +65,6 @@ public class UserController {
     @Autowired
     private BlogFeign blogFeign;
 
-    @Value("${user.header-url}")
-    private String userHeadUrl;
 
     // 用户存储 头像  todo 重写
     @RequestMapping("/makeHead")
@@ -89,7 +87,7 @@ public class UserController {
     }
 
 
-    // 获取用户头像的方法  todo 重写
+    // 获取用户头像的方法
     @GetMapping("/getHead/{fileName}")
     public void getUserHead(@PathVariable("fileName") String fileName , HttpServletResponse response) throws IOException {
         userService.getImageUrl(fileName,response);

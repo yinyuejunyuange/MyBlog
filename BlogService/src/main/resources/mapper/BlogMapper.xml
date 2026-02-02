@@ -31,6 +31,8 @@
             </if>
         </where>
     </select>
+
+
     <select id="selectBlogIdRand" resultType="java.lang.Long" useCache="false"> <!-- 禁用缓存-->
         SELECT id
         FROM blog

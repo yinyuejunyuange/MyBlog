@@ -82,7 +82,7 @@ tokenBucket:
 
   # 物品相似度矩阵存储的物品数量
 similarty:
-  blog-max-item-num: 1000
+  blog-max-item-num: 300
 
 # 雪花算法配置（不同服务/机器配置不同的worker-id，避免重复）
 snowflake:
