@@ -212,10 +212,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 try {
                     // 再次检查避免 再处理锁的时候获取到数据了
                     Map<String, String> hashWithString = redisUtil.getHashWithString(countKey);
-                    if(Objects.nonNull(hashWithString)){
-                        if(hashWithString.isEmpty()){
-                            return new ReadDTO();
-                        }
+                    if(Objects.nonNull(hashWithString) && !hashWithString.isEmpty()){
                         return ObjectMapUtil.toBean(ReadDTO.class, hashWithString);
                     }
                     // 查询数据库
@@ -242,10 +239,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 // 重试+兜底
                 for (int i = 0; i < 3; i++) {
                     Map<String, String> hashWithString = redisUtil.getHashWithString(countKey);
-                    if(Objects.nonNull(hashWithString)){
-                        if(hashWithString.isEmpty()){
-                            return new ReadDTO();
-                        }
+                    if(Objects.nonNull(hashWithString) && !hashWithString.isEmpty()){
                         return ObjectMapUtil.toBean(ReadDTO.class, hashWithString);
                     }
                 }
@@ -470,7 +464,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
      * @return
      */
     private List<String> recommendUserBlogs(Long userId) {
-        // 先尝试从redis中获取之前计算的没有遗漏的数据
+        // 先尝试从redis中获取之前推荐过的数据（量大不用重复计算）
         List<String> recommendList = redisUtil.getList(RedisPrefix.RECOMMEND_USER + userId);
         if(recommendList == null || recommendList.isEmpty() || recommendList.size()<=100 ){
             List<String> newRecommendBlogs = addNewRecommendBlogs(userId);

@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 
 @Component
-@Order(-2) // 优先级高于SpringSecurity自带的异常处理其
+@Order(Integer.MIN_VALUE) // 优先级高于SpringSecurity自带的异常处理其
 public class GlobalExceptionHandle implements WebExceptionHandler {
 
     @Override

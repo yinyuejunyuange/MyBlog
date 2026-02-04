@@ -163,7 +163,7 @@ public class RedisUtil {
     }
 
     /**
-     * 取Redis Hash为Map<String, String>
+     * 取Redis Hash为Map<String, String>   key为空时会返回一个空的Map
      * @param key
      * @return
      */
