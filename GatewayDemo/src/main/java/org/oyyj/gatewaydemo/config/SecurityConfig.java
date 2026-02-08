@@ -64,7 +64,7 @@ public class SecurityConfig {
                 // 允许匿名访问的url
                .authorizeExchange(exchanges -> exchanges
                        .pathMatchers(HttpMethod.OPTIONS).permitAll()  // 放行所有预检查的请求
-                       .pathMatchers("/myBlog/auth/login","/myBlog/auth/register","/myBlog/blog/read","/myBlog/user/getHead/**",
+                       .pathMatchers("/myBlog/auth/login","/myBlog/auth/register","/myBlog/blog/commendBlogByAuthor**","/myBlog/blog/getByKeyWord**","/myBlog/blog/read","/myBlog/user/getHead/**",
                                "/myBlog/user/blog/file/download/**","/myBlog/blog/testUploadFile","/myBlog/blog/testMergeFile","/myBlog/blog/testExistFile",
                                "/myBlog/user/verify/getCode","/myBlog/user/verify/checkCode","/myBlog/user/getHead/**","/myBlog/user/getUserName",
                                "/myBlog/blog/homeBlogs","/myBlog/user/blog/isUserStar**","/myBlog/user/blog/isUserKudos**",

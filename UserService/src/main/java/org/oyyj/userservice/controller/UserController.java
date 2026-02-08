@@ -16,6 +16,7 @@ import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.userservice.dto.*;
 import org.oyyj.userservice.Feign.AnnouncementFeign;
 import org.oyyj.userservice.Feign.BlogFeign;
+import org.oyyj.userservice.dto.user.vo.UserInfoVO;
 import org.oyyj.userservice.pojo.User;
 import org.oyyj.userservice.pojo.UserReport;
 import org.oyyj.userservice.pojo.UserStar;
@@ -153,14 +154,15 @@ public class UserController {
         return collect;
     }
 
-
+    /**
+     * 获取博客展示界面中用户相关信息
+     * @param userId
+     * @param principal
+     * @return
+     */
     @GetMapping("/getBlogUserInfo")
-    public Map<String,Object> getBlogUserInfo(@RequestParam("userId")String userId ,@RequestUser LoginUser principal){
-        BlogUserInfoDTO blogUserInfo = userService.getBlogUserInfo(userId,principal);
-        if(blogUserInfo==null){
-            return ResultUtil.failMap("参数不合法");
-        }
-        return ResultUtil.successMap(blogUserInfo,"数据查询成功");
+    public ResultUtil<UserInfoVO> getBlogUserInfo(@RequestParam("userId")Long userId ,@RequestUser(required = false) LoginUser principal){
+        return userService.userInfoById(userId, principal);
     }
 
     // 用户关注作者

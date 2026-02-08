@@ -22,6 +22,10 @@ public class Comment {
     private Long id; // 评论id
     @TableField("user_id")
     private Long userId;
+    @TableField("user_name")
+    private String userName; // 回复者名称
+    @TableField("user_image")
+    private String userImage; // 回复者头像
     @TableField("blog_id")
     private Long blogId; // 关联的博客id
     @TableField("context")

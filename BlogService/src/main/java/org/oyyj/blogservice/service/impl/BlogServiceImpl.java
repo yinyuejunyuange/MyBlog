@@ -22,8 +22,13 @@ import org.oyyj.blogservice.mapper.TypeTableMapper;
 import org.oyyj.blogservice.mapper.UserBehaviorMapper;
 import org.oyyj.blogservice.pojo.*;
 import org.oyyj.blogservice.service.*;
+import org.oyyj.blogservice.service.es.EsBlogService;
+import org.oyyj.blogservice.util.ResultUtil;
+import org.oyyj.blogservice.vo.blogs.BlogSearchVO;
+import org.oyyj.blogservice.vo.blogs.CommendBlogsByAuthor;
 import org.oyyj.mycommon.common.BehaviorEnum;
 import org.oyyj.mycommon.common.EsBlogWork;
+import org.oyyj.mycommon.pojo.dto.UserBlogInfoDTO;
 import org.oyyj.mycommon.utils.FileUtil;
 import org.oyyj.mycommonbase.common.RedisPrefix;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
@@ -53,7 +58,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static org.oyyj.mycommon.utils.TransUtil.formatNumber;
 
 @Slf4j
 @Service
@@ -111,6 +119,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     @Autowired
     private FileUtil fileUtil;
+
+    @Autowired
+    private EsBlogService esBlogService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -278,6 +289,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .id(String.valueOf(id))
                 .userId(String.valueOf(one.getUserId()))
                // .userName(userNameMap.get(one.getUserId()))
+                .userName(one.getAuthor())
+                .publishTime(one.getPublishTime())
                 .title(one.getTitle())
                 .Introduce(one.getIntroduce())
                 .context(one.getContext())
@@ -288,17 +301,16 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .kudos(String.valueOf(one.getKudos()))
                 .watch(String.valueOf(one.getWatch()))
                 .build();
+
         if (!Objects.isNull(list)) {
-            List<String> typeList = list.stream().
-                    map(i -> typeTableMapper.selectOne(Wrappers.<TypeTable>lambdaQuery()
-                            .eq(TypeTable::getId, i.getTypeId())).getName()).toList();
-            readDTO.setTypeList(typeList);
+            List<TypeTable> typesByBlogId = typeTableMapper.findTypesByBlogId(id);
+            readDTO.setTypeList(typesByBlogId);
         }
 
         if(Objects.nonNull(loginUser) && Objects.nonNull(loginUser.getUserId())){
             Boolean userKudos = userFeign.isUserKudos(id, String.valueOf(loginUser.getUserId()));
             readDTO.setIsUserKudos(Objects.nonNull(userKudos)?userKudos:false);
-            Boolean userStar = userFeign.isUserStar(id, String.valueOf(loginUser.getUserId()));
+            Boolean userStar = userFeign.isUserStar(id, loginUser.getUserId());
             readDTO.setIsUserStar(Objects.nonNull(userStar)?userStar:false);
         }
         return readDTO;
@@ -521,6 +533,30 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         return result;
     }
 
+    private BlogDTO toBlogDTO(Blog i,Map<String,List<String>> blogTypeMap,Map<Long, String> imageInIds){
+        if(blogTypeMap==null){
+            blogTypeMap = new HashMap<>();
+        }
+        if(imageInIds==null){
+            imageInIds = new HashMap<>();
+        }
+        return BlogDTO.builder()
+                .id(String.valueOf(i.getId()))
+                .title(i.getTitle())
+                .userId(String.valueOf(i.getUserId()))
+                .userName(i.getAuthor())
+                .introduce(i.getIntroduce())
+                .createTime(i.getCreateTime())
+                .updateTime(i.getUpdateTime())
+                .status(i.getStatus())
+                .typeList( blogTypeMap.isEmpty()? List.of() : blogTypeMap.get(String.valueOf(i)))
+                .star(numberStr(i.getStar()))
+                .like(numberStr(i.getKudos()))
+                .view(numberStr(i.getWatch()))
+                .commentNum(numberStr(i.getCommentNum()))
+                .userHead( imageInIds.isEmpty() ? "" : imageInIds.get(i.getUserId()))
+                .build();
+    }
 
     @Override
     public List<BlogDTO> getHomeBlogs(LoginUser loginUser) {
@@ -543,25 +579,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .filter(Objects::nonNull).map(String::valueOf).toList();
 
         Map<Long, String> imageInIds = userFeign.getImageInIds(userIds);
-
-        List<BlogDTO> result = list.stream().map(i -> BlogDTO.builder()
-                .id(String.valueOf(i.getId()))
-                .title(i.getTitle())
-                .userId(String.valueOf(i.getUserId()))
-                .userName(i.getAuthor())
-                .introduce(i.getIntroduce())
-                .createTime(i.getCreateTime())
-                .updateTime(i.getUpdateTime())
-                .status(i.getStatus())
-                .typeList(blogTypeMap.get(String.valueOf(i)))
-                .star(numberStr(i.getStar()))
-                .like(numberStr(i.getKudos()))
-                .view(numberStr(i.getWatch()))
-                .commentNum(numberStr(i.getCommentNum()))
-                .userHead(imageInIds.get(i.getUserId()))
-                .build()
-        ).toList();
-
+        List<BlogDTO> result = list.stream().map(i -> toBlogDTO(i,blogTypeMap, imageInIds)).toList();
         return result;
     }
 
@@ -660,184 +678,6 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 return blogDTOPageDTO;
             }
         }
-    }
-
-
-    // 获取评论
-    @Override
-    public List<ReadCommentDTO> getBlogComment(String blogId, String userInfoKey) {
-        List<Comment> list = commentService.list(Wrappers.<Comment>lambdaQuery()
-                .eq(Comment::getBlogId, Long.valueOf(blogId))
-        );
-        if (list.isEmpty()) {
-            return null;
-        }
-        // 获取用户id集合
-        List<String> userIds = list.stream().map(i -> {
-            Long userId = i.getUserId();
-            return String.valueOf(userId);
-        }).toList();
-
-        Map<Long, String> nameInIds = userFeign.getNameInIds(userIds);
-        Map<Long, String> imageInIds = userFeign.getImageInIds(userIds);
-
-        // 通过list 获取回复的集合
-        List<Long> commentIds = list.stream().map(Comment::getId).toList();
-
-        List<Reply> replyList = replyService.list(Wrappers.<Reply>lambdaQuery()
-                .in(Reply::getCommentId, commentIds)
-        );
-        List<String> replyUserIds = replyList.stream().map(i -> {
-            Long userid = i.getUserId();
-            return String.valueOf(userid);
-        }).toList();
-
-        // 获得评论中的用户名和用户头像
-        Map<Long, String> replyNameInIds = userFeign.getNameInIds(replyUserIds);
-        Map<Long, String> replyImageInIds = userFeign.getImageInIds(replyUserIds);
-
-        if (!Objects.isNull(userInfoKey)) {
-            List<ReadCommentDTO> readCommentDTOS = list.stream().map(i -> ReadCommentDTO.builder()
-                    .id(String.valueOf(i.getId()))
-                    .userId(String.valueOf(i.getUserId()))
-                    .userName(nameInIds.get(i.getUserId()))
-                    .UserImage("http://localhost:8080/myBlog/user/getHead/" + imageInIds.get(i.getUserId()))
-                    .context(i.getContext())
-                    .replyList(
-                            replyService.list(Wrappers.<Reply>lambdaQuery()
-                                            .eq(Reply::getCommentId, i.getId()))
-                                    .stream()
-                                    .map(x -> ReadReplyDTO.builder()
-                                            .id(String.valueOf(x.getId()))
-                                            .userId(String.valueOf(x.getUserId()))
-                                            .userName(replyNameInIds.get(x.getUserId()))
-                                            .userImage("http://localhost:8080/myBlog/user/getHead/" + replyImageInIds.get(x.getUserId()))
-                                            .context(x.getContext())
-                                            .updateTime(x.getUpdateTime())
-                                            .kudos(String.valueOf(x.getKudos()))
-                                            .isUserKudos(userFeign.getUserKudosReply(String.valueOf(x.getId()), userInfoKey))
-                                            .build()).toList())
-                    .updateTime(i.getUpdateTime())
-                    .kudos(String.valueOf(i.getKudos()))
-                    .isUserKudos(userFeign.getUserKudosComment(String.valueOf(i.getId()), userInfoKey))
-                    .build()
-            ).toList();
-
-            System.out.println("查询成功:" + readCommentDTOS);
-            return readCommentDTOS;
-        } else {
-            List<ReadCommentDTO> readCommentDTOS = list.stream().map(i -> ReadCommentDTO.builder()
-                    .id(String.valueOf(i.getId()))
-                    .userId(String.valueOf(i.getUserId()))
-                    .userName(nameInIds.get(i.getUserId()))
-                    .UserImage("http://localhost:8080/myBlog/user/getHead/" + imageInIds.get(i.getUserId()))
-                    .context(i.getContext())
-                    .replyList(
-                            replyService.list(Wrappers.<Reply>lambdaQuery()
-                                            .eq(Reply::getCommentId, i.getId()))
-                                    .stream()
-                                    .map(x -> ReadReplyDTO.builder()
-                                            .id(String.valueOf(x.getId()))
-                                            .userId(String.valueOf(x.getUserId()))
-                                            .userName(replyNameInIds.get(x.getUserId()))
-                                            .userImage("http://localhost:8080/myBlog/user/getHead/" + replyImageInIds.get(x.getUserId()))
-                                            .context(x.getContext())
-                                            .updateTime(x.getUpdateTime())
-                                            .kudos(String.valueOf(x.getKudos()))
-                                            .isUserKudos(false)
-                                            .build()).toList())
-                    .updateTime(i.getUpdateTime())
-                    .kudos(String.valueOf(i.getKudos()))
-                    .isUserKudos(false)
-                    .build()
-            ).toList();
-
-            System.out.println("查询成功:" + readCommentDTOS);
-            return readCommentDTOS;
-        }
-    }
-
-
-    // 评论点赞数加一或者减一
-    @Override
-    public Boolean changeCommentKudos(Long commentId, Integer isAdd) {
-        String changeLock = RedisPrefix.BLOG_COMMENT_KUDOS_LOCK + commentId;
-        RLock lock = redissonClient.getLock(changeLock);
-        try {
-            Boolean call = RetryConfig.LOCK_RETRYER.call(() -> {
-                boolean getLock = lock.tryLock(1, -1, TimeUnit.MINUTES);
-                if (!getLock) {
-                    return false;
-                }
-                // 获取锁直接修改数据
-                Comment one = commentService.getOne(Wrappers.<Comment>lambdaQuery()
-                        .eq(Comment::getId, commentId)
-                );
-                if (one == null) {
-                    log.error("查询的博客评论不存在，评论的ID为:{}", commentId);
-                    return false;
-                }
-                return commentService.update(Wrappers.<Comment>lambdaUpdate()
-                        .eq(Comment::getId, commentId)
-                        .set(YesOrNoEnum.YES.getCode().equals(isAdd), Comment::getKudos, one.getKudos() + 1)
-                        .set(YesOrNoEnum.NO.getCode().equals(isAdd), Comment::getKudos, one.getKudos() - 1)
-                );
-            });
-            if(call!=null && call){
-                return true;
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        // 兜底计算
-        return  YesOrNoEnum.YES.getCode().equals(isAdd)
-                ? backstopStrategyService.incrKudosComment(commentId)
-                : backstopStrategyService.decrKudosComment(commentId);
-    }
-
-    // 回复点赞数加一或者减一
-    @Override
-    public Boolean changeReplyKudos(Long replyId, Integer isAdd) {
-
-        String  changeLock = RedisPrefix.BLOG_REPLY_KUDOS_LOCK + replyId;
-
-        RLock lock = redissonClient.getLock(changeLock);
-
-        try {
-            Boolean call = RetryConfig.LOCK_RETRYER.call(() -> {
-                boolean getLock = lock.tryLock(1, -1, TimeUnit.SECONDS);
-                if (!getLock) {
-                    return false;
-                }
-                // 获取锁直接修改数据
-                Reply one = replyService.getOne(Wrappers.<Reply>lambdaQuery()
-                        .eq(Reply::getId, replyId)
-                );
-                if (one == null) {
-                    log.error("查询的博客评论不存在，恢复的ID为:{}", replyId);
-                    return false;
-                }
-                return replyService.update(Wrappers.<Reply>lambdaUpdate()
-                        .eq(Reply::getId, replyId)
-                        .set(YesOrNoEnum.YES.getCode().equals(isAdd), Reply::getKudos, one.getKudos() + 1)
-                        .set(YesOrNoEnum.NO.getCode().equals(isAdd), Reply::getKudos, one.getKudos() - 1)
-                );
-            });
-
-            if(call!=null && call){
-                return true;
-            }
-        } catch (ExecutionException e) {
-            throw new RuntimeException(e);
-        } catch (RetryException e){
-            log.error("回复信息点赞数异常 ID:{}", replyId);
-            throw new RuntimeException(e);
-        }
-        // 兜底计算
-        return  YesOrNoEnum.YES.getCode().equals(isAdd)
-                ? backstopStrategyService.incrKudosReply(replyId)
-                : backstopStrategyService.decrKudosReply(replyId);
-
     }
 
     /**
@@ -1230,6 +1070,46 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         blogIncr(blogId,RedisPrefix.BLOG_COMMENT_LOCK,loginUser.getUserId());
     }
 
+    /**
+     * 根据关键词或去数据
+     * @param keyWord
+     * @param currentPage
+     * @param pageSize
+     * @return
+     */
+    @Override
+    public ResultUtil<List<BlogDTO>> getBlogByKeyWord(String keyWord, Integer currentPage, Integer pageSize) {
+        List<BlogSearchVO> blogSearchVOS = esBlogService.highlightSearch(keyWord, currentPage, pageSize);
+        if(blogSearchVOS == null || blogSearchVOS.isEmpty()){
+            return ResultUtil.success(List.of());
+        }
+        List<Long> blogIds = blogSearchVOS.parallelStream().map(BlogSearchVO::getId).toList();
+        Map<Long, BlogSearchVO> blogSearchVOMap = blogSearchVOS.stream().collect(Collectors.toMap(BlogSearchVO::getId, Function.identity()));
+
+        List<Blog> list = list(Wrappers.<Blog>lambdaQuery()
+                .in(Blog::getId, blogIds)
+        );
+
+        List<String> userIds = list.stream().map(Blog::getUserId)
+                .filter(Objects::nonNull).map(String::valueOf).toList();
+
+        // 获取博客类别类别信息
+        Map<String,List<String>> blogTypeMap = new ConcurrentHashMap<>();
+        blogIds.forEach(infoId->{
+            List<String> types = redisUtil.getList(RedisPrefix.ITEM_TYPE + infoId);
+            blogTypeMap.put(String.valueOf(infoId),types);
+        });
+        Map<Long, String> imageInIds = userFeign.getImageInIds(userIds);
+        List<BlogDTO> result = list.stream().map(i -> toBlogDTO(i,blogTypeMap, imageInIds)).toList();
+        result = result.stream().peek(item->{
+            BlogSearchVO blogSearchVO = blogSearchVOMap.get(Long.parseLong(item.getId()));
+            item.setTitle(blogSearchVO.getTitle());
+            item.setIntroduce(blogSearchVO.getContent());
+        }).toList();
+       return ResultUtil.success(result);
+    }
+
+
     @Override
     public Map<String,Object> uploadFileChunk(FileUploadDTO fileUploadDTO) {
         Map<String, Object> stringObjectMap = fileUtil.uploadChunk(fileUploadDTO.getFileNo(),
@@ -1248,6 +1128,60 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         log.info("上传结果"+stringObjectMap);
         return stringObjectMap;
     }
+
+    @Override
+    public UserBlogInfoDTO getUserBlogInfo(Long userId) {
+        List<Blog> list = list(Wrappers.<Blog>lambdaQuery()
+                .eq(Blog::getUserId, userId)
+                .select(Blog::getId, Blog::getUserId,Blog::getWatch,Blog::getStar,Blog::getKudos)
+        );
+        int totalKudos = 0;
+        int totalStar = 0;
+
+        for (Blog blog : list) {
+            totalStar +=  blog.getStar()!= null?  Math.toIntExact(blog.getStar()) : 0  ;
+            totalKudos +=  blog.getKudos()!= null?  Math.toIntExact(blog.getKudos()) : 0  ;
+        }
+
+        UserBlogInfoDTO userBlogInfoDTO = new UserBlogInfoDTO();
+        userBlogInfoDTO.setBlogs(formatNumber(list.size()));
+        userBlogInfoDTO.setStar(formatNumber(totalStar));
+        userBlogInfoDTO.setLikes(formatNumber(totalKudos));
+
+        return userBlogInfoDTO;
+    }
+
+    /**
+     * 依据作者信息获取其最近创作 以及热门博客
+     * @param userId
+     * @param currentBlogId
+     * @return
+     */
+    @Override
+    public CommendBlogsByAuthor commendBlogsByAuthor(Long userId, Long currentBlogId) {
+        LambdaQueryWrapper<Blog> queryWrapper = Wrappers.<Blog>lambdaQuery();
+        LambdaQueryWrapper<Blog> baseLqw = queryWrapper.eq(Blog::getUserId, userId)
+                .ne(currentBlogId != null, Blog::getId, currentBlogId)
+                .last("limit 10");
+        // 最近创作
+        LambdaQueryWrapper<Blog> lqwByTime = baseLqw.orderByDesc(Blog::getPublishTime);
+        List<Blog> listByTime = list(lqwByTime);
+        List<BlogDTO> resultByTime = listByTime.stream().map(item -> {
+            return toBlogDTO(item, null, null);
+        }).toList();
+        // 热门博客
+        LambdaQueryWrapper<Blog> lqwByWatch = baseLqw.orderByDesc(Blog::getWatch);
+        List<Blog> listByWatch = list(lqwByWatch);
+        List<BlogDTO> resultByWatch = listByWatch.stream().map(item -> {
+            return toBlogDTO(item, null, null);
+        }).toList();
+
+        CommendBlogsByAuthor commendBlogsByAuthor = new CommendBlogsByAuthor();
+        commendBlogsByAuthor.setHotBlogs(resultByWatch);
+        commendBlogsByAuthor.setRecentBlogs(resultByTime);
+        return commendBlogsByAuthor;
+    }
+
 
     private boolean blogIncr(Long blogId,String prefix,Long userId) {
         Integer behaviorType = switch (prefix) {

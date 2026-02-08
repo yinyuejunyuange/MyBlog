@@ -5,6 +5,9 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.oyyj.blogservice.dto.*;
 import org.oyyj.blogservice.pojo.Blog;
+import org.oyyj.blogservice.util.ResultUtil;
+import org.oyyj.blogservice.vo.blogs.CommendBlogsByAuthor;
+import org.oyyj.mycommon.pojo.dto.UserBlogInfoDTO;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -24,11 +27,8 @@ public interface IBlogService extends IService<Blog> {
 
     PageDTO<BlogDTO> getBlogByPage(int current, int pageSize, String type, LoginUser loginUser);
 
-    List<ReadCommentDTO> getBlogComment(String blogId,String userInfoKey);
 
-    Boolean changeCommentKudos(Long commentId,Integer isAdd);
 
-    Boolean changeReplyKudos(Long replyId,Integer isAdd);
 
     List<Long> getUserBlogNum(Long userId);
 
@@ -97,12 +97,6 @@ public interface IBlogService extends IService<Blog> {
      */
     boolean cancelKudos(Long blogId , LoginUser loginUser);
 
-    /**
-     * 添加评论 博客评论数+1
-     * @param blogId
-     * @return
-     */
-    void blogComment(Long blogId , LoginUser loginUser);
 
     // todo 测试使用待会删除
     Map<String,Object> uploadFileChunk(FileUploadDTO fileUploadDTO);
@@ -110,6 +104,34 @@ public interface IBlogService extends IService<Blog> {
     // todo 测试使用待会删除
     Map<String,Object> mergeFileChunk(String fileNo,Long totalFileChunks, String orgFileName);
 
+    /**
+     * 获取用户有关博客的信息
+     * @param blogId
+     * @return
+     */
+    UserBlogInfoDTO getUserBlogInfo(Long blogId);
 
+    /**
+     *
+     * @param userId
+     * @param currentBlogId
+     * @return
+     */
+    CommendBlogsByAuthor commendBlogsByAuthor(Long userId, Long currentBlogId);
 
+    /**
+     * 添加评论 博客评论数+1
+     * @param blogId
+     * @return
+     */
+    void blogComment(Long blogId , LoginUser loginUser);
+
+    /**
+     * 通过关键获取博客信息
+     * @param keyWord
+     * @param currentPage
+     * @param pageSize
+     * @return
+     */
+    ResultUtil<List<BlogDTO>> getBlogByKeyWord(String keyWord ,Integer currentPage, Integer pageSize);
 }

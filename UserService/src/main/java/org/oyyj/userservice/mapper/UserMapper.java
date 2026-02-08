@@ -6,4 +6,7 @@ import org.oyyj.userservice.pojo.User;
 
 @Mapper
 public interface UserMapper extends BaseMapper<User> {
+
+    Integer userFunS(Long userID);
+
 }

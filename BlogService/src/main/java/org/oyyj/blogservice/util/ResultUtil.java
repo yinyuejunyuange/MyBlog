@@ -1,8 +1,15 @@
 package org.oyyj.blogservice.util;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.util.HashMap;
 import java.util.Map;
 
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class ResultUtil<T> {
     private int code;
     private String message;
@@ -32,7 +39,12 @@ public class ResultUtil<T> {
     }
 
     public static <T> ResultUtil<T> success(T data) {
-        return new ResultUtil<>(data);
+        try {
+            return new ResultUtil<>(data);
+        } catch (Exception e) {
+            System.out.println(123);
+            throw new RuntimeException(e);
+        }
     }
 
     public static <T> ResultUtil<T> fail(String message) {

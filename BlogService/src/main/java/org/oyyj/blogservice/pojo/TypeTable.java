@@ -18,4 +18,6 @@ public class TypeTable {
     private Long id;
     @TableField("name")
     private String name;
+    @TableField("label")
+    private String label;
 }

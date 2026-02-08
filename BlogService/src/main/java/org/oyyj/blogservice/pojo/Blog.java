@@ -50,6 +50,8 @@ public class Blog {
     private Long watch; // 阅读量
     @TableField("comment_num")
     private Long commentNum; // 博客总评论数
+    @TableField("publish_time")
+    private Date publishTime;
     @TableField(exist = false)
     private BigDecimal commentPrice; //评论情绪得分
 

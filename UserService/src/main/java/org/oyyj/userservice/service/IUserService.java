@@ -5,7 +5,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
+import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.userservice.dto.*;
+import org.oyyj.userservice.dto.user.vo.UserInfoVO;
 import org.oyyj.userservice.pojo.JWTUser;
 import org.oyyj.userservice.pojo.User;
 import org.springframework.web.multipart.MultipartFile;
@@ -16,6 +18,8 @@ import java.util.Map;
 
 
 public interface IUserService extends IService<User> {
+
+    ResultUtil<UserInfoVO> userInfoById(Long id , LoginUser loginUser);
 
     boolean userKudos(String blogId, LoginUser loginUser) throws Exception;
 

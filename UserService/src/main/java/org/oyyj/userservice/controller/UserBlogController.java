@@ -81,15 +81,14 @@ public class UserBlogController {
 
     // 判断当前用户是否收藏
     @GetMapping("/isUserStar")
-    public Boolean isUserStar(@RequestParam("blogId") Long blogId,@RequestParam("userInfoKey")String userInfoKey,HttpServletRequest request){
+    public Boolean isUserStar(@RequestParam("blogId") Long blogId,@RequestParam("userId")Long userId,HttpServletRequest request){
         try {
             String source = request.getHeader("source");
             if(source==null||!source.equals("BLOGSERVICE")){
                 throw new AuthenticationException("请求来源不正确");
             }
 
-            Long id=Long.valueOf(userInfoKey);
-            UserStar one = userStarService.getOne(Wrappers.<UserStar>lambdaQuery().eq(UserStar::getUserId, id)
+            UserStar one = userStarService.getOne(Wrappers.<UserStar>lambdaQuery().eq(UserStar::getUserId, userId)
                     .eq(UserStar::getBlogId, blogId));
             if(Objects.isNull(one)){
                 return false;
@@ -105,11 +104,8 @@ public class UserBlogController {
 
     // 判断用户是否点赞评论
     @GetMapping("/getUserKudosComment")
-    public Boolean getUserKudosComment(@RequestParam("commentId")String commentId,@RequestParam("userInfoKey")String userInfoKey,HttpServletRequest request){
-        // 获取用户id
-        String s = String.valueOf(redisUtil.get(userInfoKey));
-        Long userId = Long.valueOf(s);
-
+    public Boolean getUserKudosComment(@RequestParam("commentId")String commentId,@RequestParam("userId")Long userId,HttpServletRequest request){
+        
         // 判断 用户是否点赞此评论
         UserComment one = userCommentService.getOne(Wrappers.<UserComment>lambdaQuery()
                 .eq(UserComment::getCommentId, Long.valueOf(commentId))
@@ -121,16 +117,12 @@ public class UserBlogController {
 
     // 判断用户是否点赞回复
     @GetMapping("/getUserKudosReply")
-    public Boolean getUserKudosReply(@RequestParam("replyId")String replyId,@RequestParam("userInfoKey")String userInfoKey,HttpServletRequest request){
+    public Boolean getUserKudosReply(@RequestParam("replyId")String replyId,@RequestParam("userId")Long userId,HttpServletRequest request){
         try {
             String source = request.getHeader("source");
             if(source==null||!source.equals("BLOGSERVICE")){
                 throw new AuthenticationException("请求来源不正确");
             }
-
-            // 获取用户id
-            String s = String.valueOf(redisUtil.get(userInfoKey));
-            Long userId = Long.valueOf(s);
 
             // 判断 用户是否点赞此评论
             UserReply one = userReplyService.getOne(Wrappers.<UserReply>lambdaQuery()
@@ -142,6 +134,16 @@ public class UserBlogController {
         } catch (AuthenticationException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @GetMapping("/isUserLikeComments")
+    public List<Long> isUserLikeComments( @RequestParam("commentIds")List<Long> commentIds, @RequestParam("userId")Long userId,HttpServletRequest request ){
+        return userCommentService.isUserLikeComment(commentIds,userId);
+    }
+
+    @GetMapping("/isUserLikeReply")
+    public List<Long> isUserLikeReply( @RequestParam("replyIds") List<Long> replyIds, @RequestParam("userId") Long userId,HttpServletRequest request ){
+        return userReplyService.isUserLikeReply(replyIds,userId);
     }
 
 }

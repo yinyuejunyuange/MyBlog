@@ -30,6 +30,10 @@ public class EsBlogServiceImpl implements EsBlogService {
     private ElasticsearchClient esClient;
 
 
+    // todo 初始化 检查es并将所有博客信息存储到Es中
+
+
+
     @Override
     public EsBlog saveBlog(EsBlog blog) {
         return esBlogRepository.save(blog);

@@ -18,7 +18,7 @@ public interface UserFeign {
     Boolean isUserKudos(@RequestParam("blogId") Long blogId,@RequestParam("userId") String userInfoKey);
 
     @GetMapping("/myBlog/user/blog/isUserStar")
-    Boolean isUserStar(@RequestParam("blogId") Long blogId,@RequestParam("userInfoKey")String userInfoKey);
+    Boolean isUserStar(@RequestParam("blogId") Long blogId,@RequestParam("userId")Long userId);
 
     @GetMapping("/myBlog/user/getNameInIds")
     Map<Long,String> getNameInIds(@RequestParam("ids")List<String> ids);
@@ -27,14 +27,21 @@ public interface UserFeign {
     Map<Long,String> getImageInIds(@RequestParam("ids")List<String> ids);
 
     @GetMapping("/myBlog/user/blog/getUserKudosComment")
-    Boolean getUserKudosComment(@RequestParam("commentId")String commentId, @RequestParam("userInfoKey")String userInfoKey);
+    Boolean getUserKudosComment(@RequestParam("commentId")String commentId, @RequestParam("userId")Long userId);
 
     @GetMapping("/myBlog/user/blog/getUserKudosReply")
-    Boolean getUserKudosReply(@RequestParam("replyId")String replyId,@RequestParam("userInfoKey")String userInfoKey);
+    Boolean getUserKudosReply(@RequestParam("replyId")String replyId,@RequestParam("userId")Long userId);
 
     @GetMapping("/myBlog/user/getUserIdByName")
     String getUserIdByName(@RequestParam("userName") String userName);
 
     @GetMapping("/myBlog/user/getIdsLikeName")
     List<Long> getIdsLikeName(@RequestParam("name") String name);
+
+    @GetMapping("/myBlog/user/blog/isUserLikeComments")
+    List<Long> isUserLikeComments(@RequestParam("commentIds")List<Long> commentIds, @RequestParam("userId")Long userId);
+
+    @GetMapping("/myBlog/user/blog/isUserLikeReply")
+    List<Long> isUserLikeReply(@RequestParam("replyIds") List<Long> replyIds, @RequestParam("userId") Long userId);
+
 }

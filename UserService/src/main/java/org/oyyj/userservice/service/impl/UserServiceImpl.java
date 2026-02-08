@@ -7,13 +7,19 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.util.Strings;
+import org.oyyj.mycommon.pojo.dto.UserBlogInfoDTO;
 import org.oyyj.mycommon.utils.FileUtil;
+import org.oyyj.mycommon.utils.TransUtil;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
+import org.oyyj.mycommonbase.common.commonEnum.YesOrNoEnum;
 import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.userservice.dto.*;
 import org.oyyj.userservice.Feign.AIChatFeign;
 import org.oyyj.userservice.Feign.BlogFeign;
+import org.oyyj.userservice.dto.user.vo.UserInfoVO;
 import org.oyyj.userservice.mapper.SysRoleMapper;
 import org.oyyj.userservice.mapper.UserMapper;
 import org.oyyj.userservice.pojo.*;
@@ -31,8 +37,10 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
 
     private Integer PAGE_SIZE=6;
@@ -63,6 +71,45 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Autowired
     private FileUtil fileUtils;
+
+    @Override
+    public ResultUtil<UserInfoVO> userInfoById(Long id , LoginUser loginUser) {
+        UserInfoVO userInfoVO = new UserInfoVO();
+        User one = getOne(Wrappers.<User>lambdaQuery().eq(User::getId, id));
+        if(one == null){
+            log.error("用户信息缺失 id为：{}",id);
+            return ResultUtil.fail("获取用户信息失败");
+        }
+        userInfoVO.setUserName(one.getNickName());
+        userInfoVO.setHead(one.getImageUrl());
+        userInfoVO.setIntroduce(Strings.isNotBlank(one.getIntroduce())? one.getIntroduce():"这个人很神秘 什么都没留下...");
+        UserBlogInfoDTO userBlogInfo = blogFeign.getUserBlogInfo(one.getId());
+        userInfoVO.setLikes(userBlogInfo.getLikes());
+        userInfoVO.setBlogs(userBlogInfo.getBlogs());
+        userInfoVO.setStar(userBlogInfo.getStar());
+        // 获取关注作者的关注信息
+        Integer funS = baseMapper.userFunS(id);
+        userInfoVO.setFunS(TransUtil.formatNumber(funS));
+
+        if(Objects.equals(YesOrNoEnum.YES.getCode(), loginUser.getIsUserLogin())){
+            // 判断当前用户是否关注此作者
+            UserAttention userAttention = userAttentionService.getOne(Wrappers.<UserAttention>lambdaQuery()
+                    .eq(UserAttention::getUserId, loginUser.getUserId())
+                    .eq(UserAttention::getAttentionId, id)
+            );
+
+            if(Objects.isNull(userAttention)){
+                userInfoVO.setIsUserStar(YesOrNoEnum.NO.getCode());
+            }else{
+                userInfoVO.setIsUserStar(YesOrNoEnum.YES.getCode());
+            }
+
+        }else{
+            userInfoVO.setIsUserStar(YesOrNoEnum.NO.getCode());
+        }
+
+        return ResultUtil.success(userInfoVO);
+    }
 
     @Override
     public boolean userKudos(String blogId,LoginUser loginUser) {

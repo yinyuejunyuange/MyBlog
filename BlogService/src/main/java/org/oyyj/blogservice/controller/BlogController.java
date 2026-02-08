@@ -18,8 +18,10 @@ import org.oyyj.blogservice.pojo.*;
 import org.oyyj.blogservice.service.*;
 import org.oyyj.blogservice.util.ResultUtil;
 import org.oyyj.blogservice.vo.*;
+import org.oyyj.blogservice.vo.blogs.CommendBlogsByAuthor;
 import org.oyyj.mycommon.annotation.RequestUser;
 import org.oyyj.mycommon.config.RabbitMqConfig;
+import org.oyyj.mycommon.pojo.dto.UserBlogInfoDTO;
 import org.oyyj.mycommon.service.IUploadMetadataService;
 import org.oyyj.mycommonbase.common.RedisPrefix;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
@@ -58,17 +60,11 @@ public class BlogController {
     @Autowired
     private IBlogService blogService;
 
-    @Autowired
-    private IUserBehaviorService  userBehaviorService;
 
     @Autowired
     private ServletContext servletContext; // 应用上下文
 
-    @Autowired
-    private ICommentService commentService;
 
-    @Autowired
-    private IReplyService replyService;
 
     @Autowired
     private IUploadMetadataService uploadMetadataService;
@@ -211,89 +207,6 @@ public class BlogController {
         return blogService.cancelStar(Long.valueOf(blogId),loginUser);
     }
 
-    // 编写评论
-    @PutMapping("/writeComment")
-    @Transactional
-    public Long writeComment(@RequestParam("userId") Long userId,
-                                @RequestParam("blogId")Long blogId,
-                                @RequestParam("context")String context,
-                                 @RequestUser() LoginUser loginUser){
-        Date date = new Date();
-
-        Comment build = Comment.builder()
-                .blogId(blogId)
-                .userId(userId)
-                .context(context)
-                .createTime(date)
-                .updateTime(date)
-                .isDelete(0)
-                .isVisible(0)
-                .build();
-        boolean save = commentService.save(build);
-        if(save){
-            blogService.blogComment(blogId,loginUser);
-            return build.getId();
-        }else{
-            log.warn("评论添加失败");
-            return null;
-        }
-    }
-    // 删除评论
-    @DeleteMapping("/removeComment")
-    public Boolean removeComment(@RequestParam("commentId")Long commentId){
-        return commentService.remove(Wrappers.<Comment>lambdaQuery().eq(Comment::getId, commentId));
-
-    }
-    // 回复评论
-    @PutMapping("/replyComment")
-    @Transactional // 原子性
-    public Long replyComment(@RequestParam("userId")Long userId,
-                                @RequestParam("commentId")Long commentId,
-                                @RequestParam("context")String context){
-        Date date=new Date();
-
-        Reply build = Reply.builder()
-                .commentId(commentId)
-                .userId(userId)
-                .context(context)
-                .kudos(0L)
-                .createTime(date)
-                .updateTime(date)
-                .isDelete(0)
-                .isVisible(0)
-                .build();
-        boolean save = replyService.save(build);
-        if(save){
-            return build.getId();
-        }else{
-            return null;
-        }
-    }
-    // 删除回复
-    @DeleteMapping("/removeReply")
-    public Boolean removeReply(@RequestParam("replyId")Long replyId){
-        return replyService.remove(Wrappers.<Reply>lambdaQuery().eq(Reply::getId, replyId));
-
-    }
-
-    // 获得回复
-    @GetMapping("/getComment")
-    public Map<String,Object> getComment(@RequestParam("blogId")String blogId,@RequestParam(value = "userInfoKey",required = false)String userInfoKey){
-        List<ReadCommentDTO> blogComment = blogService.getBlogComment(blogId,userInfoKey);
-        return ResultUtil.successMap(blogComment,"评论查询成功");
-    }
-
-    // 改变评论点赞数
-    @PutMapping("/changCommentKudos")
-    public Boolean changCommentKudos(@RequestParam("commentId")Long commentId,@RequestParam("isAdd") Integer isAdd){
-        return blogService.changeCommentKudos(commentId,isAdd);
-    }
-
-    // 改变回复点赞数
-    @PutMapping("/changReplyKudos")
-    public Boolean changReplyKudos(@RequestParam("replyId")Long replyId,@RequestParam("isAdd") Integer isAdd){
-        return blogService.changeReplyKudos(replyId,isAdd);
-    }
 
     // 获取博客作者的创作信息
     @GetMapping("/getBlogUserInfo")
@@ -312,19 +225,19 @@ public class BlogController {
         return ResultUtil.successMap(blogByName,"查询成功");
     }
 
-    @GetMapping("/getBlogBySelect")
-    public Map<String,Object> getBlogBySelect(@RequestParam("userId") Long userId,
-                                              @RequestParam("current")int current,
-                                              @RequestParam("pageSize") int pageSize,
-                                              @RequestParam(value = "orderBy",required = false) String orderBy,
-                                              @RequestParam(value = "orderWay",required = false) String orderWay,
-                                              @RequestParam(value = "typeList",required = false) String typeList){
-        PageDTO<BlogDTO> blogByName = blogService.getBlogByUserId(current, pageSize, userId,List.of(typeList.split(",")) ,orderBy,orderWay);
-        if(Objects.isNull(blogByName)){
-            return ResultUtil.failMap("查询失败");
-        }
-        return ResultUtil.successMap(blogByName,"查询成功");
+    /**
+     * 根据博客的作者信息 获取 最近博客以及最欢迎博客  同时排除当前博客
+     * @param userId 作者Id
+     * @param currentId 当前博客ID
+     * @return
+     */
+    @GetMapping("/commendBlogByAuthor")
+    public ResultUtil<CommendBlogsByAuthor> commendBlogBySelect(@RequestParam("userId")Long  userId,
+                                                                @RequestParam("currentId")Long  currentId ){
+        return ResultUtil.success(blogService.commendBlogsByAuthor(userId, currentId));
     }
+
+
 
     @GetMapping("/getUserStarBlog")
     public Map<String,Object> getUserStarBlog(@RequestParam("blogs") List<Long> blogs
@@ -386,6 +299,24 @@ public class BlogController {
             log.error(e.getMessage());
             return ResultUtil.failMap("查询失败");
         }
+    }
+
+    /**
+     * 根据用户ID获取其博客相关信息 如 点赞数 关注数
+     * @param userId
+     * @return
+     */
+    @GetMapping("/userBlogInfo")
+    public UserBlogInfoDTO getUserBlogInfo(@RequestParam("userId") Long userId){
+        return  blogService.getUserBlogInfo(userId);
+    }
+
+
+    @GetMapping("/getByKeyWords")
+    public ResultUtil<List<BlogDTO>> getBlogByKeyWords(@RequestParam("keyWord") String keyWord,
+                                                       @RequestParam("pageNum") Integer pageNum,
+                                                       @RequestParam("pageSize") Integer pageSize){
+        return blogService.getBlogByKeyWord(keyWord,pageNum,pageSize);
     }
 
 }

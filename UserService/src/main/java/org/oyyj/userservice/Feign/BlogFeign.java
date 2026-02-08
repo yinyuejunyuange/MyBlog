@@ -2,6 +2,7 @@ package org.oyyj.userservice.Feign;
 
 import feign.Response;
 import jakarta.servlet.http.HttpServletResponse;
+import org.oyyj.mycommon.pojo.dto.UserBlogInfoDTO;
 import org.oyyj.userservice.dto.*;
 import org.oyyj.userservice.config.FeignUserConfig;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -109,4 +110,7 @@ public interface BlogFeign {
     // 举报回复
     @PutMapping("/blog/reportReply")
     Map<String,Object> reportReply(@RequestBody ReplyReportDTO replyReportVO) throws AuthenticationException;
+
+    @GetMapping("/myBlog/blog/userBlogInfo")
+    UserBlogInfoDTO getUserBlogInfo(@RequestParam("userId") Long userId);
 }

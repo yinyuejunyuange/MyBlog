@@ -19,7 +19,7 @@ public class ReadCommentDTO {
     private String UserImage;
     private String context;
     private String kudos;
-    private List<ReadReplyDTO> replyList;
+    private Integer replyNum;
     private Date updateTime;
     private Boolean isUserKudos;// 判断当前用户是否点赞
 }

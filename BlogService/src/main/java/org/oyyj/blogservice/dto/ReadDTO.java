@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.oyyj.blogservice.pojo.TypeTable;
+import org.oyyj.blogservice.vo.type.TypeTableVO;
 
 import java.util.Date;
 import java.util.List;
@@ -19,9 +21,10 @@ public class ReadDTO {
     private String title;
     private String Introduce;
     private String context;
-    private List<String> typeList;
+    private List<TypeTable> typeList;
     private Date createTime;
     private Date updateTime;
+    private Date publishTime;
     private String star;
     private String kudos;
     private String watch;
