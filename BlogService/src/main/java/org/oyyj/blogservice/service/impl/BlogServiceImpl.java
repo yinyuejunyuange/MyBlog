@@ -558,6 +558,29 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .build();
     }
 
+    private BlogSearchVO toBlogSearchVO(Blog i,Map<String,List<String>> blogTypeMap,Map<Long, String> imageInIds){
+        if(blogTypeMap==null){
+            blogTypeMap = new HashMap<>();
+        }
+        if(imageInIds==null){
+            imageInIds = new HashMap<>();
+        }
+        return BlogSearchVO.builder()
+                .id(i.getId())
+                .userId(String.valueOf(i.getUserId()))
+                .userName(i.getAuthor())
+                .createTime(i.getCreateTime())
+                .updateTime(i.getUpdateTime())
+                .status(i.getStatus())
+                .typeList( blogTypeMap.isEmpty()? List.of() : blogTypeMap.get(String.valueOf(i)))
+                .star(numberStr(i.getStar()))
+                .like(numberStr(i.getKudos()))
+                .view(numberStr(i.getWatch()))
+                .commentNum(numberStr(i.getCommentNum()))
+                .userHead( imageInIds.isEmpty() ? "" : imageInIds.get(i.getUserId()))
+                .build();
+    }
+
     @Override
     public List<BlogDTO> getHomeBlogs(LoginUser loginUser) {
         List<String> blogIds = recommendUserBlogs(loginUser.getUserId());
@@ -1078,7 +1101,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
      * @return
      */
     @Override
-    public ResultUtil<List<BlogDTO>> getBlogByKeyWord(String keyWord, Integer currentPage, Integer pageSize) {
+    public ResultUtil<List<BlogSearchVO>> getBlogByKeyWord(String keyWord, Integer currentPage, Integer pageSize) {
         List<BlogSearchVO> blogSearchVOS = esBlogService.highlightSearch(keyWord, currentPage, pageSize);
         if(blogSearchVOS == null || blogSearchVOS.isEmpty()){
             return ResultUtil.success(List.of());
@@ -1100,9 +1123,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             blogTypeMap.put(String.valueOf(infoId),types);
         });
         Map<Long, String> imageInIds = userFeign.getImageInIds(userIds);
-        List<BlogDTO> result = list.stream().map(i -> toBlogDTO(i,blogTypeMap, imageInIds)).toList();
+        List<BlogSearchVO> result = list.stream().map(i -> toBlogSearchVO(i,blogTypeMap, imageInIds)).toList();
         result = result.stream().peek(item->{
-            BlogSearchVO blogSearchVO = blogSearchVOMap.get(Long.parseLong(item.getId()));
+            BlogSearchVO blogSearchVO = blogSearchVOMap.get(item.getId());
             item.setTitle(blogSearchVO.getTitle());
             item.setIntroduce(blogSearchVO.getContent());
         }).toList();

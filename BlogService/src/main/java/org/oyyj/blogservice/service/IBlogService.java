@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import org.oyyj.blogservice.dto.*;
 import org.oyyj.blogservice.pojo.Blog;
 import org.oyyj.blogservice.util.ResultUtil;
+import org.oyyj.blogservice.vo.blogs.BlogSearchVO;
 import org.oyyj.blogservice.vo.blogs.CommendBlogsByAuthor;
 import org.oyyj.mycommon.pojo.dto.UserBlogInfoDTO;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
@@ -133,5 +134,5 @@ public interface IBlogService extends IService<Blog> {
      * @param pageSize
      * @return
      */
-    ResultUtil<List<BlogDTO>> getBlogByKeyWord(String keyWord ,Integer currentPage, Integer pageSize);
+    ResultUtil<List<BlogSearchVO>> getBlogByKeyWord(String keyWord, Integer currentPage, Integer pageSize);
 }

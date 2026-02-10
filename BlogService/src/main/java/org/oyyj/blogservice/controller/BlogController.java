@@ -18,6 +18,7 @@ import org.oyyj.blogservice.pojo.*;
 import org.oyyj.blogservice.service.*;
 import org.oyyj.blogservice.util.ResultUtil;
 import org.oyyj.blogservice.vo.*;
+import org.oyyj.blogservice.vo.blogs.BlogSearchVO;
 import org.oyyj.blogservice.vo.blogs.CommendBlogsByAuthor;
 import org.oyyj.mycommon.annotation.RequestUser;
 import org.oyyj.mycommon.config.RabbitMqConfig;
@@ -313,9 +314,9 @@ public class BlogController {
 
 
     @GetMapping("/getByKeyWords")
-    public ResultUtil<List<BlogDTO>> getBlogByKeyWords(@RequestParam("keyWord") String keyWord,
-                                                       @RequestParam("pageNum") Integer pageNum,
-                                                       @RequestParam("pageSize") Integer pageSize){
+    public ResultUtil<List<BlogSearchVO>> getBlogByKeyWords(@RequestParam("keyWord") String keyWord,
+                                                            @RequestParam("pageNum") Integer pageNum,
+                                                            @RequestParam("pageSize") Integer pageSize){
         return blogService.getBlogByKeyWord(keyWord,pageNum,pageSize);
     }
 
