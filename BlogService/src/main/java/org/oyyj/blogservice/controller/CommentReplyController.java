@@ -91,7 +91,6 @@ public class CommentReplyController {
 
     }
     // 回复评论或者用户
-
     /**
      *
      * @param loginUser 登录者
@@ -148,7 +147,7 @@ public class CommentReplyController {
     // 获得回复
     @GetMapping("/getComment")
     public Map<String,Object> getComment(@RequestParam("blogId")String blogId,
-                                         @RequestUser() LoginUser loginUser,
+                                         @RequestUser(required = false) LoginUser loginUser,
                                          @RequestParam("pageNum")Integer pageNum){
         List<ReadCommentDTO> blogComment = commentService.getBlogComment(blogId,loginUser,pageNum);
         return ResultUtil.successMap(blogComment,"评论查询成功");
@@ -156,7 +155,7 @@ public class CommentReplyController {
     // 获得回复
     @GetMapping("/getReply")
     public Map<String,Object> getReply(@RequestParam("commentId")Long commentId,
-                                         @RequestUser() LoginUser loginUser,
+                                         @RequestUser(required = false) LoginUser loginUser,
                                          @RequestParam("pageNum")Integer pageNum){
         List<ReadReplyDTO> reply = replyService.getReply(commentId, loginUser, pageNum);
         return ResultUtil.successMap(reply,"评论查询成功");

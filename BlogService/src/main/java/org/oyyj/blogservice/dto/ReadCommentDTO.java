@@ -16,7 +16,7 @@ public class ReadCommentDTO {
     private String id;
     private String userId;
     private String userName;
-    private String UserImage;
+    private String userImage;
     private String context;
     private String kudos;
     private Integer replyNum;
