@@ -71,6 +71,7 @@ public class BackstopStrategyServiceImpl implements IBackstopStrategyService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean incrKudosComment(Long commentId) {
+        // todo
         Comment forUpdate = commentMapper.selectOne(Wrappers.<Comment>lambdaQuery()
                 .eq(Comment::getId, commentId)
                 .last("for update")

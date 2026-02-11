@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.auth.AuthenticationException;
 import org.apache.logging.log4j.util.Strings;
+import org.oyyj.gatewaydemo.mapper.UserMapper;
 import org.oyyj.gatewaydemo.pojo.auth.AuthUser;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.gatewaydemo.utils.JWTUtils;

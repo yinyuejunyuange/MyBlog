@@ -43,6 +43,8 @@ public class UserBlogController {
 
     @Autowired
     private RedisUtil redisUtil;
+    @Autowired
+    private IUserService userService;
 
     @Autowired
     private IUserCommentService userCommentService;
@@ -144,6 +146,74 @@ public class UserBlogController {
     @GetMapping("/isUserLikeReply")
     public List<Long> isUserLikeReply( @RequestParam("replyIds") List<Long> replyIds, @RequestParam("userId") Long userId,HttpServletRequest request ){
         return userReplyService.isUserLikeReply(replyIds,userId);
+    }
+
+    // 用户点赞评论
+    @PutMapping("/kudosComment")
+    public Boolean kudosComment(@RequestParam("commentId")String commentId,@RequestParam("userId") Long userId){
+        UserComment one = userCommentService.getOne(Wrappers.<UserComment>lambdaQuery()
+                .eq(UserComment::getCommentId, Long.valueOf(commentId))
+                .eq(UserComment::getUserId, userId)
+        );
+        if(Objects.nonNull(one)){
+            log.warn("用户{} 重复点赞评论{}",userId,commentId);
+            return true;
+        }
+        one = new UserComment();
+        one.setCommentId(Long.valueOf(commentId));
+        one.setUserId(userId);
+        return userCommentService.save(one);
+    }
+
+    @PutMapping("/cancelKudosComment")
+    public Boolean cancelKudosComment(@RequestParam("commentId")String commentId,@RequestParam("userId") Long userId){
+        UserComment one = userCommentService.getOne(Wrappers.<UserComment>lambdaQuery()
+                .eq(UserComment::getCommentId, Long.valueOf(commentId))
+                .eq(UserComment::getUserId, userId)
+        );
+        if(Objects.isNull(one)){
+            log.warn("用户{} 重复取消点赞评论{}",userId,commentId);
+            return true;
+        }
+        return userCommentService.remove(Wrappers.<UserComment>lambdaQuery()
+                .eq(UserComment::getCommentId, Long.valueOf(commentId))
+                .eq(UserComment::getUserId, userId)
+        );
+    }
+    // 用户取消收藏
+    @PutMapping("/cancelStar")
+    public Boolean cancelStar(@RequestParam("blogId") String blogId ,@RequestParam("userId") Long userId){
+        return userStarService.remove(Wrappers.<UserStar>lambdaQuery()
+                .eq(UserStar::getUserId, userId)
+                .eq(UserStar::getBlogId, Long.valueOf(blogId))
+        );
+    }
+
+
+    // 用户点赞回复
+    @PutMapping("/kudosReply")
+    public Boolean kudosReply(@RequestParam("replyId")String replyId, @RequestParam("userId") Long userId){
+
+        UserReply one = userReplyService.getOne(Wrappers.<UserReply>lambdaQuery()
+                .eq(UserReply::getReplyId, Long.valueOf(replyId))
+                .eq(UserReply::getUserId, userId)
+        );
+        if(Objects.nonNull(one)){
+            log.warn("用户{} 重复点赞评论{}",userId,replyId);
+            return true;
+        }
+        one = new UserReply();
+        one.setReplyId(Long.valueOf(replyId));
+        one.setUserId(userId);
+        return userReplyService.save(one);
+    }
+
+
+    // 用户收藏
+    @PutMapping("/userStar")
+    public Boolean userStar(@RequestParam("blogId") String blogId ,@RequestParam("userId") Long userId) throws Exception {
+        // 用户收藏表中添加对应的用户博客id；
+        return  userService.userStar(blogId,userId);
     }
 
 }

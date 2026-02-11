@@ -21,11 +21,10 @@ import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -45,6 +44,9 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
 
     @Autowired
     private IBackstopStrategyService backstopStrategyService; // 注入兜底服务
+
+    @Autowired
+    private TransactionTemplate transactionTemplate;
 
     private final Integer pageSize = 20; // 每次查询的数量
     // 获取评论
@@ -75,9 +77,10 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
                     .userImage(i.getUserImage())
                     .context(i.getContext())
                     .replyNum(Math.toIntExact(replyNum))
-                    .updateTime(i.getUpdateTime())
+                    .updateTime(formatDateToStr(i.getUpdateTime()))
                     .kudos(String.valueOf(i.getKudos()))
-                    .isUserKudos(userLikeComments.contains(i.getUserId()))
+                    .isUserKudos(userLikeComments.contains(i.getId()))
+                    .isBelongUser(loginUser.getUserId().equals(i.getUserId()))
                     .build()
             ).toList();
 
@@ -91,9 +94,10 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
                     .userImage(i.getUserImage())
                     .context(i.getContext())
                     .replyNum(Math.toIntExact(replyNum))
-                    .updateTime(i.getUpdateTime())
+                    .updateTime(formatDateToStr(i.getUpdateTime()))
                     .kudos(String.valueOf(i.getKudos()))
                     .isUserKudos(false)
+                    .isBelongUser(false)
                     .build()
             ).toList();
             System.out.println("查询成功:" + readCommentDTOS);
@@ -104,13 +108,17 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
 
     // 评论点赞数加一或者减一
     @Override
-    public Boolean changeCommentKudos(Long commentId, Integer isAdd) {
+    public Boolean changeCommentKudos(Long commentId, Integer isAdd , LoginUser loginUser) {
         String changeLock = RedisPrefix.BLOG_COMMENT_KUDOS_LOCK + commentId;
         RLock lock = redissonClient.getLock(changeLock);
         try {
-            Boolean call = RetryConfig.LOCK_RETRYER.call(() -> {
-                boolean getLock = lock.tryLock(1, -1, TimeUnit.MINUTES);
-                if (!getLock) {
+            boolean getLock = false;
+            getLock = lock.tryLock(1, 30, TimeUnit.SECONDS); // 最长30s
+            boolean finalGetLock = getLock;  // 先拿到锁再进入 retry中执行事务
+            Boolean call = RetryConfig.LOCK_RETRYER.call(() -> transactionTemplate.execute(status -> {
+
+                if (!finalGetLock) {
+                    status.setRollbackOnly(); // 手动标记回滚
                     return false;
                 }
                 // 获取锁直接修改数据
@@ -119,24 +127,58 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
                 );
                 if (one == null) {
                     log.error("查询的博客评论不存在，评论的ID为:{}", commentId);
+                    status.setRollbackOnly(); // 手动标记回滚
                     return false;
                 }
-                return update(Wrappers.<Comment>lambdaUpdate()
+                boolean update = update(Wrappers.<Comment>lambdaUpdate()
                         .eq(Comment::getId, commentId)
                         .set(YesOrNoEnum.YES.getCode().equals(isAdd), Comment::getKudos, one.getKudos() + 1)
                         .set(YesOrNoEnum.NO.getCode().equals(isAdd), Comment::getKudos, one.getKudos() - 1)
                 );
-            });
+                if (!update) {
+                    status.setRollbackOnly();
+                    log.info("评论{}点赞数量增加失败",commentId);
+                    return false;
+                }
+                boolean userFeignResult = true;
+                // 调用用户服务接口 让用户添加加1/减1
+                if (YesOrNoEnum.YES.getCode().equals(isAdd)) {
+                    userFeignResult = userFeign.kudosComment(String.valueOf(commentId), loginUser.getUserId());
+                } else {
+                    userFeignResult = userFeign.cancelKudosComment(String.valueOf(commentId), loginUser.getUserId());
+                }
+
+                if (!userFeignResult) {
+                    throw new RuntimeException("用户端数据处理失败回滚");
+                }
+                return update;
+            }));
             if(call!=null && call){
                 return true;
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
+        } finally {
+            if(lock.isLocked() && lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
         }
         // 兜底计算
         return  YesOrNoEnum.YES.getCode().equals(isAdd)
                 ? backstopStrategyService.incrKudosComment(commentId)
                 : backstopStrategyService.decrKudosComment(commentId);
+    }
+
+    /**
+     * 将日期转换成字符串
+     * @param date
+     * @return
+     */
+    private String formatDateToStr(Date date) {
+        // 创建SimpleDateFormat对象，指定格式
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        // 格式化Date为字符串
+        return sdf.format(date);
     }
 
 }

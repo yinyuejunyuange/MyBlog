@@ -22,6 +22,8 @@ import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -114,9 +116,10 @@ public class ReplyServiceImpl extends ServiceImpl<ReplyMapper, Reply> implements
                     .replyId(i.getRepliedId())
                     .replyName(i.getRepliedName())
                     .context(i.getContext())
-                    .updateTime(i.getUpdateTime())
+                    .updateTime(formatDateToStr(i.getUpdateTime()))
                     .kudos(String.valueOf(i.getKudos()))
                     .isUserKudos(userLikeComments.contains(i.getUserId()))
+                    .isBelongUser(loginUser.getUserId().equals(i.getUserId()))
                     .build()
             ).toList();
         } else {
@@ -128,11 +131,24 @@ public class ReplyServiceImpl extends ServiceImpl<ReplyMapper, Reply> implements
                     .replyId(i.getRepliedId())
                     .replyName(i.getRepliedName())
                     .context(i.getContext())
-                    .updateTime(i.getUpdateTime())
+                    .updateTime( formatDateToStr(i.getUpdateTime()) )
                     .kudos(String.valueOf(i.getKudos()))
                     .isUserKudos(false)
+                    .isBelongUser(false)
                     .build()
             ).toList();
         }
+    }
+
+    /**
+     * 将日期转换成字符串
+     * @param date
+     * @return
+     */
+    private String formatDateToStr(Date date) {
+        // 创建SimpleDateFormat对象，指定格式
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        // 格式化Date为字符串
+        return sdf.format(date);
     }
 }

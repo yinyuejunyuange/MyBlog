@@ -19,8 +19,9 @@ public class ReadReplyDTO {
     private Long replyId;
     private String replyName;
     private String context;
-    private Date updateTime;
+    private String updateTime;
     private Long commentId;
     private String kudos; // 点赞数
     private Boolean isUserKudos;// 判断当前用户是否点赞
+    private Boolean isBelongUser; // 判断回复是否属于用户发起者
 }

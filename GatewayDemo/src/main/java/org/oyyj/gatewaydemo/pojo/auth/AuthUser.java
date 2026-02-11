@@ -1,5 +1,6 @@
 package org.oyyj.gatewaydemo.pojo.auth;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
@@ -20,7 +21,7 @@ import java.util.stream.Collectors;
 public class AuthUser implements UserDetails {
 
     private Long userId;
-
+    @JsonAlias({"username", "userName"})
     private String userName;
 
     private String password;

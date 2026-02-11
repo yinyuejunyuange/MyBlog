@@ -51,13 +51,13 @@ public class CommentReplyController {
      */
     @PutMapping("/writeComment")
     @Transactional
-    public Long writeComment(@RequestParam("blogId")Long blogId,
+    public ResultUtil<Long> writeComment(@RequestParam("blogId")Long blogId,
                              @RequestParam("context")String context,
                              @RequestUser() LoginUser loginUser){
         Date date = new Date();
         Map<Long, String> imageInIds = userFeign.getImageInIds(Collections.singletonList(String.valueOf(loginUser.getUserId())));
         String userImage = null;
-        if(imageInIds != null && !imageInIds.containsKey(loginUser.getUserId())){
+        if(imageInIds != null && imageInIds.containsKey(loginUser.getUserId())){
             userImage = imageInIds.get(loginUser.getUserId());
         }
         Comment build = Comment.builder()
@@ -78,16 +78,17 @@ public class CommentReplyController {
         if(save){
             // 增加博客的评论数
             blogService.blogComment(blogId,loginUser);
-            return build.getId();
+            return ResultUtil.success(blogId);
         }else{
-            log.warn("评论添加失败");
-            return null;
+            log.warn("数据库添加评论添加失败");
+            return ResultUtil.fail("查询失败添加失败");
         }
     }
     // 删除评论
     @DeleteMapping("/removeComment")
-    public Boolean removeComment(@RequestParam("commentId")Long commentId){
-        return commentService.remove(Wrappers.<Comment>lambdaQuery().eq(Comment::getId, commentId));
+    public ResultUtil<Boolean> removeComment(@RequestParam("commentId")Long commentId){
+        boolean remove = commentService.remove(Wrappers.<Comment>lambdaQuery().eq(Comment::getId, commentId));
+        return remove? ResultUtil.success(remove) : ResultUtil.fail("评论删除失败");
 
     }
     // 回复评论或者用户
@@ -100,7 +101,7 @@ public class CommentReplyController {
      * @return
      */
     @PutMapping("/replyComment")
-    public Long replyComment(@RequestUser() LoginUser loginUser,
+    public ResultUtil<Long> replyComment(@RequestUser() LoginUser loginUser,
                              @RequestParam(value = "repliedUserId", required = false) Long repliedUserId,
                              @RequestParam("commentId")Long commentId,
                              @RequestParam("context")String context){
@@ -132,16 +133,24 @@ public class CommentReplyController {
                 .build();
         boolean save = replyService.save(build);
         if(save){
-            return build.getId();
+            return ResultUtil.success(build.getId());
         }else{
-            return null;
+            log.error("数据库添加回复失败！");
+            return ResultUtil.fail("回复失败");
         }
     }
     // 删除回复
     @DeleteMapping("/removeReply")
-    public Boolean removeReply(@RequestParam("replyId")Long replyId){
-        return replyService.remove(Wrappers.<Reply>lambdaQuery().eq(Reply::getId, replyId));
-
+    public ResultUtil<Boolean> removeReply(@RequestParam("replyId")Long replyId ,@RequestUser LoginUser loginUser){
+        Reply one = replyService.getOne(Wrappers.<Reply>lambdaQuery()
+                .eq(Reply::getId, replyId)
+                .select(Reply::getUserId)
+        );
+        if( one == null ||  !one.getUserId().equals(loginUser.getUserId())){
+            return ResultUtil.fail("回复不可删除");
+        }
+        boolean remove = replyService.remove(Wrappers.<Reply>lambdaQuery().eq(Reply::getId, replyId));
+        return remove? ResultUtil.success(remove) :  ResultUtil.fail("删除回复失败");
     }
 
     // 获得回复
@@ -163,15 +172,19 @@ public class CommentReplyController {
 
     // 改变评论点赞数
     @PutMapping("/changCommentKudos")
-    public Boolean changCommentKudos(@RequestParam("commentId")Long commentId,@RequestParam("isAdd") Integer isAdd){
-        return commentService.changeCommentKudos(commentId,isAdd);
+    public ResultUtil<Boolean> changCommentKudos(@RequestParam("commentId")Long commentId,
+                                                 @RequestParam("isAdd") Integer isAdd,
+                                                 @RequestUser LoginUser loginUser ){
+        Boolean change = commentService.changeCommentKudos(commentId, isAdd,loginUser);
+        return change?ResultUtil.success(change): ResultUtil.fail("评论修改失败");
     }
 
 
     // 改变回复点赞数
     @PutMapping("/changReplyKudos")
-    public Boolean changReplyKudos(@RequestParam("replyId")Long replyId,@RequestParam("isAdd") Integer isAdd){
-        return replyService.changeReplyKudos(replyId,isAdd);
+    public ResultUtil<Boolean> changReplyKudos(@RequestParam("replyId")Long replyId,@RequestParam("isAdd") Integer isAdd){
+        Boolean change = replyService.changeReplyKudos(replyId, isAdd);
+        return change?ResultUtil.success(change): ResultUtil.fail("回复修改失败");
     }
 
 }

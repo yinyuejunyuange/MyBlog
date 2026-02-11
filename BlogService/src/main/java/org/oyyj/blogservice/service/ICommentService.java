@@ -11,7 +11,7 @@ public interface ICommentService extends IService<Comment> {
 
     List<ReadCommentDTO> getBlogComment(String blogId, LoginUser loginUser,Integer pageNum);
 
-    Boolean changeCommentKudos(Long commentId,Integer isAdd);
+    Boolean changeCommentKudos(Long commentId,Integer isAdd,LoginUser loginUser);
 
 
 

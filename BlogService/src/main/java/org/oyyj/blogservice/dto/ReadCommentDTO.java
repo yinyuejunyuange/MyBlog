@@ -20,6 +20,7 @@ public class ReadCommentDTO {
     private String context;
     private String kudos;
     private Integer replyNum;
-    private Date updateTime;
+    private String updateTime;
     private Boolean isUserKudos;// 判断当前用户是否点赞
+    private Boolean isBelongUser; // 这条评论是否来自于评论发起者
 }
