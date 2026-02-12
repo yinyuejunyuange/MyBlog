@@ -1,9 +1,6 @@
 package org.oyyj.blogservice.pojo;
 
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableLogic;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,7 +15,7 @@ import java.util.List;
 @Builder
 @TableName("blog_comment")
 public class Comment {
-    @TableId("id")
+    @TableId(value = "id", type = IdType.AUTO)  // 手动设置 避免mybatisplus的默认雪花算法
     private Long id; // 评论id
     @TableField("user_id")
     private Long userId;

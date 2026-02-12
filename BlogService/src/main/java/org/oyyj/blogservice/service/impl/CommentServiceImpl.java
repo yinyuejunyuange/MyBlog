@@ -1,9 +1,11 @@
 package org.oyyj.blogservice.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.util.Strings;
 import org.oyyj.blogservice.dto.ReadCommentDTO;
 import org.oyyj.blogservice.dto.ReadReplyDTO;
 import org.oyyj.blogservice.feign.UserFeign;
@@ -13,6 +15,7 @@ import org.oyyj.blogservice.pojo.Comment;
 import org.oyyj.blogservice.pojo.Reply;
 import org.oyyj.blogservice.service.IBackstopStrategyService;
 import org.oyyj.blogservice.service.ICommentService;
+import org.oyyj.blogservice.vo.commet.CommentResultVO;
 import org.oyyj.mycommonbase.common.RedisPrefix;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.mycommonbase.common.commonEnum.YesOrNoEnum;
@@ -48,61 +51,79 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     @Autowired
     private TransactionTemplate transactionTemplate;
 
-    private final Integer pageSize = 20; // 每次查询的数量
+    private final Integer pageSize = 2; // 每次查询的数量
     // 获取评论
     @Override
-    public List<ReadCommentDTO> getBlogComment(String blogId, LoginUser loginUser ,Integer pageNum) {
-        if(pageNum == null){
-            pageNum = 1;
+    public CommentResultVO getBlogComment(String blogId, LoginUser loginUser , Date lastTime, String lastId) {
+        CommentResultVO resultVO = new CommentResultVO();
+        LambdaQueryWrapper<Comment> last = Wrappers.<Comment>lambdaQuery()
+                .eq(Comment::getBlogId, Long.valueOf(blogId));
+        if(Strings.isNotBlank(lastId) && lastTime!= null){
+            last.lt(Comment::getUpdateTime, lastTime)
+                    .or(o->o
+                            .eq(Comment::getUpdateTime, lastTime)
+                            .lt(Comment::getId, Long.valueOf(lastId))
+                    )
+                    .orderByDesc(Comment::getUpdateTime)
+                    .orderByDesc(Comment::getId);
         }
-        Page<Comment> page = new Page<>(pageNum,pageSize);
-        List<Comment> list = list(page,Wrappers.<Comment>lambdaQuery()
-                .eq(Comment::getBlogId, Long.valueOf(blogId))
-                .orderByDesc(Comment::getCreateTime)
-        );
+        last.last("limit " + pageSize);
+
+        List<Comment> list = list(last);
         if (list.isEmpty()) {
-            return List.of();
+            resultVO.setList(List.of());
+            return resultVO;
         }
         // 通过list 获取回复的集合
         List<Long> commentIds = list.stream().map(Comment::getId).toList();
-        List<Long> userLikeComments = userFeign.isUserLikeComments(commentIds, loginUser.getUserId());
-        Long replyNum = replyMapper.selectCount(Wrappers.<Reply>lambdaQuery()
-                .in(Reply::getCommentId, commentIds)
-        );
-        if (YesOrNoEnum.YES.getCode().equals(loginUser.getIsUserLogin())) {
-            List<ReadCommentDTO> readCommentDTOS = list.stream().map(i -> ReadCommentDTO.builder()
-                    .id(String.valueOf(i.getId()))
-                    .userId(String.valueOf(i.getUserId()))
-                    .userName(i.getUserName())
-                    .userImage(i.getUserImage())
-                    .context(i.getContext())
-                    .replyNum(Math.toIntExact(replyNum))
-                    .updateTime(formatDateToStr(i.getUpdateTime()))
-                    .kudos(String.valueOf(i.getKudos()))
-                    .isUserKudos(userLikeComments.contains(i.getId()))
-                    .isBelongUser(loginUser.getUserId().equals(i.getUserId()))
-                    .build()
-            ).toList();
-
-            System.out.println("查询成功:" + readCommentDTOS);
-            return readCommentDTOS;
+        List<Long> userLikeComments;
+        if(loginUser.getUserId() != null){
+            userLikeComments = userFeign.isUserLikeComments(commentIds, loginUser.getUserId());
         } else {
-            List<ReadCommentDTO> readCommentDTOS = list.stream().map(i -> ReadCommentDTO.builder()
+            userLikeComments = new ArrayList<>();
+        }
+        Map<Long, List<Reply>> commentIdMaps = replyMapper.selectList(Wrappers.<Reply>lambdaQuery()
+                .in(Reply::getCommentId, commentIds)
+        ).stream().collect(Collectors.groupingBy(Reply::getCommentId));
+        List<Comment> sortList = list.stream()
+                .sorted(Comparator.comparing(Comment::getUpdateTime).reversed())
+                .toList(); // 按 updateTime 倒序
+        resultVO.setLastTime(list.getLast().getUpdateTime());
+        resultVO.setLastId(String.valueOf(list.getLast().getId()));
+        List<ReadCommentDTO> readCommentDTOS;
+        if (YesOrNoEnum.YES.getCode().equals(loginUser.getIsUserLogin())) {
+            readCommentDTOS =  sortList.stream()
+                    .map(i -> ReadCommentDTO.builder()
+                            .id(String.valueOf(i.getId()))
+                            .userId(String.valueOf(i.getUserId()))
+                            .userName(i.getUserName())
+                            .userImage(i.getUserImage())
+                            .context(i.getContext())
+                            .replyNum(commentIdMaps.containsKey(i.getId()) ?commentIdMaps.get(i.getId()).size(): 0)
+                            .updateTime(formatDateToStr(i.getUpdateTime()))
+                            .kudos(String.valueOf(i.getKudos()))
+                            .isUserKudos(userLikeComments.contains(i.getId()))
+                            .isBelongUser(loginUser.getUserId().equals(i.getUserId()))
+                            .build())
+                    .toList();
+        } else {
+            readCommentDTOS = list.stream().map(i -> ReadCommentDTO.builder()
                     .id(String.valueOf(i.getId()))
                     .userId(String.valueOf(i.getUserId()))
                     .userName(i.getUserName())
                     .userImage(i.getUserImage())
                     .context(i.getContext())
-                    .replyNum(Math.toIntExact(replyNum))
+                    .replyNum(commentIdMaps.containsKey(i.getId()) ?commentIdMaps.get(i.getId()).size(): 0)
                     .updateTime(formatDateToStr(i.getUpdateTime()))
                     .kudos(String.valueOf(i.getKudos()))
                     .isUserKudos(false)
                     .isBelongUser(false)
                     .build()
             ).toList();
-            System.out.println("查询成功:" + readCommentDTOS);
-            return readCommentDTOS;
         }
+        resultVO.setList(readCommentDTOS);
+        return resultVO;
+
     }
 
 

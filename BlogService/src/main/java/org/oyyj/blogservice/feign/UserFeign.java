@@ -67,6 +67,12 @@ public interface UserFeign {
     @PutMapping("/myBlog/user/blog/kudosReply")
     Boolean kudosReply(@RequestParam("replyId") String replyId, @RequestParam("userId") Long userId);
 
+    /**
+     * 用户取消点赞回复
+     */
+    @PutMapping("/myBlog/user/blog/cancelKudosReply")
+    Boolean cancelKudosReply(@RequestParam("replyId") String replyId, @RequestParam("userId") Long userId);
+
 
     // ===================== 博客收藏 =====================
 

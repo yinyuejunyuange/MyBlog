@@ -12,16 +12,16 @@ import org.oyyj.blogservice.service.ICommentService;
 import org.oyyj.blogservice.service.IReplyReportService;
 import org.oyyj.blogservice.service.IReplyService;
 import org.oyyj.blogservice.util.ResultUtil;
+import org.oyyj.blogservice.vo.commet.CommentResultVO;
+import org.oyyj.blogservice.vo.reply.ReplyResultVO;
 import org.oyyj.mycommon.annotation.RequestUser;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @RequestMapping("/myBlog/blog/comment")
@@ -107,15 +107,20 @@ public class CommentReplyController {
                              @RequestParam("context")String context){
         Date date=new Date();
         // todo 修改成从一个用户处获取ID
-        Map<Long, String> imageInIds = userFeign.getImageInIds(Collections.singletonList(String.valueOf(loginUser.getUserId())));
+        List<String> userIds = new ArrayList<>();
+        userIds.add(String.valueOf(loginUser.getUserId()));
+        if(repliedUserId != null){
+            userIds.add(String.valueOf(repliedUserId));
+        }
+        Map<Long, String> imageInIds = userFeign.getImageInIds(userIds);
         String userImage = null;
-        if(imageInIds != null && !imageInIds.containsKey(loginUser.getUserId())){
+        if(imageInIds != null && imageInIds.containsKey(loginUser.getUserId())){
             userImage = imageInIds.get(loginUser.getUserId());
         }
-        Map<Long, String> nameInIds = userFeign.getNameInIds(Collections.singletonList(String.valueOf(loginUser.getUserId())));
+        Map<Long, String> nameInIds = userFeign.getNameInIds(userIds);
         String repliedName = null;
-        if(nameInIds != null && !nameInIds.containsKey(loginUser.getUserId())){
-            repliedName= nameInIds.get(loginUser.getUserId());
+        if(nameInIds != null && repliedUserId !=null && nameInIds.containsKey(repliedUserId)){
+            repliedName= nameInIds.get(repliedUserId);
         }
         Reply build = Reply.builder()
                 .commentId(commentId)
@@ -154,20 +159,33 @@ public class CommentReplyController {
     }
 
     // 获得回复
+
+    /**
+     *
+     * @param blogId
+     * @param loginUser
+     * @param lastTime 游标 （上次查询最后的时间）
+     * @param lastId 游标 （上次查询最后的ID）
+     * @return
+     */
     @GetMapping("/getComment")
-    public Map<String,Object> getComment(@RequestParam("blogId")String blogId,
-                                         @RequestUser(required = false) LoginUser loginUser,
-                                         @RequestParam("pageNum")Integer pageNum){
-        List<ReadCommentDTO> blogComment = commentService.getBlogComment(blogId,loginUser,pageNum);
-        return ResultUtil.successMap(blogComment,"评论查询成功");
+    public ResultUtil<CommentResultVO> getComment(@RequestParam("blogId")String blogId,
+                                                  @RequestUser(required = false) LoginUser loginUser,
+                                                  @RequestParam(value = "lastTime",required = false)
+                                                      @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+                                                      Date lastTime,
+                                                  @RequestParam(value = "lastId",required = false)String lastId){
+        return ResultUtil.success(commentService.getBlogComment(blogId,loginUser,lastTime,lastId));
     }
     // 获得回复
     @GetMapping("/getReply")
-    public Map<String,Object> getReply(@RequestParam("commentId")Long commentId,
-                                         @RequestUser(required = false) LoginUser loginUser,
-                                         @RequestParam("pageNum")Integer pageNum){
-        List<ReadReplyDTO> reply = replyService.getReply(commentId, loginUser, pageNum);
-        return ResultUtil.successMap(reply,"评论查询成功");
+    public ResultUtil<ReplyResultVO> getReply(@RequestParam("commentId")Long commentId,
+                                              @RequestUser(required = false) LoginUser loginUser,
+                                              @RequestParam(value = "lastId",required = false)String lastId,
+                                              @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+                                              @RequestParam(value = "lastTime",required = false) Date lastTime
+                                       ){
+        return ResultUtil.success(replyService.getReply(commentId, loginUser, lastId,lastTime));
     }
 
     // 改变评论点赞数
@@ -182,8 +200,10 @@ public class CommentReplyController {
 
     // 改变回复点赞数
     @PutMapping("/changReplyKudos")
-    public ResultUtil<Boolean> changReplyKudos(@RequestParam("replyId")Long replyId,@RequestParam("isAdd") Integer isAdd){
-        Boolean change = replyService.changeReplyKudos(replyId, isAdd);
+    public ResultUtil<Boolean> changReplyKudos(@RequestParam("replyId")Long replyId,
+                                               @RequestParam("isAdd") Integer isAdd,
+                                               @RequestUser LoginUser loginUser){
+        Boolean change = replyService.changeReplyKudos(replyId, isAdd,loginUser);
         return change?ResultUtil.success(change): ResultUtil.fail("回复修改失败");
     }
 

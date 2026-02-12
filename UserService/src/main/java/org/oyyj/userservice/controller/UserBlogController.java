@@ -208,6 +208,27 @@ public class UserBlogController {
         return userReplyService.save(one);
     }
 
+    // 用户取消点赞回复
+    @PutMapping("/cancelKudosReply")
+    public Boolean cancelKudosReply(@RequestParam("replyId")String replyId, @RequestParam("userId") Long userId){
+
+        UserReply one = userReplyService.getOne(Wrappers.<UserReply>lambdaQuery()
+                .eq(UserReply::getReplyId, Long.valueOf(replyId))
+                .eq(UserReply::getUserId, userId)
+        );
+        if(Objects.isNull(one)){
+            log.warn("用户{} 重复取消点赞回复{}",userId,replyId);
+            return true;
+        }
+        one = new UserReply();
+        one.setReplyId(Long.valueOf(replyId));
+        one.setUserId(userId);
+        return userReplyService.remove(Wrappers.<UserReply>lambdaQuery()
+                .eq(UserReply::getReplyId, Long.valueOf(replyId))
+                .eq(UserReply::getUserId, userId)
+        );
+    }
+
 
     // 用户收藏
     @PutMapping("/userStar")
