@@ -88,6 +88,18 @@ public interface UserFeign {
     @PutMapping("/myBlog/user/blog/cancelStar")
     Boolean cancelStar(@RequestParam("blogId") String blogId,@RequestParam("userId") Long userId);
 
+    /**
+     * 用户点赞博客
+     */
+    @PutMapping("/myBlog/user/blog/kudosBlog")
+    Boolean kudosBlog(@RequestParam("blogId") Long blogId,@RequestParam("userId") Long userId);
+
+    /**
+     * 用户取消点赞博客
+     */
+    @PutMapping("/myBlog/user/blog/cancelKudosBlog")
+    Boolean cancelKudosBlog(@RequestParam("blogId") Long blogId,@RequestParam("userId") Long userId);
+
 
 
 }

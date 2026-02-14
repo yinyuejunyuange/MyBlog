@@ -6,6 +6,7 @@ import io.minio.*;
 import io.minio.errors.*;
 import io.minio.http.Method;
 import jakarta.annotation.PostConstruct;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.utils.IOUtils;
@@ -443,6 +444,32 @@ public class FileUtil {
             log.error("获取头像{}文件错误",objectName,e);
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * 上传图片
+     * @param multipartFile 文件信息
+     * @param objectName 对象名称
+     * @return
+     */
+    public Boolean uploadImage(MultipartFile multipartFile, String objectName) {
+        try (InputStream inputStream = multipartFile.getInputStream()) {
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(imageBucketName)
+                            .object(objectName)
+                            .stream(inputStream, multipartFile.getSize(),-1)
+                            .contentType(multipartFile.getContentType())
+                            .build()
+            );
+        } catch (IOException e) {
+            log.error("文件输入流写入失败 文件名称{}",objectName,e);
+            throw new RuntimeException(e);
+        } catch (Exception e){
+            log.error("文件上传失败 文件名称{}",objectName,e);
+            throw new RuntimeException(e);
+        }
+        return true;
     }
 
 }

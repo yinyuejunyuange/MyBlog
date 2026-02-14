@@ -45,7 +45,7 @@ public class ReplyServiceImpl extends ServiceImpl<ReplyMapper, Reply> implements
     @Autowired
     private UserFeign userFeign;
 
-    private final Integer pageSize = 2; // 每次查询的数量
+    private final Integer pageSize = 20; // 每次查询的数量
     @Autowired
     private TransactionTemplate transactionTemplate;
 

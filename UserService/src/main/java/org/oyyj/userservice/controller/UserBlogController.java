@@ -180,6 +180,52 @@ public class UserBlogController {
                 .eq(UserComment::getUserId, userId)
         );
     }
+
+    /**
+     * 用户点赞博客
+     * @param blogId
+     * @param userId
+     * @return
+     */
+    @PutMapping("/kudosBlog")
+    public Boolean kudosBlog(@RequestParam("blogId")Long blogId,@RequestParam("userId") Long userId){
+        UserKudos one = userKudosService.getOne(Wrappers.<UserKudos>lambdaQuery()
+                .eq(UserKudos::getBlogId, blogId)
+                .eq(UserKudos::getUserId, userId)
+        );
+        if(one != null){
+            log.warn("用户重复点赞博客{} 用户ID{}",blogId,userId);
+            return true;
+        }
+        UserKudos userKudos = new UserKudos();
+        userKudos.setBlogId(blogId);
+        userKudos.setUserId(userId);
+        return userKudosService.save(userKudos);
+    }
+
+    /**
+     * 用户取消点赞博客
+     * @param blogId
+     * @param userId
+     * @return
+     */
+    @PutMapping("/cancelKudosBlog")
+    public Boolean cancelKudosBlog(@RequestParam("blogId")Long blogId,@RequestParam("userId") Long userId){
+        UserKudos one = userKudosService.getOne(Wrappers.<UserKudos>lambdaQuery()
+                .eq(UserKudos::getBlogId, blogId)
+                .eq(UserKudos::getUserId, userId)
+        );
+        if(one == null){
+            log.warn("用户重复取消点赞博客{} 用户ID{}",blogId,userId);
+            return true;
+        }
+        return userKudosService.remove(Wrappers.<UserKudos>lambdaQuery()
+            .eq(UserKudos::getBlogId, blogId)
+            .eq(UserKudos::getUserId, userId)
+        );
+    }
+
+
     // 用户取消收藏
     @PutMapping("/cancelStar")
     public Boolean cancelStar(@RequestParam("blogId") String blogId ,@RequestParam("userId") Long userId){

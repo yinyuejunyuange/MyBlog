@@ -14,6 +14,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
 import org.oyyj.blogservice.dto.*;
 import org.oyyj.blogservice.feign.UserFeign;
+import org.oyyj.blogservice.mapper.TypeTableMapper;
 import org.oyyj.blogservice.pojo.*;
 import org.oyyj.blogservice.service.*;
 import org.oyyj.blogservice.util.ResultUtil;
@@ -69,6 +70,9 @@ public class BlogController {
 
     @Autowired
     private IUploadMetadataService uploadMetadataService;
+
+    @Autowired
+    private TypeTableMapper typeTableMapper;
 
     @CrossOrigin // 允许此方法跨域
     @PostMapping("/write")
@@ -183,29 +187,29 @@ public class BlogController {
     // 用户点赞博客 博客的属性 kudos加一
     @PutMapping("/blogKudos")
     @Transactional // 保证数据一致性
-    public Boolean blogKudos(@RequestParam("blogId")String blogId, @RequestUser() LoginUser loginUser){
-        return blogService.blogKudos(Long.valueOf(blogId),loginUser);
+    public ResultUtil<Boolean> blogKudos(@RequestParam("blogId")String blogId, @RequestUser() LoginUser loginUser){
+        return ResultUtil.success(blogService.blogKudos(Long.valueOf(blogId),loginUser));
     }
 
     // 用户取消点赞 博客的属性kudos减一
 
     @PutMapping("/cancelKudos")
     @Transactional // 原子性 一致性
-    public Boolean cancelKudos(@RequestParam("blogId")String blogId , @RequestUser() LoginUser loginUser){
-        return blogService.cancelKudos(Long.valueOf(blogId),loginUser);
+    public ResultUtil<Boolean> cancelKudos(@RequestParam("blogId")String blogId , @RequestUser() LoginUser loginUser){
+        return ResultUtil.success(blogService.cancelKudos(Long.valueOf(blogId),loginUser));
     }
 
     // 用户收藏博客 博客 收藏数加一
 
     @PutMapping("/blogStar")
-    public Boolean blogStar(@RequestParam("blogId")String blogId , @RequestUser() LoginUser loginUser){
-        return blogService.blogStar(Long.valueOf(blogId), loginUser);
+    public ResultUtil<Boolean> blogStar(@RequestParam("blogId")String blogId , @RequestUser() LoginUser loginUser){
+        return ResultUtil.success(blogService.blogStar(Long.valueOf(blogId),loginUser));
     }
 
     @PutMapping("/cancelStar")
     @Transactional
-    public Boolean cancelStar(@RequestParam("blogId")String blogId, @RequestUser() LoginUser loginUser){
-        return blogService.cancelStar(Long.valueOf(blogId),loginUser);
+    public ResultUtil<Boolean> cancelStar(@RequestParam("blogId")String blogId, @RequestUser() LoginUser loginUser){
+        return ResultUtil.success(blogService.cancelStar(Long.valueOf(blogId),loginUser));
     }
 
 
@@ -318,6 +322,23 @@ public class BlogController {
                                                             @RequestParam("pageNum") Integer pageNum,
                                                             @RequestParam("pageSize") Integer pageSize){
         return blogService.getBlogByKeyWord(keyWord,pageNum,pageSize);
+    }
+
+    @PostMapping("/uploadImg")
+    public ResultUtil<String> uploadImg(@RequestPart("file") MultipartFile file, @RequestUser LoginUser loginUser){
+        return blogService.uploadBlogImg(file,loginUser);
+    }
+
+    /**
+     * 获取 全部 类别信息
+     *
+     * @return
+     */
+    @GetMapping("/types")
+    public ResultUtil<List<TypeTable>> getTypes(){
+        return ResultUtil.success(
+                typeTableMapper.selectList(Wrappers.<TypeTable>lambdaQuery())
+        );
     }
 
 }

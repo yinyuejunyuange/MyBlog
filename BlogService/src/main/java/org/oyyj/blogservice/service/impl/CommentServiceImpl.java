@@ -51,7 +51,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     @Autowired
     private TransactionTemplate transactionTemplate;
 
-    private final Integer pageSize = 2; // 每次查询的数量
+    private final Integer pageSize = 20; // 每次查询的数量
     // 获取评论
     @Override
     public CommentResultVO getBlogComment(String blogId, LoginUser loginUser , Date lastTime, String lastId) {

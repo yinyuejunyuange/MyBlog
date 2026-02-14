@@ -30,6 +30,7 @@ import org.oyyj.mycommon.common.BehaviorEnum;
 import org.oyyj.mycommon.common.EsBlogWork;
 import org.oyyj.mycommon.pojo.dto.UserBlogInfoDTO;
 import org.oyyj.mycommon.utils.FileUtil;
+import org.oyyj.mycommon.utils.SnowflakeUtil;
 import org.oyyj.mycommonbase.common.RedisPrefix;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.mycommonbase.common.commonEnum.YesOrNoEnum;
@@ -47,6 +48,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -122,6 +125,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     @Autowired
     private EsBlogService esBlogService;
+
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+    @Autowired
+    private SnowflakeUtil snowflakeUtil;
+
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -1132,6 +1141,26 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
        return ResultUtil.success(result);
     }
 
+    /**
+     * 上传博客中的图片
+     *
+     * @param file 原始文件
+     * @param loginUser 登录者
+     * @return
+     */
+    @Override
+    public ResultUtil<String> uploadBlogImg(MultipartFile file, LoginUser loginUser) {
+        String snowflakeId = snowflakeUtil.getSnowflakeId();
+        String objectName = file.getOriginalFilename()+snowflakeId + loginUser.getUserId();
+        Boolean uploaded = fileUtil.uploadImage(file, objectName);
+        if(uploaded){
+            return ResultUtil.success(objectName);
+        }else{
+            log.error("文件上传失败 文件名称{}",objectName);
+            return ResultUtil.fail(objectName);
+        }
+    }
+
 
     @Override
     public Map<String,Object> uploadFileChunk(FileUploadDTO fileUploadDTO) {
@@ -1185,6 +1214,14 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         LambdaQueryWrapper<Blog> queryWrapper = Wrappers.<Blog>lambdaQuery();
         LambdaQueryWrapper<Blog> baseLqw = queryWrapper.eq(Blog::getUserId, userId)
                 .ne(currentBlogId != null, Blog::getId, currentBlogId)
+                .select(Blog::getId,
+                        Blog::getTitle,
+                        Blog::getIntroduce ,
+                        Blog::getUserId,
+                        Blog::getWatch,
+                        Blog::getStar,
+                        Blog::getKudos,
+                        Blog::getCommentNum)
                 .last("limit 10");
         // 最近创作
         LambdaQueryWrapper<Blog> lqwByTime = baseLqw.orderByDesc(Blog::getPublishTime);
@@ -1221,27 +1258,47 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         RLock lock = redissonClient.getLock(blogStarLock);
         try {
             Boolean forUpdate = RetryConfig.LOCK_RETRYER.call(() -> {
-                try {
-                    boolean tryLock = lock.tryLock(1, -1, TimeUnit.SECONDS); // 开启看门狗
-                    if(!tryLock){
-                        return false; // 处罚重试
+                return transactionTemplate.execute(status -> {
+                    try {
+                        boolean tryLock = lock.tryLock(1, 30, TimeUnit.SECONDS); // 开启看门狗
+                        if(!tryLock){
+                            status.setRollbackOnly();
+                            return false; // 处罚重试
+                        }
+                        Blog one = getOne(Wrappers.<Blog>lambdaQuery()
+                                .eq(Blog::getId, blogId)
+                        );
+                        if(one == null){
+                            log.warn("收藏的博客不存在,id:{}",blogId);
+                            status.setRollbackOnly();
+                            return false;
+                        }
+                        boolean update = update(Wrappers.<Blog>lambdaUpdate()
+                                .eq(Blog::getId, blogId)
+                                .set(RedisPrefix.BLOG_START_LOCK.equals(prefix), Blog::getStar, one.getStar() + 1)
+                                .set(RedisPrefix.BLOG_KUDOS_LOCK.equals(prefix), Blog::getKudos, one.getKudos() + 1)
+                                .set(RedisPrefix.BLOG_COMMENT_LOCK.equals(prefix), Blog::getCommentNum, one.getCommentNum() + 1)
+                        );
+                        if(!update){
+                            log.error("博客执行行为失败 博客ID{}, 行为：{}",blogId,prefix);
+                            status.setRollbackOnly();
+                            return false;
+                        }
+                        Boolean userFeignResult = true;
+                        if(RedisPrefix.BLOG_START_LOCK.equals(prefix)){
+                            userFeignResult = userFeign.userStar(String.valueOf(blogId), userId);
+                        }else if(RedisPrefix.BLOG_KUDOS_LOCK.equals(prefix)){
+                            userFeignResult =userFeign.kudosBlog(blogId,userId);
+                        }
+                        return userFeignResult;
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }finally {
+                        if (lock.isHeldByCurrentThread()) {
+                            lock.unlock();
+                        }
                     }
-                    Blog one = getOne(Wrappers.<Blog>lambdaQuery()
-                            .eq(Blog::getId, blogId)
-                    );
-                    if(one == null){
-                        log.warn("收藏的博客不存在,id:{}",blogId);
-                        return false;
-                    }
-                    return update(Wrappers.<Blog>lambdaUpdate()
-                            .eq(Blog::getId, blogId)
-                            .set(RedisPrefix.BLOG_START_LOCK.equals(prefix), Blog::getStar, one.getStar() + 1)
-                            .set(RedisPrefix.BLOG_KUDOS_LOCK.equals(prefix), Blog::getKudos, one.getKudos() + 1)
-                            .set(RedisPrefix.BLOG_COMMENT_LOCK.equals(prefix), Blog::getCommentNum, one.getCommentNum() + 1)
-                    );
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
+                });
             });
             // 分布式锁+重试成功：直接返回结果
             if (forUpdate != null && forUpdate) {
@@ -1253,10 +1310,6 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             log.error("用户操作博客 重试失败,id:{}",blogId,e);
         } catch ( ExecutionException e) {
             log.error("redisson分布式锁获取异常,id:{}",blogId,e);
-        } finally {
-            if (lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
         }
         // 执行兜底
         return backstopStrategyService.incrBlog(blogId,prefix);
@@ -1276,9 +1329,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         String blogStarLock = prefix+blogId;
         RLock lock = redissonClient.getLock(blogStarLock);
         try {
-            Boolean forUpdate = RetryConfig.LOCK_RETRYER.call(() -> {
+            Boolean forUpdate = RetryConfig.LOCK_RETRYER.call(() -> transactionTemplate.execute(status -> {
                 try {
-                    boolean tryLock = lock.tryLock(1, -1, TimeUnit.SECONDS); // 开启看门狗
+                    boolean tryLock = lock.tryLock(1, 30, TimeUnit.SECONDS); // 开启看门狗
                     if(!tryLock){
                         return false; // 处罚重试
                     }
@@ -1289,16 +1342,33 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                         log.warn("收藏的博客不存在,id:{}",blogId);
                         return false;
                     }
-                    return update(Wrappers.<Blog>lambdaUpdate()
+                    boolean update = update(Wrappers.<Blog>lambdaUpdate()
                             .eq(Blog::getId, blogId)
                             .set(RedisPrefix.BLOG_START_LOCK.equals(prefix), Blog::getStar, one.getStar() - 1)
                             .set(RedisPrefix.BLOG_KUDOS_LOCK.equals(prefix), Blog::getKudos, one.getKudos() - 1)
                             .set(RedisPrefix.BLOG_COMMENT_LOCK.equals(prefix), Blog::getCommentNum, one.getCommentNum() - 1)
                     );
+
+                    if(!update){
+                        log.error("博客入校行为失败 博客ID{}, 行为：{}",blogId,prefix);
+                        status.setRollbackOnly();
+                        return false;
+                    }
+                    Boolean userFeignResult = true;
+                    if(RedisPrefix.BLOG_START_LOCK.equals(prefix)){
+                        userFeignResult = userFeign.cancelStar(String.valueOf(blogId), userId);
+                    }else if(RedisPrefix.BLOG_KUDOS_LOCK.equals(prefix)){
+                        userFeignResult =userFeign.cancelKudosBlog(blogId,userId);
+                    }
+                    return userFeignResult;
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
+                }finally {
+                    if (lock.isHeldByCurrentThread()) {
+                        lock.unlock();
+                    }
                 }
-            });
+            }));
             // 分布式锁+重试成功：直接返回结果
             if (forUpdate != null && forUpdate) {
                 // 删除用户行为
@@ -1313,10 +1383,6 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             log.error("收藏博客 重试失败,id:{}",blogId,e);
         } catch ( ExecutionException e) {
             log.error("redisson分布式锁获取异常,id:{}",blogId,e);
-        } finally {
-            if (lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
         }
         // 执行兜底
         return backstopStrategyService.incrBlog(blogId,prefix);

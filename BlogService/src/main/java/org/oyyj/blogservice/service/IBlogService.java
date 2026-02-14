@@ -13,6 +13,7 @@ import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Date;
 import java.util.List;
@@ -135,4 +136,12 @@ public interface IBlogService extends IService<Blog> {
      * @return
      */
     ResultUtil<List<BlogSearchVO>> getBlogByKeyWord(String keyWord, Integer currentPage, Integer pageSize);
+
+    /**
+     * 用户在博客中上传文件
+     * @param file
+     * @param loginUser
+     * @return
+     */
+    ResultUtil<String> uploadBlogImg(MultipartFile file, LoginUser loginUser);
 }
