@@ -45,4 +45,12 @@ public class MqPrefix {
     public static final String ES_BLOG_EXCHANGE="es.blog.exchange"; // 交换机
     public static final String ES_BLOG_QUEUE="es.blog.queue"; // 队列
     public static final String ES_BLOG_ROUTING_KEY="es.blog.routing.key"; // 消息路由
+
+    /**
+     * Blog  延时 发布队列
+     */
+    public static final String BLOG_PUBLISH_EXCHANGE="blog.publish.exchange"; // 交换机
+    public static final String BLOG_PUBLISH_QUEUE="blog.publish.queue"; // 队列
+    public static final String BLOG_PUBLISH_ROUTING_KEY="blog.publish.routing.key"; // 消息路由
+
 }

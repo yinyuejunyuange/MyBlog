@@ -30,4 +30,10 @@ public class BlogDTO {
     private String commentNum;
     private Double score; // 评分
     private String userHead;// 作者头像
+    private Date publishTime; // 定时
+    private Integer delayMinutes ; // 延时 时长
+    private String timedType; // 延时的类别 定时 or 延时
+    private String publishMode;// 发布模式
+
+
 }

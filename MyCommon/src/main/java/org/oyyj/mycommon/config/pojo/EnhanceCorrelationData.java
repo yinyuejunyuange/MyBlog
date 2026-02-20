@@ -11,10 +11,16 @@ public class EnhanceCorrelationData extends CorrelationData {
     private final String body;
     private final Integer retryCount;
 
-    public EnhanceCorrelationData(String id, String body , Integer retryCount) {
+    private final Boolean needCleanRedis;
+
+    private final String needCleanBlogId;
+
+    public EnhanceCorrelationData(String id, String body , Integer retryCount, Boolean needCleanRedis, String needCleanBlogId) {
         super(id+"_"+ UUID.randomUUID());
         this.body = body;
         this.retryCount = retryCount;
+        this.needCleanRedis = needCleanRedis;
+        this.needCleanBlogId = needCleanBlogId;
     }
 
     public String getBody() {
@@ -23,5 +29,12 @@ public class EnhanceCorrelationData extends CorrelationData {
 
     public Integer getRetryCount() {
         return retryCount;
+    }
+
+    public Boolean getNeedCleanRedis() {
+        return needCleanRedis;
+    }
+    public String getNeedCleanBlogId() {
+        return needCleanBlogId;
     }
 }

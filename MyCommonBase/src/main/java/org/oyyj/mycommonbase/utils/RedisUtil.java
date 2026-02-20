@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
@@ -308,6 +309,45 @@ public class RedisUtil {
                 READ_COUNT_SCRIPT_DECR,
                 Arrays.asList(keys)
         );
+    }
+
+    // 添加单个成员到 Zset
+    public Boolean zAdd(String key, Object value, long score) {
+        return redisTemplate.opsForZSet().add(key, value, score);
+    }
+
+    public Set<Object> zGet(String key , long score , Integer start, Integer count) {
+        return redisTemplate.opsForZSet().rangeByScore(key,0,score,start,count);
+    }
+
+    public Set<Object> zGet(String key , long score ) {
+        return redisTemplate.opsForZSet().rangeByScore(key,0,score);
+    }
+
+
+
+    /**
+     * 通过时间删除数据
+     * @param key
+     * @param score
+     * @return
+     */
+    public Long zRem(String key, long score) {
+        return redisTemplate.opsForZSet().removeRangeByScore(key,0,score);
+    }
+    // 批量添加成员到 Zset
+    public Long zAdd(String key, Set<ZSetOperations.TypedTuple<Object>> tuples) {
+        return redisTemplate.opsForZSet().add(key, tuples);
+    }
+
+    // 从 Zset 删除成员
+    public Long zRem(String key, Object... values) {
+        return redisTemplate.opsForZSet().remove(key, values);
+    }
+
+    // 获取 Zset 所有成员（带分数）
+    public Set<ZSetOperations.TypedTuple<Object>> zRangeWithScores(String key, long start, long end) {
+        return redisTemplate.opsForZSet().rangeWithScores(key, start, end);
     }
 
 }

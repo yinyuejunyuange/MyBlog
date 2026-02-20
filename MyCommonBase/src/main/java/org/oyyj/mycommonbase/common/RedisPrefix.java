@@ -1,6 +1,7 @@
 package org.oyyj.mycommonbase.common;
 
 import lombok.Data;
+import org.springframework.beans.factory.annotation.Value;
 
 @Data
 public class RedisPrefix {
@@ -55,5 +56,8 @@ public class RedisPrefix {
 
     public static final String BLOG_REPLY_KUDOS_LOCK = "blog:reply:kudos:lock:"; // 博客恢复点赞数修改
 
-
+    /**
+     * 未博客延时发布 Zset 队列
+     */
+    public static final String BLOG_PUBLISH_ZSET = "blog:publish:zset:";
 }

@@ -10,9 +10,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.rholder.retry.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
+import org.oyyj.blogservice.common.BlogEnum.PublishEnum;
+import org.oyyj.blogservice.common.BlogEnum.TimedModeEnum;
 import org.oyyj.blogservice.config.common.cf.ItemCF;
 import org.oyyj.blogservice.config.common.cf.UserCF;
 import org.oyyj.blogservice.config.mqConfig.sender.RabbitMqEsSender;
+import org.oyyj.blogservice.config.mqConfig.sender.RabbitMqPublishSender;
 import org.oyyj.blogservice.config.mqConfig.sender.RabbitMqUserBehaviorSender;
 import org.oyyj.blogservice.config.pojo.BlogActivityLevel;
 import org.oyyj.blogservice.dto.*;
@@ -40,6 +43,7 @@ import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.connection.RedisKeyCommands;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.ScanOptions;
@@ -50,6 +54,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
+import reactor.util.retry.Retry;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -69,6 +74,9 @@ import static org.oyyj.mycommon.utils.TransUtil.formatNumber;
 @Slf4j
 @Service
 public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IBlogService {
+
+    @Value("${spring.cloud.nacos.discovery.cluster-name}")
+    private String instanceName;
 
     @Autowired
     private TypeTableMapper typeTableMapper;
@@ -131,6 +139,11 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     @Autowired
     private SnowflakeUtil snowflakeUtil;
 
+    @Autowired
+    private RabbitMqPublishSender publishSender;
+    @Autowired
+    private RabbitMqPublishSender rabbitMqPublishSender;
+
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -140,7 +153,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             Long id = blog.getId();
             if (blog.getTypeList() != null && !blog.getTypeList().isEmpty()) {
                 // 相关联的类型
-                List<TypeTable> typeTables = typeTableMapper.selectList(Wrappers.<TypeTable>lambdaQuery().in(TypeTable::getName, blog.getTypeList()));
+                List<Long> listIds = blog.getTypeList().stream().map(Long::valueOf).toList();
+                List<TypeTable> typeTables = typeTableMapper.selectList(Wrappers.<TypeTable>lambdaQuery().in(TypeTable::getId, listIds));
 
                 List<BlogType> list = typeTables.stream().map(i -> BlogType.builder().blogId(id).typeId(i.getId()).build()).toList(); // 流式处理
                 boolean saveTypes = blogTypeService.saveBatch(list);
@@ -159,6 +173,145 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         return save;
 
     }
+
+    @Override
+    public boolean saveBlog(BlogDTO blogDTO , LoginUser loginUser) {
+        Date date = new Date();
+        Blog blog = Blog.builder()
+                .title(blogDTO.getTitle())
+                .context(blogDTO.getContext())
+                .userId(loginUser.getUserId())
+                .author(loginUser.getUserName())
+                .createTime(date)
+                .updateTime(date)
+                .typeList(blogDTO.getTypeList())
+                .introduce(blogDTO.getIntroduce())
+                .isDelete(0)
+                .build();
+
+        // 判断是否时延时任务
+        if(blogDTO.getPublishMode() == null || !blogDTO.getPublishMode().equals(PublishEnum.TIMED.getValue())){
+            if(blogDTO.getPublishMode().equals(PublishEnum.PUBLISH.getValue())){
+                blog.setStatus(2);
+                blog.setPublishTime(date);
+            }else{
+                blog.setStatus(1);
+            }
+            boolean save = save(blog);
+            if(save){
+                Long id = blog.getId();
+                if (blog.getTypeList() != null && !blog.getTypeList().isEmpty()) {
+                    // 相关联的类型
+                    List<Long> listIds = blog.getTypeList().stream().map(Long::valueOf).toList();
+                    List<TypeTable> typeTables = typeTableMapper.selectList(Wrappers.<TypeTable>lambdaQuery().in(TypeTable::getId, listIds));
+
+                    List<BlogType> list = typeTables.stream().map(i -> BlogType.builder().blogId(id).typeId(i.getId()).build()).toList(); // 流式处理
+                    boolean saveTypes = blogTypeService.saveBatch(list);
+                    if(saveTypes){
+                        // 发布MQ消息
+                        RabbitMqEsSender.EsMqDTO esMqDTO = new RabbitMqEsSender.EsMqDTO();
+                        esMqDTO.setBlogId(String.valueOf(blog.getId()));
+                        esMqDTO.setTitle(blog.getTitle());
+                        esMqDTO.setContent(blog.getContext());
+                        esMqDTO.setEsBlogWork(EsBlogWork.SAVE);
+                        rabbitMqEsSender.sendEsMessage(esMqDTO);
+                    }
+
+                }
+            }
+        }else if(blogDTO.getPublishMode().equals(PublishEnum.TIMED.getValue())){
+            // 分别设置定时发布和 延时发布
+            if(blogDTO.getTimedType() == null){
+                log.warn("延时发布所选择的延时类型 不可未空 数据如下：{} 用户ID：{}",blogDTO ,loginUser.getUserId());
+                return false;
+            }
+
+            blog.setStatus(1);
+            if(blogDTO.getTimedType().equals(TimedModeEnum.SCHEDULE.getValue())){
+                Date publishTime = blogDTO.getPublishTime();
+                Date now = new Date();
+                // 15 天的毫秒数
+                long fifteenDaysMillis = 15L * 24 * 60 * 60 * 1000;
+                boolean valid =
+                        publishTime != null
+                                && publishTime.after(now)
+                                && publishTime.getTime() - now.getTime() <= fifteenDaysMillis;
+                if(!valid){
+                    log.warn("定时信息设置无效");
+                    return  false;
+                }
+
+                if(blogDTO.getPublishTime()== null){
+                    log.warn("定时信息不可为空");
+                    return  false;
+                }
+
+                if(save(blog)){
+                    Long id = blog.getId();
+                    if (blog.getTypeList() != null && !blog.getTypeList().isEmpty()) {
+                        // 相关联的类型
+                        List<Long> listIds = blog.getTypeList().stream().map(Long::valueOf).toList();
+                        List<TypeTable> typeTables = typeTableMapper.selectList(Wrappers.<TypeTable>lambdaQuery().in(TypeTable::getId, listIds));
+
+                        List<BlogType> list = typeTables.stream().map(i -> BlogType.builder().blogId(id).typeId(i.getId()).build()).toList(); // 流式处理
+                        boolean saveTypes = blogTypeService.saveBatch(list);
+                        if(saveTypes){
+                            Boolean b = redisUtil.zAdd(RedisPrefix.BLOG_PUBLISH_ZSET+instanceName, blog.getId(), blogDTO.getPublishTime().getTime());
+                            if (!b) {
+                                log.warn("博客定时发布信息 失败 用户ID ：{}，博客信息：{}",loginUser.getUserId(),blogDTO);
+                                return  false;
+                            }
+                        }
+
+                    }
+                }else{
+                    log.warn("博客定时发布信息保存 失败 用户ID ：{}，博客信息：{}",loginUser.getUserId(),blogDTO);
+                    return  false;
+                }
+            }else if(blogDTO.getTimedType().equals(TimedModeEnum.DELAY.getValue())){
+                if(blogDTO.getDelayMinutes() <= 0 ){
+                    log.warn("博客延时发布时间必须大于等于0 用户ID ：{}，博客信息：{}",loginUser.getUserId(),blogDTO);
+                    return  false;
+                }
+                long executeTime = System.currentTimeMillis() + blogDTO.getDelayMinutes() * 60 * 1000L;
+                Date publishDate = new Date(executeTime);
+                blog.setPublishTime(publishDate);
+                if(save(blog)){
+                    Long id = blog.getId();
+                    if (blog.getTypeList() != null && !blog.getTypeList().isEmpty()) {
+                        // 相关联的类型
+                        List<Long> listIds = blog.getTypeList().stream().map(Long::valueOf).toList();
+                        List<TypeTable> typeTables = typeTableMapper.selectList(Wrappers.<TypeTable>lambdaQuery().in(TypeTable::getId, listIds));
+
+                        List<BlogType> list = typeTables.stream().map(i -> BlogType.builder().blogId(id).typeId(i.getId()).build()).toList(); // 流式处理
+                        boolean saveTypes = blogTypeService.saveBatch(list);
+                        if(saveTypes){
+
+                            Boolean b = redisUtil.zAdd(RedisPrefix.BLOG_PUBLISH_ZSET+instanceName, blog.getId(), executeTime);
+                            if (!b) {
+                                log.warn("博客延时发布信息 失败 用户ID ：{}，博客信息：{}",loginUser.getUserId(),blogDTO);
+                                return  false;
+                            }
+                        }
+
+                    }
+
+                }else{
+                    log.warn("博客延时发布信保存失败 用户ID ：{}，博客信息：{}",loginUser.getUserId(),blogDTO);
+                    return  false;
+                }
+            }
+        }else{
+            // mode状态异常 重新处理
+            log.error("mode状态异常 数据{}",blogDTO);
+            return false;
+        }
+        return true;
+    }
+
+
+
+
     @Override
     public ReadDTO ReadBlog(Long id,LoginUser loginUser) {
         // 获取 blog的主要信息
@@ -711,6 +864,74 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             }
         }
     }
+
+    /**
+     * 定时任务
+     */
+    @Override
+    @Scheduled(cron = " 0/30 * * * * * ")
+    public void publishDelayBlogs() {
+        long currentTime = System.currentTimeMillis();
+        Set<Object> objects = redisUtil.zGet(RedisPrefix.BLOG_PUBLISH_ZSET+instanceName, currentTime);
+        if(objects == null || objects.isEmpty()){
+            return;
+        }
+
+        List<Long> list = objects.stream().map(item -> {
+            if (item instanceof Long) {
+                return (Long) item;
+            } else {
+                return null;
+            }
+        }).filter(Objects::nonNull).toList();
+        if(list.isEmpty()){
+            return;
+        }
+        // 获取已经发布成功的数据并删除部分数据
+        List<Long> alPublishBlogIds = list(Wrappers.<Blog>lambdaQuery()
+                .in(Blog::getId, list)
+                .ne(Blog::getStatus, 1)
+                .select(Blog::getId)
+        ).stream().map(Blog::getId).toList();
+        List<String> alPublishBlogIdStr = alPublishBlogIds.stream().map(String::valueOf).toList();
+        // 清空过期数据
+        redisUtil.zRem(RedisPrefix.BLOG_PUBLISH_ZSET+instanceName, alPublishBlogIdStr);
+
+        list = list.stream().filter(item-> !alPublishBlogIds.contains(item)).toList();
+
+        try {
+            List<Long> finalList = list;
+            Boolean call = RetryConfig.LOCK_RETRYER.call(() -> rabbitMqPublishSender.sendPublishMessage(finalList));
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        } catch (RetryException e) {
+            log.error("重试尝试失败",e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * 数据库兜底处理
+     */
+    @Override
+    @Scheduled(cron = " 15 */5 * * * * ")
+    public void publishErrorBlogs() {
+        List<Blog> list = list(Wrappers.<Blog>lambdaQuery().eq(Blog::getStatus, 1)
+                .le(Blog::getPublishTime, new Date())
+                .select(Blog::getId, Blog::getStatus, Blog::getPublishTime)
+        );
+
+        List<Long> blogIds = list.stream().map(Blog::getId).toList();
+        if(blogIds.isEmpty()){
+            return;
+        }
+        update(Wrappers.<Blog>lambdaUpdate()
+                .in(Blog::getId, blogIds)
+                .set(Blog::getStatus, 2)
+        );
+    }
+
+
 
     /**
      * 获取用户的博客原创和所有的访问数数

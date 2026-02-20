@@ -83,6 +83,7 @@ public class BlogController {
                 .title(blogDTO.getTitle())
                 .context(blogDTO.getContext())
                 .userId(loginUser.getUserId())
+                .author(loginUser.getUserName())
                 .createTime(date)
                 .updateTime(date)
                 .status(blogDTO.getStatus())

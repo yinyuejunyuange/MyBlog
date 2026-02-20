@@ -62,7 +62,7 @@ public class RabbitMqUserBehaviorSender {
             mqMessageRecord.setTargetQueue(MqPrefix.USER_BEHAVIOR_QUEUE);
             mqMessageRecordMapper.insert(mqMessageRecord);
             // 发送MQ
-            EnhanceCorrelationData enhanceCorrelationData = new EnhanceCorrelationData(snowflakeId, mapStr, 0);
+            EnhanceCorrelationData enhanceCorrelationData = new EnhanceCorrelationData(snowflakeId, mapStr, 0,false,"");
             RabbitMqMessage  rabbitMqMessage = new RabbitMqMessage();
             rabbitMqMessage.setMessageId(snowflakeId);
             rabbitMqMessage.setRetryCount(0);

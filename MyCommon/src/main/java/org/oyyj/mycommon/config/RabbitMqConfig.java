@@ -2,12 +2,15 @@ package org.oyyj.mycommon.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.oyyj.mycommon.config.pojo.EnhanceCorrelationData;
+import org.oyyj.mycommonbase.common.RedisPrefix;
+import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.springframework.amqp.core.AcknowledgeMode;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,6 +25,9 @@ public class RabbitMqConfig {
 
     @Value("${spring.cloud.nacos.discovery.cluster-name}")
     private String clusterName;
+
+    @Autowired
+    private RedisUtil redisUtil;
 
     /**
      * 配置JSON消息转换器（替代默认的JDK序列化）
@@ -40,9 +46,13 @@ public class RabbitMqConfig {
         // 设置confirm callback
         rabbitTemplate.setConfirmCallback((correlationData, ack, cause) -> {
             String body = "1";
+            EnhanceCorrelationData correlationDataEn = null;
             if(correlationData instanceof EnhanceCorrelationData){
-                body = ((EnhanceCorrelationData) correlationData).getBody();
+                correlationDataEn= (EnhanceCorrelationData) correlationData;
+                body = correlationDataEn.getBody();
+
             }
+
             if (ack) {
                 //消息投递到exchange
                 log.debug("消息发送到exchange成功:correlationData={},message_id={} ", correlationData, body);

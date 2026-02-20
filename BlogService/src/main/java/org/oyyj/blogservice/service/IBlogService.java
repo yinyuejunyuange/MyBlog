@@ -23,14 +23,15 @@ import java.util.Map;
 public interface IBlogService extends IService<Blog> {
     boolean saveBlog(Blog blog);
 
+    boolean saveBlog(BlogDTO blogDTO,LoginUser loginUser);
+
     ReadDTO ReadBlog(Long id, LoginUser loginUser);
 
     void readBlogValid(Long id , LoginUser loginUser) throws Exception;
 
     PageDTO<BlogDTO> getBlogByPage(int current, int pageSize, String type, LoginUser loginUser);
 
-
-
+    void publishDelayBlogs();
 
     List<Long> getUserBlogNum(Long userId);
 
@@ -40,6 +41,11 @@ public interface IBlogService extends IService<Blog> {
      * @return
      */
     List<BlogDTO> getHomeBlogs(LoginUser loginUser);
+
+    /**
+     * 定期轮询 检查预定了 但是没有发布的数据
+     */
+    void publishErrorBlogs();
 
     PageDTO<BlogDTO> getBlogByName(int current,int pageSize,String blogName);
 

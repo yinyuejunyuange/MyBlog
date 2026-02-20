@@ -34,6 +34,7 @@ public class RabbitMqEsListener {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
+    // todo
     public void handleEsBlogMessage(RabbitMqMessage rabbitMqMessage,
                                     Channel channel,
                                     @Header(AmqpHeaders.DELIVERY_TAG) int deliveryTag){

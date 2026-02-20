@@ -68,7 +68,7 @@ public class RabbitMqEsSender {
             }
 
             // 发送MQ
-            EnhanceCorrelationData enhanceCorrelationData = new EnhanceCorrelationData(snowflakeId, esMqStr, 0);
+            EnhanceCorrelationData enhanceCorrelationData = new EnhanceCorrelationData(snowflakeId, esMqStr, 0,false,"");
             RabbitMqMessage rabbitMqMessage = new RabbitMqMessage();
             rabbitMqMessage.setMessageId(snowflakeId);
             rabbitMqMessage.setRetryCount(0);
