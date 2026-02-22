@@ -1,6 +1,7 @@
 package org.oyyj.blogservice.service.es.impl;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch.core.ScrollRequest;
 import co.elastic.clients.elasticsearch.core.ScrollResponse;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
@@ -112,7 +113,7 @@ public class EsBlogServiceImpl implements EsBlogService {
 
                 resultList.addAll(list);
 
-                // ② scroll 下一页
+                //  scroll 下一页
                 String finalScrollId = scrollId;
                 ScrollResponse<EsBlog> scrollResponse = esClient.scroll(
                         sc -> sc.scrollId(finalScrollId)
@@ -162,6 +163,7 @@ public class EsBlogServiceImpl implements EsBlogService {
                         .fields(EsBlogFields.TITLE, f -> f) // 自动配置默认的高亮
                         .fields(EsBlogFields.CONTENT, f -> f)
                 )
+                .sort(s -> s.score(sc -> sc.order(SortOrder.Desc)))  // 按照匹配的强弱排序
                 .from((finalPageNum -1) * finalPageSize)
                 .size(finalPageSize)
         );

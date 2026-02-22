@@ -196,44 +196,6 @@ public class UserController {
     }
 
 
-    /**
-     * 热门搜索
-     */
-    @GetMapping("/getHotSearch")
-    public Map<String,Object> getHotSearch(){
-        return userService.getHotSearch();
-    }
-
-    /**
-     * 用户的搜索
-     */
-    @GetMapping("/getUserSearch")
-    public Map<String,Object> getUserSearch(@RequestUser LoginUser loginUser){
-        List<String> userSearch = userService.getUserSearch(loginUser);
-        return ResultUtil.successMap(userSearch,"查询成功");
-    }
-
-    // 用户删除自己的搜索记录
-    @DeleteMapping("deleteUserSearchByName")
-    public Map<String,Object> deleteUserSearchByName( @RequestParam("name") String name ,@RequestUser LoginUser loginUser){
-        boolean b = userService.deleteUserSearchByName(name,loginUser);
-        if(b){
-            return ResultUtil.successMap(null,"删除成功");
-        }else{
-            return ResultUtil.failMap("删除失败");
-        }
-    }
-
-    @DeleteMapping("deleteUserAllSearch")
-    public Map<String,Object> deleteUserAllSearch( @RequestUser LoginUser loginUser){
-        boolean b = userService.deleteUserAllSearch(loginUser);
-        if(b){
-            return ResultUtil.successMap(null,"删除成功");
-        }else{
-            return ResultUtil.failMap("删除失败");
-        }
-    }
-
     // 获取所有用户个数
     @GetMapping("/getUserNum")
     public Long getUserNum( HttpServletRequest request){
@@ -517,8 +479,8 @@ public class UserController {
 
     // 获取用户关注的博客作者
     @GetMapping("/getUserStarAuthor")
-    public Map<String,Object> getUserStarAuthor(@RequestParam("current")int current ,@RequestUser LoginUser user){
-        PageDTO<BlogUserInfoDTO> userStarBlogAuthor = userService.getUserStarBlogAuthor(String.valueOf(user.getUserId()), current);
+    public Map<String,Object> getUserStarAuthor(@RequestParam("currentPage")Integer currentPage , @RequestParam("userId") Long userId, @RequestUser LoginUser user){
+        PageDTO<BlogUserInfoDTO> userStarBlogAuthor = userService.getUserStarBlogAuthor(String.valueOf(userId), currentPage);
         if(Objects.isNull(userStarBlogAuthor)){
             return ResultUtil.successMap(null,"此用户没有关注的对象");
         }
@@ -593,5 +555,15 @@ public class UserController {
         }
     }
 
+    /**
+     * 获取用户信息
+     * @param userId
+     * @param loginUser
+     * @return
+     */
+    @GetMapping("/getUserInfo")
+    public ResultUtil<org.oyyj.userservice.vo.UserInfoVO> getUserInfo(@RequestParam("userId") Long userId, @RequestUser(required = false) LoginUser loginUser){
+        return userService.getUserInfo(userId,  loginUser);
+    }
 
 }

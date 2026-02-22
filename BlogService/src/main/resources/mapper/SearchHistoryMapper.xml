@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.oyyj.blogservice.mapper.SearchHistoryMapper">
+
+
+
+    <select id="findUserIdsByQueryNorm" resultType="java.lang.Long">
+        SELECT DISTINCT h.user_id
+        FROM search_history h
+        WHERE h.query_norm = #{word}
+          AND h.is_delete = 0
+    </select>
+
+    <select id="countByNormSince" resultType="org.oyyj.blogservice.dto.SearchCountDTO">
+        SELECT
+            h.query_norm as queryNorm,
+            COUNT(h.id) as count
+        FROM search_history h
+        WHERE h.created_at >= #{since}
+          AND h.is_delete = 0
+        GROUP BY h.query_norm
+        ORDER BY count DESC
+            LIMIT #{offset}, #{limit}
+    </select>
+    <select id="findOtherWordsByUserIds" resultType="org.oyyj.blogservice.dto.SearchCountDTO">
+        SELECT
+        h.query_norm as queryNorm,
+        COUNT(h.id) as count
+        FROM search_history h
+        WHERE h.user_id IN
+        <foreach collection="userIds" item="userId" open="(" separator="," close=")">
+            #{userId}
+        </foreach>
+        AND h.query_norm NOT IN
+        <foreach collection="excludeWords" item="word" open="(" separator="," close=")">
+            #{word}
+        </foreach>
+        AND h.is_delete = 0  <!-- 过滤已删除数据 -->
+        GROUP BY h.query_norm
+        ORDER BY count DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+    <select id="findTop5ByUserIdOrderByCreatedAtDesc" resultType="org.oyyj.blogservice.pojo.SearchHistory">
+        SELECT id, user_id, query_raw, query_norm, created_at
+        FROM search_history
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+            LIMIT 5
+    </select>
+    <select id="findTopByUserIdsOrderByCreatedAtDesc" resultType="org.oyyj.blogservice.pojo.SearchHistory">
+        SELECT id, user_id, query_raw, query_norm, created_at
+        FROM search_history
+        WHERE user_id  in
+        <foreach collection="userIds" item="item" separator="," open="(" close=")">
+            #{item}
+        </foreach>
+        ORDER BY created_at DESC
+            LIMIT 20
+    </select>
+
+</mapper>

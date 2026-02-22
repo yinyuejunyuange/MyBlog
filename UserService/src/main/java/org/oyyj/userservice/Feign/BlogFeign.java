@@ -76,8 +76,8 @@ public interface BlogFeign {
     @PutMapping("/blog/changReplyKudos")
     Boolean changReplyKudos(@RequestParam("replyId")Long replyId,@RequestParam("bytes") Byte bytes);
 
-    @GetMapping("/blog/getBlogUserInfo")
-    List<Long> getBlogUserInfo(@RequestParam("userId") Long userId );
+    @PutMapping("/myBlog/blog/getBlogUserInfo")
+    Map<Long,List<Long>> getBlogUserInfo(@RequestBody List<Long>userIds );
 
     @GetMapping("/blog/getBlogByName")
     Map<String,Object> GetBlogByName(@RequestParam("blogName") String blogName

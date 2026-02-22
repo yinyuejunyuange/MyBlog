@@ -9,11 +9,13 @@ import org.oyyj.blogservice.config.mqConfig.sender.RabbitMqEsSender;
 import org.oyyj.blogservice.pojo.es.EsBlog;
 import org.oyyj.blogservice.repository.EsBlogRepository;
 import org.oyyj.mycommon.common.EsBlogWork;
+import org.oyyj.mycommon.common.mq.MqPrefix;
 import org.oyyj.mycommon.common.mq.MqStatusEnum;
 import org.oyyj.mycommon.config.pojo.RabbitMqMessage;
 import org.oyyj.mycommon.mapper.MqMessageRecordMapper;
 import org.oyyj.mycommon.pojo.MqMessageRecord;
 import org.oyyj.mycommonbase.config.RetryConfig;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.Header;
@@ -34,7 +36,7 @@ public class RabbitMqEsListener {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
-    // todo
+    @RabbitListener(queues = MqPrefix.ES_BLOG_QUEUE)
     public void handleEsBlogMessage(RabbitMqMessage rabbitMqMessage,
                                     Channel channel,
                                     @Header(AmqpHeaders.DELIVERY_TAG) int deliveryTag){

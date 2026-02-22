@@ -45,16 +45,7 @@ public interface IUserService extends IService<User> {
 
     void upLoadBlogToAI(BlogDTO blogDTO);
 
-    Map<String,Object> getHotSearch();
 
-    List<String> getUserSearch(LoginUser loginUser);
-
-    boolean addUserSearch(List<String> names, LoginUser loginUser);
-
-    boolean deleteUserSearchByName(String name ,LoginUser loginUser);
-
-
-    boolean deleteUserAllSearch(LoginUser loginUser);
 
     /**
      * 获取用户头像信息
@@ -62,5 +53,21 @@ public interface IUserService extends IService<User> {
      * @return
      */
     void getImageUrl(String objectName,HttpServletResponse response);
+
+    /**
+     * 获取用户点赞的博客
+     * @param userId
+     * @return
+     */
+    List<Long> getUserLikeBlog(Long userId ,Integer currentPage ,Integer pageSize);
+
+    /**
+     * 获取用户的收藏博客
+     * @param userId
+     * @return
+     */
+    List<Long> getUserStarBlog(Long userId ,Integer currentPage ,Integer pageSize);
+
+    ResultUtil<org.oyyj.userservice.vo.UserInfoVO> getUserInfo(Long userId,LoginUser loginUser);
 
 }

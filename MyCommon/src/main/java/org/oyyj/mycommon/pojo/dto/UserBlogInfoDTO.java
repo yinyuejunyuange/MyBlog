@@ -12,10 +12,12 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class UserBlogInfoDTO {
 
-    private String blogs;
+    private Integer blogs;
 
-    private String likes;
+    private Integer likes;
 
-    private String star;
+    private Integer star;
+
+    private Integer view;
 
 }

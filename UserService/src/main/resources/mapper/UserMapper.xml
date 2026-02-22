@@ -6,8 +6,17 @@
         SELECT COUNT(1)
         FROM user_attention
         <where>
-            <if test="userId">
+            <if test="userId != null">
                 attention_id = #{userId}
+            </if>
+        </where>
+    </select>
+    <select id="userAttention" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM user_attention
+        <where>
+            <if test="userId != null ">
+                user_id = #{userId}
             </if>
         </where>
     </select>

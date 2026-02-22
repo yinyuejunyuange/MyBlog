@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
 
-    private Integer PAGE_SIZE=6;
+    private Integer PAGE_SIZE=10;
 
     @Autowired
     private BlogFeign blogFeign;
@@ -66,8 +66,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     @Autowired
     private AIChatFeign aiChatFeign;
 
-    @Autowired
-    private ISearchService searchService;
 
     @Autowired
     private FileUtil fileUtils;
@@ -84,9 +82,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         userInfoVO.setHead(one.getImageUrl());
         userInfoVO.setIntroduce(Strings.isNotBlank(one.getIntroduce())? one.getIntroduce():"这个人很神秘 什么都没留下...");
         UserBlogInfoDTO userBlogInfo = blogFeign.getUserBlogInfo(one.getId());
-        userInfoVO.setLikes(userBlogInfo.getLikes());
-        userInfoVO.setBlogs(userBlogInfo.getBlogs());
-        userInfoVO.setStar(userBlogInfo.getStar());
+        userInfoVO.setLikes(String.valueOf(userBlogInfo.getLikes()));
+        userInfoVO.setBlogs(String.valueOf(userBlogInfo.getBlogs()));
+        userInfoVO.setStar(String.valueOf(userBlogInfo.getStar()));
         // 获取关注作者的关注信息
         Integer funS = baseMapper.userFunS(id);
         userInfoVO.setFunS(TransUtil.formatNumber(funS));
@@ -236,12 +234,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             return null;
         }
         // 获取用户 博客数 博客总访问量 博客总点赞量
-        List<Long> blogUserInfo = blogFeign.getBlogUserInfo(id);
+        Map<Long,List<Long>> blogUserInfo = blogFeign.getBlogUserInfo(Collections.singletonList(id));
         BlogUserInfoDTO blogUserInfoDTO = new BlogUserInfoDTO();
         if(!blogUserInfo.isEmpty()){
-            blogUserInfoDTO.setBlogNum(blogUserInfo.getFirst());
-            blogUserInfoDTO.setVisitedNum(blogUserInfo.get(1));
-            blogUserInfoDTO.setKudosNum(blogUserInfo.get(2));
+            blogUserInfoDTO.setBlogNum( blogUserInfo.containsKey(Long.parseLong(userId))? blogUserInfo.get(Long.parseLong(userId)).getFirst():0);
+            blogUserInfoDTO.setVisitedNum(blogUserInfo.containsKey(Long.parseLong(userId))? blogUserInfo.get(Long.parseLong(userId)).get(1):0);
+            blogUserInfoDTO.setKudosNum(blogUserInfo.containsKey(Long.parseLong(userId))? blogUserInfo.get(Long.parseLong(userId)).get(2):0);
             blogUserInfoDTO.setUserName(one.getName());
             blogUserInfoDTO.setImageUrl("http://localhost:8080/myBlog/user/getHead/"+one.getImageUrl());
             blogUserInfoDTO.setUserId(userId);
@@ -367,16 +365,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
 
         List<Long> authorIds = userAttentions.stream().map(UserAttention::getAttentionId).toList();
-        List<BlogUserInfoDTO> list = list(Wrappers.<User>lambdaQuery().in(User::getId, authorIds)).stream().map(i -> BlogUserInfoDTO.builder()
+
+        List<User> userList = list(Wrappers.<User>lambdaQuery().in(User::getId, authorIds));
+        List<Long> userIds =userList.stream().map(User::getId).toList();
+        Map<Long,List<Long>> collect =   blogFeign.getBlogUserInfo(userIds);
+
+        List<BlogUserInfoDTO> list =userList.stream().map(i -> BlogUserInfoDTO.builder()
                 .userId(String.valueOf(i.getId()))
                 .userName(i.getName())
-                .imageUrl("http://localhost:8080/myBlog/user/getHead/" + i.getImageUrl())
+                .imageUrl( i.getImageUrl())
                 .createTime(i.getCreateTime())
                 .introduction(i.getIntroduce())
-                .blogNum(blogFeign.getBlogUserInfo(i.getId()).getFirst())
-                .visitedNum(blogFeign.getBlogUserInfo(i.getId()).get(1))
+                .blogNum( collect.containsKey(i.getId())? collect.get(i.getId()).getFirst(): 0)
+                .visitedNum(collect.containsKey(i.getId())? collect.get(i.getId()).get(1): 0)
                 .starNum(i.getStar())
-                .kudosNum(blogFeign.getBlogUserInfo(i.getId()).get(2))
+                .kudosNum(collect.containsKey(i.getId())? collect.get(i.getId()).get(2): 0)
                 .isUserStar(true)
                 .build()).toList();
 
@@ -466,75 +469,70 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     }
 
-    @Override
-    public Map<String, Object> getHotSearch() {
-        List<HotSearchDTO> hotSearch = searchService.getHotSearch();
-        List<String> list = hotSearch.stream().map(HotSearchDTO::getContent).toList();
-        return ResultUtil.successMap(list,"查询成功");
-    }
-
-    @Override
-    public List<String> getUserSearch(LoginUser loginUser) {
-        return searchService.list(Wrappers.<Search>lambdaQuery()
-                .eq(Search::getUserId, loginUser.getUserId())
-                .orderByDesc(Search::getLatelyTime) // 按照最近时间排序
-        ).stream().map(Search::getContent).toList();
-    }
-
-    @Override
-    @Transactional
-    public boolean addUserSearch(List<String> names, LoginUser loginUser) {
-
-        Date date=new Date();
-
-        // 获取用户搜索记录
-        List<String> list = searchService.list(Wrappers.<Search>lambdaQuery().eq(Search::getUserId, loginUser.getUserId())).stream().map(Search::getContent).toList();
-
-
-        List<Search> searches=new ArrayList<>();
-        for (String name : names) {
-            name=name.trim();
-            if(name.isEmpty()||list.contains(name)){
-                continue; // 为空的记录可以跳过
-            }
-            Search build = Search.builder()
-                    .userId(loginUser.getUserId())
-                    .content(name)
-                    .createTime(date)
-                    .updateTime(date)
-                    .latelyTime(date)
-                    .isUserDelete(0)
-                    .isDelete(0)
-                    .build();
-            searches.add(build);
-        }
-
-        return searchService.saveBatch(searches);
-    }
-
-    @Override
-    public boolean deleteUserSearchByName(String name ,LoginUser loginUser) {
-        if(name.trim().isEmpty()){
-            log.error("参数为空");
-            return false;
-        }
-        return searchService.update(Wrappers.<Search>lambdaUpdate()
-                .eq(Search::getUserId, loginUser.getUserId())
-                .eq(Search::getContent, name)
-                .set(Search::getIsUserDelete, 1)
-        );
-    }
-
-    @Override
-    public boolean deleteUserAllSearch(LoginUser loginUser) {
-       return searchService.update(Wrappers.<Search>lambdaUpdate()
-                .eq(Search::getUserId, loginUser.getUserId())
-                .set(Search::getIsUserDelete, 1)
-        );
-    }
 
     @Override
     public void getImageUrl(String objectName,HttpServletResponse response) {
         fileUtils.getHeadImgUrl(objectName,response);
+    }
+
+    @Override
+    public List<Long> getUserLikeBlog(Long userId ,Integer currentPage ,Integer pageSize) {
+        Page<UserKudos> page = new Page<>(currentPage,pageSize);
+        return userKudosService.list(page,Wrappers.<UserKudos>lambdaQuery()
+                .eq(UserKudos::getUserId,userId)
+        ).stream().map(UserKudos::getBlogId).toList();
+    }
+
+    @Override
+    public List<Long> getUserStarBlog(Long userId ,Integer currentPage ,Integer pageSize) {
+        Page<UserStar> page = new Page<>(currentPage,pageSize);
+        return userStarService.list(page, Wrappers.<UserStar>lambdaQuery()
+                .eq(UserStar::getUserId,userId)
+        ).stream().map(UserStar::getBlogId).toList();
+    }
+
+    @Override
+    public ResultUtil<org.oyyj.userservice.vo.UserInfoVO> getUserInfo(Long userId, LoginUser loginUser) {
+        org.oyyj.userservice.vo.UserInfoVO userInfoVO = new org.oyyj.userservice.vo.UserInfoVO();
+        User one = getOne(Wrappers.<User>lambdaQuery().eq(User::getId, userId));
+        if(one == null){
+            log.error("用户信息缺失 id为：{}",userId);
+            return ResultUtil.fail("获取用户信息失败");
+        }
+        userInfoVO.setUserName(one.getNickName());
+        userInfoVO.setImageHead(one.getImageUrl());
+        userInfoVO.setIntroduction(Strings.isNotBlank(one.getIntroduce())? one.getIntroduce():"这个人很神秘 什么都没留下...");
+        UserBlogInfoDTO userBlogInfo = blogFeign.getUserBlogInfo(one.getId());
+        userInfoVO.setKudus(userBlogInfo.getLikes());
+        userInfoVO.setBlogs(userBlogInfo.getBlogs());
+        userInfoVO.setStar(userBlogInfo.getStar());
+        userInfoVO.setView(userBlogInfo.getView());
+        // 获取关注作者的关注信息
+        Integer funS = baseMapper.userFunS(userId);
+        userInfoVO.setBeAttention(funS);
+        Integer att = baseMapper.userAttention(userId);
+        userInfoVO.setAttention(att);
+
+        if(Objects.equals(YesOrNoEnum.YES.getCode(), loginUser.getIsUserLogin())){
+            if(loginUser.getUserId().equals(userId)){
+                userInfoVO.setIsUserFollow(false);
+                userInfoVO.setIsUserSelf(true);
+            }else{
+                userInfoVO.setIsUserSelf(false);
+                // 判断当前用户是否关注此作者
+                UserAttention userAttention = userAttentionService.getOne(Wrappers.<UserAttention>lambdaQuery()
+                        .eq(UserAttention::getUserId, loginUser.getUserId())
+                        .eq(UserAttention::getAttentionId, userId)
+                );
+                if(Objects.isNull(userAttention)){
+                    userInfoVO.setIsUserFollow(false);
+                }else{
+                    userInfoVO.setIsUserFollow(true);
+                }
+            }
+        }else{
+            userInfoVO.setIsUserFollow(false);
+        }
+        return ResultUtil.success(userInfoVO);
     }
 }

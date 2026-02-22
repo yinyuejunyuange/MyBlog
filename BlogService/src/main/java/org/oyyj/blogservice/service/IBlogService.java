@@ -33,7 +33,7 @@ public interface IBlogService extends IService<Blog> {
 
     void publishDelayBlogs();
 
-    List<Long> getUserBlogNum(Long userId);
+    Map<Long,List<Long>> getUserBlogNum(List<Long> userId);
 
     /**
      * 首页 博客
@@ -150,4 +150,25 @@ public interface IBlogService extends IService<Blog> {
      * @return
      */
     ResultUtil<String> uploadBlogImg(MultipartFile file, LoginUser loginUser);
+
+    /**
+     * 用户所有作品
+     * @param userId
+     * @return
+     */
+    ResultUtil<List<BlogDTO>> getBlogWork(Long userId,Integer currentPage, Integer pageSize);
+
+    /**
+     * 用户所有点赞
+     * @param userId
+     * @return
+     */
+    ResultUtil<List<BlogDTO>> getBlogLike(Long userId,Integer currentPage, Integer pageSize);
+
+    /**
+     * 用户所有点赞
+     * @param userId
+     * @return
+     */
+    ResultUtil<List<BlogDTO>> getBlogStar(Long userId,Integer currentPage, Integer pageSize);
 }

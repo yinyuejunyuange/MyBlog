@@ -2,6 +2,7 @@ package org.oyyj.blogservice.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -175,6 +176,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean saveBlog(BlogDTO blogDTO , LoginUser loginUser) {
         Date date = new Date();
         Blog blog = Blog.builder()
@@ -191,13 +193,21 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
         // 判断是否时延时任务
         if(blogDTO.getPublishMode() == null || !blogDTO.getPublishMode().equals(PublishEnum.TIMED.getValue())){
-            if(blogDTO.getPublishMode().equals(PublishEnum.PUBLISH.getValue())){
+            if(blogDTO.getPublishMode() == null){
+                blog.setStatus(1);
+            }else{
                 blog.setStatus(2);
                 blog.setPublishTime(date);
-            }else{
-                blog.setStatus(1);
             }
-            boolean save = save(blog);
+            boolean save =false;
+            if(blogDTO.getId()!=null&& StringUtils.isNotBlank(blogDTO.getId())){
+                Blog one = getOne(Wrappers.<Blog>lambdaQuery().eq(Blog::getId, Long.valueOf(blogDTO.getId()))
+                        .select(Blog::getId)
+                );
+                save = Objects.nonNull(one);
+            }else{
+                save= save(blog);
+            }
             if(save){
                 Long id = blog.getId();
                 if (blog.getTypeList() != null && !blog.getTypeList().isEmpty()) {
@@ -207,7 +217,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
                     List<BlogType> list = typeTables.stream().map(i -> BlogType.builder().blogId(id).typeId(i.getId()).build()).toList(); // 流式处理
                     boolean saveTypes = blogTypeService.saveBatch(list);
-                    if(saveTypes){
+                    if(saveTypes && blog.getStatus().equals(2)) {
                         // 发布MQ消息
                         RabbitMqEsSender.EsMqDTO esMqDTO = new RabbitMqEsSender.EsMqDTO();
                         esMqDTO.setBlogId(String.valueOf(blog.getId()));
@@ -245,8 +255,16 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                     log.warn("定时信息不可为空");
                     return  false;
                 }
-
-                if(save(blog)){
+                boolean save =false;
+                if(blogDTO.getId()!=null&& StringUtils.isNotBlank(blogDTO.getId())){
+                    Blog one = getOne(Wrappers.<Blog>lambdaQuery().eq(Blog::getId, Long.valueOf(blogDTO.getId()))
+                            .select(Blog::getId)
+                    );
+                    save = Objects.nonNull(one);
+                }else{
+                    save= save(blog);
+                }
+                if(save){
                     Long id = blog.getId();
                     if (blog.getTypeList() != null && !blog.getTypeList().isEmpty()) {
                         // 相关联的类型
@@ -276,7 +294,16 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 long executeTime = System.currentTimeMillis() + blogDTO.getDelayMinutes() * 60 * 1000L;
                 Date publishDate = new Date(executeTime);
                 blog.setPublishTime(publishDate);
-                if(save(blog)){
+                boolean save =false;
+                if(blogDTO.getId()!=null&& StringUtils.isNotBlank(blogDTO.getId())){
+                    Blog one = getOne(Wrappers.<Blog>lambdaQuery().eq(Blog::getId, Long.valueOf(blogDTO.getId()))
+                            .select(Blog::getId)
+                    );
+                    save = Objects.nonNull(one);
+                }else{
+                    save= save(blog);
+                }
+                if(save){
                     Long id = blog.getId();
                     if (blog.getTypeList() != null && !blog.getTypeList().isEmpty()) {
                         // 相关联的类型
@@ -937,24 +964,34 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
      * 获取用户的博客原创和所有的访问数数
      *
      * @param userId 用户id
-     * @return 数量集合 1是原创数 2 是访问数 3 总访问数
+     * @return 数量集合 1是原创数 2 是 3 总点赞访问数
      */
     @Override
-    public List<Long> getUserBlogNum(Long userId) {
-        List<Blog> list = list(Wrappers.<Blog>lambdaQuery()
-                .eq(Blog::getUserId, userId));
-
-        if (list.isEmpty()) {
-            return null;
+    public Map<Long,List<Long>> getUserBlogNum(List<Long> userId) {
+        if(userId == null || userId.isEmpty()){
+            return Map.of();
         }
-        List<Long> resultList = new ArrayList<>();
-        long sumKudos = list.stream().mapToLong(Blog::getKudos).sum(); // 总点赞数
-        long sumWatch = list.stream().mapToLong(Blog::getWatch).sum();
-        resultList.add((long) list.size());
-        resultList.add(sumWatch);
-        resultList.add(sumKudos);
+        List<Blog> list = list(Wrappers.<Blog>lambdaQuery()
+                .in(Blog::getUserId, userId)
+                .select(Blog::getId, Blog::getUserId,Blog::getTitle , Blog::getKudos,Blog::getWatch,Blog::getCommentNum)
+        );
+        if (list.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, List<Blog>> collect = list.stream().collect(Collectors.groupingBy(Blog::getUserId));
+        Map<Long, List<Long>> result = new HashMap<>();
+        collect.forEach((k,v)->{
+            List<Long> resultList = new ArrayList<>();
+            long sumKudos = list.stream().mapToLong(Blog::getKudos).sum(); // 总点赞数
+            long sumWatch = list.stream().mapToLong(Blog::getWatch).sum();
+            resultList.add((long) list.size());
+            resultList.add(sumWatch);
+            resultList.add(sumKudos);
+            result.put(k,resultList);
+        });
 
-        return resultList;
+
+        return result;
 
 
     }
@@ -1382,6 +1419,64 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         }
     }
 
+    @Override
+    public ResultUtil<List<BlogDTO>> getBlogWork(Long userId, Integer currentPage, Integer pageSize) {
+        Page<Blog> page = new Page<>(currentPage, pageSize);
+        List<Blog> list = list(page, Wrappers.<Blog>lambdaQuery()
+                .eq(Blog::getUserId, userId)
+        );
+        Map<Long, String> imageInIds = userFeign.getImageInIds(Collections.singletonList(String.valueOf(userId)));
+        List<Long> blogIds = list.stream().map(Blog::getId).toList();
+        Map<String,List<String>> blogTypeMap = new ConcurrentHashMap<>();
+        blogIds.forEach(infoId->{
+            List<String> types = redisUtil.getList(RedisPrefix.ITEM_TYPE + infoId);
+            blogTypeMap.put(String.valueOf(infoId),types);
+        });
+        List<BlogDTO> result = list.stream().map(i -> toBlogDTO(i,blogTypeMap, imageInIds)).toList();
+        return ResultUtil.success(result);
+    }
+    @Override
+    public ResultUtil<List<BlogDTO>> getBlogLike(Long userId, Integer currentPage, Integer pageSize) {
+        List<Long> longs = userFeign.userLike(userId, currentPage, pageSize);
+        if(longs == null || longs.isEmpty()){
+            return ResultUtil.success(List.of());
+        }
+        List<Blog> list = list( Wrappers.<Blog>lambdaQuery()
+                .in(Blog::getId, longs)
+        );
+        Map<Long, String> imageInIds = userFeign.getImageInIds(Collections.singletonList(String.valueOf(userId)));
+        List<Long> blogIds = list.stream().map(Blog::getId).toList();
+        Map<String,List<String>> blogTypeMap = new ConcurrentHashMap<>();
+        blogIds.forEach(infoId->{
+            List<String> types = redisUtil.getList(RedisPrefix.ITEM_TYPE + infoId);
+            blogTypeMap.put(String.valueOf(infoId),types);
+        });
+        List<BlogDTO> result = list.stream().map(i -> toBlogDTO(i,blogTypeMap, imageInIds)).toList();
+        return ResultUtil.success(result);
+    }
+
+    @Override
+    public ResultUtil<List<BlogDTO>> getBlogStar(Long userId, Integer currentPage, Integer pageSize) {
+        List<Long> longs = userFeign.userStar(userId, currentPage, pageSize);
+        if(longs == null || longs.isEmpty()){
+            return ResultUtil.success(List.of());
+        }
+        List<Blog> list = list( Wrappers.<Blog>lambdaQuery()
+                .in(Blog::getId, longs)
+        );
+        Map<Long, String> imageInIds = userFeign.getImageInIds(Collections.singletonList(String.valueOf(userId)));
+        List<Long> blogIds = list.stream().map(Blog::getId).toList();
+        Map<String,List<String>> blogTypeMap = new ConcurrentHashMap<>();
+        blogIds.forEach(infoId->{
+            List<String> types = redisUtil.getList(RedisPrefix.ITEM_TYPE + infoId);
+            blogTypeMap.put(String.valueOf(infoId),types);
+        });
+        List<BlogDTO> result = list.stream().map(i -> toBlogDTO(i,blogTypeMap, imageInIds)).toList();
+        return ResultUtil.success(result);
+    }
+
+
+
 
     @Override
     public Map<String,Object> uploadFileChunk(FileUploadDTO fileUploadDTO) {
@@ -1410,16 +1505,19 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         );
         int totalKudos = 0;
         int totalStar = 0;
+        int view = 0;
 
         for (Blog blog : list) {
             totalStar +=  blog.getStar()!= null?  Math.toIntExact(blog.getStar()) : 0  ;
             totalKudos +=  blog.getKudos()!= null?  Math.toIntExact(blog.getKudos()) : 0  ;
+            view +=  blog.getWatch()!= null?  Math.toIntExact(blog.getWatch()) : 0  ;
         }
 
         UserBlogInfoDTO userBlogInfoDTO = new UserBlogInfoDTO();
-        userBlogInfoDTO.setBlogs(formatNumber(list.size()));
-        userBlogInfoDTO.setStar(formatNumber(totalStar));
-        userBlogInfoDTO.setLikes(formatNumber(totalKudos));
+        userBlogInfoDTO.setBlogs(list.size());
+        userBlogInfoDTO.setStar(totalStar);
+        userBlogInfoDTO.setLikes(totalKudos);
+        userBlogInfoDTO.setView(view);
 
         return userBlogInfoDTO;
     }

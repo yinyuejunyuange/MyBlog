@@ -108,3 +108,12 @@ minio:
   # 文件临时目录
   temp-file-path: D:\oyyj\Documents\temp
   local-file-path: D:\oyyj\Documents\local
+
+# python 相关接口
+app:
+  normalize:
+    service:
+      url: http://127.0.0.1:8000/search/normalize
+  hot-hours: 10
+  hot-top: 100
+  recommend-limit: 20

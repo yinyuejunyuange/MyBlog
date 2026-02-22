@@ -16,9 +16,11 @@ import org.oyyj.blogservice.dto.*;
 import org.oyyj.blogservice.feign.UserFeign;
 import org.oyyj.blogservice.mapper.TypeTableMapper;
 import org.oyyj.blogservice.pojo.*;
+import org.oyyj.blogservice.pojo.es.HighLightBlog;
 import org.oyyj.blogservice.service.*;
 import org.oyyj.blogservice.util.ResultUtil;
 import org.oyyj.blogservice.vo.*;
+import org.oyyj.blogservice.vo.blogs.BlogSearchHighLightVO;
 import org.oyyj.blogservice.vo.blogs.BlogSearchVO;
 import org.oyyj.blogservice.vo.blogs.CommendBlogsByAuthor;
 import org.oyyj.mycommon.annotation.RequestUser;
@@ -27,6 +29,7 @@ import org.oyyj.mycommon.pojo.dto.UserBlogInfoDTO;
 import org.oyyj.mycommon.service.IUploadMetadataService;
 import org.oyyj.mycommonbase.common.RedisPrefix;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
+import org.oyyj.mycommonbase.common.commonEnum.YesOrNoEnum;
 import org.redisson.Redisson;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
@@ -74,31 +77,19 @@ public class BlogController {
     @Autowired
     private TypeTableMapper typeTableMapper;
 
-    @CrossOrigin // 允许此方法跨域
+    @Autowired
+    private ISearchHistoryService searchService;
+
     @PostMapping("/write")
-    public Map<String, Object> writeBlog(@RequestBody BlogDTO blogDTO ,@RequestUser LoginUser loginUser ) {
-        Date date=new Date();
+    public ResultUtil<String> writeBlog(@RequestBody BlogDTO blogDTO ,@RequestUser LoginUser loginUser ) {
 
-        Blog build = Blog.builder()
-                .title(blogDTO.getTitle())
-                .context(blogDTO.getContext())
-                .userId(loginUser.getUserId())
-                .author(loginUser.getUserName())
-                .createTime(date)
-                .updateTime(date)
-                .status(blogDTO.getStatus())
-                .typeList(blogDTO.getTypeList())
-                .introduce(blogDTO.getIntroduce())
-                .isDelete(0)
-                .build();
-
-        boolean success = blogService.saveBlog(build);
+        boolean success = blogService.saveBlog(blogDTO,loginUser);
         if(!success){
             log.error("用户添加博客失败 userId:{}",loginUser.getUserId());
         }
         return success
-                ? ResultUtil.successMap(build.getId(),"博客保存成功")
-                : ResultUtil.failMap("服务繁忙请稍后重试");
+                ? ResultUtil.success("添加成功")
+                : ResultUtil.fail("服务繁忙请稍后重试");
     }
 
     /**
@@ -215,9 +206,9 @@ public class BlogController {
 
 
     // 获取博客作者的创作信息
-    @GetMapping("/getBlogUserInfo")
-    public List<Long> getBlogUserInfo(@RequestParam("userId") Long userId ){
-        return blogService.getUserBlogNum(userId);
+    @PutMapping("/getBlogUserInfo")
+    public Map<Long,List<Long>>  getBlogUserInfo(@RequestBody List<Long> userIds ){
+        return blogService.getUserBlogNum(userIds);
     }
 
     // todo 修改成为全文检索
@@ -342,5 +333,82 @@ public class BlogController {
         );
     }
 
+
+    // 用户搜索 并且按照搜索词条返回数据
+    @PutMapping("/search")
+    public ResultUtil<List<BlogSearchVO>> search(@RequestParam("keyword") String keyword ,
+                                                 @RequestParam("pageNum") Integer pageNum,
+                                                 @RequestParam("pageSize") Integer pageSize,
+                                                 @RequestUser(required = false ) LoginUser loginUser){
+        if(loginUser.getIsUserLogin() == 1){
+            searchService.recordSearch(loginUser.getUserId(),keyword);
+        }
+        return  blogService.getBlogByKeyWord(keyword, pageNum, pageSize);
+    }
+
+    // 用户点击时 获取 用户历史搜索以及 热门搜索
+    @PutMapping("/searchShow")
+    public ResultUtil<SearchShowDTO> searchShow(@RequestUser(required = false ) LoginUser loginUser){
+        SearchShowDTO searchShowDTO = new SearchShowDTO();
+        if(loginUser.getIsUserLogin() == 1){
+            searchShowDTO.setHistory(searchService.userHistorySearch(loginUser.getUserId()));
+        }
+        searchShowDTO.setHotSearch(searchService.recommendForUser(loginUser.getUserId()));
+        return ResultUtil.success(searchShowDTO);
+    }
+
+
+    // 用户输入时 获取关键词 从es中返回相关数据并且高亮
+    @PutMapping("/searchRelate")
+    public ResultUtil<List<BlogSearchHighLightVO>> searchRelate(@RequestParam("keyword") String keyword){
+        return ResultUtil.success(searchService.selectRelate(keyword));
+    }
+
+    @PutMapping("/removeSearchHistory")
+    public ResultUtil<Boolean> removeSearchHistory(@RequestUser LoginUser loginUser){
+        return ResultUtil.success(searchService.update(Wrappers.<SearchHistory>lambdaUpdate()
+                .eq(SearchHistory::getUserId, loginUser.getUserId())
+                .set(SearchHistory::getIsVisible, YesOrNoEnum.NO.getCode())
+        ));
+    }
+
+    // 用于信息相关接口
+
+
+    /**
+     * 获取用户的所有作评
+     * @param userId
+     * @return
+     */
+    @GetMapping("/userWork")
+    public ResultUtil<List<BlogDTO>>  userWork(@RequestParam("userId")  Long userId  ,
+                                               @RequestParam("currentPage") Integer currentPage,
+                                               @RequestParam("pageSize") Integer pageSize){
+        return blogService.getBlogWork(userId, currentPage, pageSize);
+    }
+
+    /**
+     * 获取用户的所有点赞
+     * @param userId
+     * @return
+     */
+    @GetMapping("/userLike")
+    public ResultUtil<List<BlogDTO>>  userLike(@RequestParam("userId")  Long userId,
+                                               @RequestParam("currentPage") Integer currentPage,
+                                               @RequestParam("pageSize") Integer pageSize){
+        return blogService.getBlogLike(userId, currentPage, pageSize);
+    }
+
+    /**
+     * 获取用户的所有收藏
+     * @param userId
+     * @return
+     */
+    @GetMapping("/userStar")
+    public ResultUtil<List<BlogDTO>>  userStar(@RequestParam("userId")  Long userId,
+                                               @RequestParam("currentPage") Integer currentPage,
+                                               @RequestParam("pageSize") Integer pageSize){
+        return blogService.getBlogStar(userId, currentPage, pageSize);
+    }
 }
 

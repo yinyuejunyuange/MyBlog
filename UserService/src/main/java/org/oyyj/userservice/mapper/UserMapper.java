@@ -9,4 +9,6 @@ public interface UserMapper extends BaseMapper<User> {
 
     Integer userFunS(Long userID);
 
+    Integer userAttention(Long userID);
+
 }

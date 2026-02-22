@@ -101,5 +101,15 @@ public interface UserFeign {
     Boolean cancelKudosBlog(@RequestParam("blogId") Long blogId,@RequestParam("userId") Long userId);
 
 
+    @GetMapping("/myBlog/user/blog/userStar")
+    List<Long> userStar(@RequestParam("userId") Long userId,
+                        @RequestParam("currentPage") Integer currentPage,
+                        @RequestParam("pageSize") Integer pageSize);
+
+
+    @GetMapping("/myBlog/user/blog/userLike")
+    List<Long> userLike(@RequestParam("userId") Long userId,
+                        @RequestParam("currentPage") Integer currentPage,
+                        @RequestParam("pageSize") Integer pageSize);
 
 }

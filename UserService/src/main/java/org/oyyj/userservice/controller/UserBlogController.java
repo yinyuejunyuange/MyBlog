@@ -283,6 +283,23 @@ public class UserBlogController {
         return  userService.userStar(blogId,userId);
     }
 
+    @GetMapping("/userStar")
+    public List<Long> userStar(@RequestParam("userId") Long userId ,
+                            @RequestParam("currentPage") Integer currentPage,
+                            @RequestParam("pageSize") Integer pageSize) throws Exception {
+        // 用户收藏表中添加对应的用户博客id；
+        return  userService.getUserStarBlog(userId,currentPage,pageSize);
+    }
+
+    @GetMapping("/userLike")
+    public List<Long> userLike(@RequestParam("userId") Long userId ,
+                               @RequestParam("currentPage") Integer currentPage,
+                               @RequestParam("pageSize") Integer pageSize) throws Exception {
+        // 用户收藏表中添加对应的用户博客id；
+        return  userService.getUserLikeBlog(userId,currentPage,pageSize);
+    }
+
+
 }
 
 
