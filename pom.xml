@@ -23,6 +23,7 @@
         <module>MyCommon</module>
         <module>MyCommonBase</module>
         <module>GatewayDemo</module>
+        <module>StudyService</module>
     </modules>
     <url/>
     <licenses>

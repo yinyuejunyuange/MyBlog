@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
 
@@ -38,4 +39,29 @@ public class Comment {
     private Integer isDelete;
     @TableField("is_visible")
     private Integer isVisible; // 当前评论状态
+
+    /**
+     * 是否具有攻击性
+     */
+    @TableField("is_toxic")
+    private Integer isToxic;
+
+    /**
+     * 攻击性概率
+     */
+    @TableField("p_toxic")
+    private BigDecimal pToxic;
+
+    /**
+     * 攻击类别 (list 的字符串)
+     */
+    @TableField("mul_type")
+    private String mulType;
+
+    /**
+     * 各个类别对应的攻击性概率（map转成字符串）
+     */
+    @TableField("p_topic")
+    private String pTopic;
+
 }

@@ -180,7 +180,7 @@ public class FileUtil {
      * @return 文件合并后的路径
      */
     @Transactional(rollbackFor = Exception.class)
-    public Map<String,Object> mergeChunk(String fileNo, Long totalFileChunks,String orgFileName){
+    public Map<String,Object> mergeChunk(String fileNo, Long totalFileChunks,String orgFileName,Long userId){
 
         // 验证是否缺失
         List<UploadMetadata> list = uploadMetadataService.list(Wrappers.<UploadMetadata>lambdaQuery()
@@ -267,7 +267,7 @@ public class FileUtil {
                         PutObjectArgs.builder()
                                 .bucket(documentBucketName)
                                 .stream(fileInputStream,finalFile.length(),-1)
-                                .object(orgFileName)
+                                .object(userId+orgFileName)
                                 .contentType(getFileType(tempFileName))
                                 .build()
                 );
@@ -282,7 +282,7 @@ public class FileUtil {
             log.error("文件唯一标识：{}， 文件总片数：{}， 临时目录清理 错误：{}",fileNo,totalFileChunks,e.getMessage());
             throw new RuntimeException(e);
         }
-        return ResultUtil.successMap(null,"文件上传成功");
+        return ResultUtil.successMap(userId+orgFileName,"文件上传成功");
     }
 
     /**

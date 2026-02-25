@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.oyyj.studyservice.mapper.KnowledgePointMapper">
+    <resultMap id="BaseResultMap" type="org.oyyj.studyservice.dto.knowledgePoint.KnowledgeBaseRelationDTO">
+        <id column="id" property="id"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="is_delete" property="isDelete"/>
+        <result column="knowledge_base_id" property="knowledgeBaseId"/>
+        <result column="knowledge_point_id" property="knowledgePointId"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, create_time, update_time, is_delete, knowledge_base_id, knowledge_point_id
+    </sql>
+
+    <select id="selectKnowledgeBaseRelationByKnowledgeBaseId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM knowledge_base_relation
+        WHERE knowledge_base_id = #{knowledgeBaseId}
+        AND is_delete = 0
+    </select>
+
+    <insert id="insertKnowledgeBaseRelation" parameterType="org.oyyj.studyservice.dto.knowledgePoint.KnowledgeBaseRelationDTO" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO knowledge_base_relation (create_time, update_time, is_delete, knowledge_base_id, knowledge_point_id)
+        VALUES (#{createTime}, #{updateTime}, #{isDelete}, #{knowledgeBaseId}, #{knowledgePointId})
+    </insert>
+    <insert id="insertRelateByIds">
+/*   使用insert into  。。。。 select 的方式 保证数据有效插入  */
+        INSERT INTO knowledge_base_relation (knowledge_base_id, knowledge_point_id)
+        SELECT
+        #{baseId},
+        point.id
+        FROM knowledge_point point
+        WHERE point.is_delete = 0
+        AND point.id IN
+        <foreach collection="pointIds"
+                 item="item"
+                 open="("
+                 close=")"
+                 separator=",">
+            #{item}
+        </foreach>
+    </insert>
+
+    <update id="updateKnowledgeBaseRelationById" parameterType="org.oyyj.studyservice.dto.knowledgePoint.KnowledgeBaseRelationDTO">
+        UPDATE knowledge_base_relation
+        <set>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="isDelete != null">is_delete = #{isDelete},</if>
+            <if test="knowledgeBaseId != null">knowledge_base_id = #{knowledgeBaseId},</if>
+            <if test="knowledgePointId != null">knowledge_point_id = #{knowledgePointId},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteKnowledgeBaseRelationById">
+        DELETE FROM knowledge_base_relation WHERE id = #{id}
+    </delete>
+    <delete id="deleteRelationByIds">
+        DELETE FROM knowledge_base_relation
+        WHERE knowledge_base_id = #{baseId}
+        AND knowledge_point_id IN
+        <foreach collection="pointIds" item="item" open="(" close=")" separator=",">
+            #{item}
+        </foreach>
+    </delete>
+
+</mapper>

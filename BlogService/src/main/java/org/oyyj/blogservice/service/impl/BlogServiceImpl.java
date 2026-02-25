@@ -27,6 +27,7 @@ import org.oyyj.blogservice.mapper.UserBehaviorMapper;
 import org.oyyj.blogservice.pojo.*;
 import org.oyyj.blogservice.service.*;
 import org.oyyj.blogservice.service.es.EsBlogService;
+import org.oyyj.blogservice.util.PyApiUtil;
 import org.oyyj.blogservice.util.ResultUtil;
 import org.oyyj.blogservice.vo.blogs.BlogSearchVO;
 import org.oyyj.blogservice.vo.blogs.CommendBlogsByAuthor;
@@ -63,10 +64,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -145,6 +143,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     @Autowired
     private RabbitMqPublishSender rabbitMqPublishSender;
 
+    @Autowired
+    private PyApiUtil pyApiUtil;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -188,6 +188,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .updateTime(date)
                 .typeList(blogDTO.getTypeList())
                 .introduce(blogDTO.getIntroduce())
+                .blogImage(blogDTO.getBlogImage())
+                .blogProject(blogDTO.getBlogProject())
                 .isDelete(0)
                 .build();
 
@@ -204,7 +206,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 Blog one = getOne(Wrappers.<Blog>lambdaQuery().eq(Blog::getId, Long.valueOf(blogDTO.getId()))
                         .select(Blog::getId)
                 );
-                save = Objects.nonNull(one);
+                blog.setId(one.getId());
+                save = updateById(blog);
             }else{
                 save= save(blog);
             }
@@ -260,7 +263,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                     Blog one = getOne(Wrappers.<Blog>lambdaQuery().eq(Blog::getId, Long.valueOf(blogDTO.getId()))
                             .select(Blog::getId)
                     );
-                    save = Objects.nonNull(one);
+                    blog.setId(one.getId());
+                    save = updateById(blog);
                 }else{
                     save= save(blog);
                 }
@@ -299,7 +303,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                     Blog one = getOne(Wrappers.<Blog>lambdaQuery().eq(Blog::getId, Long.valueOf(blogDTO.getId()))
                             .select(Blog::getId)
                     );
-                    save = Objects.nonNull(one);
+                    blog.setId(one.getId());
+                    save = updateById(blog);
                 }else{
                     save= save(blog);
                 }
@@ -336,7 +341,11 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         return true;
     }
 
+    @Override
+    public CompletableFuture<ResultUtil<String>> getSummary(String mdContent) {
 
+        return pyApiUtil.getBlogSummaryFromPy(mdContent).thenApply(ResultUtil::success);
+    }
 
 
     @Override
@@ -1491,8 +1500,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     }
 
     @Override
-    public Map<String,Object> mergeFileChunk(String fileNo,Long totalFileChunks, String orgFileName) {
-        Map<String, Object> stringObjectMap = fileUtil.mergeChunk(fileNo,totalFileChunks,orgFileName);
+    public Map<String,Object> mergeFileChunk(String fileNo,Long totalFileChunks, String orgFileName,Long userId) {
+        Map<String, Object> stringObjectMap = fileUtil.mergeChunk(fileNo,totalFileChunks,orgFileName,userId);
         log.info("上传结果"+stringObjectMap);
         return stringObjectMap;
     }

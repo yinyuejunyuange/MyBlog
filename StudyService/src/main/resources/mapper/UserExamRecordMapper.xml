@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.oyyj.studyservice.mapper.UserExamRecordMapper">
+
+    <resultMap id="BaseResultMap" type="org.oyyj.studyservice.dto.UserExamRecord.UserAnswerDetailDTO">
+        <id column="id" property="id"/>
+        <result column="create_by" property="createBy"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_by" property="updateBy"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="is_delete" property="isDelete"/>
+        <result column="record_id" property="recordId"/>
+        <result column="question_id" property="questionId"/>
+        <result column="user_answer" property="userAnswer"/>
+        <result column="is_correct" property="isCorrect"/>
+        <result column="score" property="score"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, create_by, create_time, update_by, update_time, is_delete, record_id, question_id, user_answer, is_correct, score
+    </sql>
+
+    <insert id="insertUserAnswerDetail" parameterType="org.oyyj.studyservice.dto.UserExamRecord.UserAnswerDetailDTO" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user_answer_detail (create_by, create_time, update_by, update_time, is_delete, record_id, question_id, user_answer, is_correct, score)
+        VALUES (#{createBy}, #{createTime}, #{updateBy}, #{updateTime}, #{isDelete}, #{recordId}, #{questionId}, #{userAnswer}, #{isCorrect}, #{score})
+    </insert>
+
+    <select id="selectUserAnswerDetailByRecordId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM user_answer_detail
+        WHERE record_id = #{recordId}
+        AND is_delete = 0
+    </select>
+
+    <update id="updateUserAnswerDetailById" parameterType="org.oyyj.studyservice.dto.UserExamRecord.UserAnswerDetailDTO">
+        UPDATE user_answer_detail
+        <set>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="isDelete != null">is_delete = #{isDelete},</if>
+            <if test="recordId != null">record_id = #{recordId},</if>
+            <if test="questionId != null">question_id = #{questionId},</if>
+            <if test="userAnswer != null">user_answer = #{userAnswer},</if>
+            <if test="isCorrect != null">is_correct = #{isCorrect},</if>
+            <if test="score != null">score = #{score},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+</mapper>

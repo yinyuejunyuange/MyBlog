@@ -18,12 +18,20 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 
 public interface IBlogService extends IService<Blog> {
     boolean saveBlog(Blog blog);
 
     boolean saveBlog(BlogDTO blogDTO,LoginUser loginUser);
+
+    /**
+     * 获取简介
+     * @param mdContent
+     * @return
+     */
+    CompletableFuture<ResultUtil<String>> getSummary(String mdContent);
 
     ReadDTO ReadBlog(Long id, LoginUser loginUser);
 
@@ -110,7 +118,7 @@ public interface IBlogService extends IService<Blog> {
     Map<String,Object> uploadFileChunk(FileUploadDTO fileUploadDTO);
 
     // todo 测试使用待会删除
-    Map<String,Object> mergeFileChunk(String fileNo,Long totalFileChunks, String orgFileName);
+    Map<String,Object> mergeFileChunk(String fileNo,Long totalFileChunks, String orgFileName,Long userId);
 
     /**
      * 获取用户有关博客的信息

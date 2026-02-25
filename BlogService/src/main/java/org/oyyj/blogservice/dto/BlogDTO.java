@@ -34,6 +34,7 @@ public class BlogDTO {
     private Integer delayMinutes ; // 延时 时长
     private String timedType; // 延时的类别 定时 or 延时
     private String publishMode;// 发布模式
-
+    private String blogImage; // 博客图片
+    private String blogProject; // 上传项目
 
 }

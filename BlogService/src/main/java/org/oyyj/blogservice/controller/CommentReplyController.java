@@ -11,6 +11,7 @@ import org.oyyj.blogservice.service.IBlogService;
 import org.oyyj.blogservice.service.ICommentService;
 import org.oyyj.blogservice.service.IReplyReportService;
 import org.oyyj.blogservice.service.IReplyService;
+import org.oyyj.blogservice.util.PyApiUtil;
 import org.oyyj.blogservice.util.ResultUtil;
 import org.oyyj.blogservice.vo.commet.CommentResultVO;
 import org.oyyj.blogservice.vo.reply.ReplyResultVO;
@@ -39,6 +40,9 @@ public class CommentReplyController {
 
     @Autowired
     private UserFeign  userFeign;
+
+    @Autowired
+    private PyApiUtil pyApiUtil;
 
 
 
@@ -77,6 +81,7 @@ public class CommentReplyController {
         boolean save = commentService.save(build);
         if(save){
             // 增加博客的评论数
+            pyApiUtil.getCommentToxicPredict(context,build.getId(),1);
             blogService.blogComment(blogId,loginUser);
             return ResultUtil.success(blogId);
         }else{
@@ -138,6 +143,7 @@ public class CommentReplyController {
                 .build();
         boolean save = replyService.save(build);
         if(save){
+            pyApiUtil.getCommentToxicPredict(context,build.getId(),0);
             return ResultUtil.success(build.getId());
         }else{
             log.error("数据库添加回复失败！");

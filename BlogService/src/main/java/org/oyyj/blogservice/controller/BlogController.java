@@ -52,6 +52,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @RestController
@@ -90,6 +91,16 @@ public class BlogController {
         return success
                 ? ResultUtil.success("添加成功")
                 : ResultUtil.fail("服务繁忙请稍后重试");
+    }
+
+    /**
+     * 获取简介
+     * @param mdContent
+     * @return 前端会得到一个正常的响应
+     */
+    @PostMapping("/introduce")
+    public CompletableFuture<ResultUtil<String>> getIntroduce(@RequestBody String mdContent) {
+        return blogService.getSummary(mdContent);
     }
 
     /**
@@ -276,10 +287,9 @@ public class BlogController {
 
     // todo 测试文件上传 待会删除
     @PostMapping("/testMergeFile")
-    public Map<String,Object> testMergeFile( @RequestBody FileMergeDTO filemergeDTO){
+    public Map<String,Object> testMergeFile( @RequestBody FileMergeDTO filemergeDTO ,@RequestUser() LoginUser loginUser){
         try {
-            blogService.mergeFileChunk(filemergeDTO.getFileNo(), filemergeDTO.getTotalFileChunks(), filemergeDTO.getOrgFileName());
-            return ResultUtil.successMap(null,"分片上传成功成功");
+            return blogService.mergeFileChunk(filemergeDTO.getFileNo(), filemergeDTO.getTotalFileChunks(), filemergeDTO.getOrgFileName(), loginUser.getUserId());
         } catch (Exception e) {
             log.error(e.getMessage());
             return ResultUtil.failMap("查询失败");

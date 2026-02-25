@@ -15,6 +15,7 @@ import org.oyyj.blogservice.pojo.Comment;
 import org.oyyj.blogservice.pojo.Reply;
 import org.oyyj.blogservice.service.IBackstopStrategyService;
 import org.oyyj.blogservice.service.ICommentService;
+import org.oyyj.blogservice.util.PyApiUtil;
 import org.oyyj.blogservice.vo.commet.CommentResultVO;
 import org.oyyj.mycommonbase.common.RedisPrefix;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
@@ -23,6 +24,7 @@ import org.oyyj.mycommonbase.config.RetryConfig;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -35,7 +37,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> implements ICommentService {
 
-
+    @Autowired
+    private PyApiUtil pyApiUtil;
     @Autowired
     private RedissonClient redissonClient;
 

@@ -54,5 +54,9 @@ public class Blog {
     private Date publishTime;
     @TableField(exist = false)
     private BigDecimal commentPrice; //评论情绪得分
+    @TableField("blog_image") // 博客图片
+    private String blogImage;
+    @TableField("blog_project") // 博客图片
+    private String blogProject;
 
 }

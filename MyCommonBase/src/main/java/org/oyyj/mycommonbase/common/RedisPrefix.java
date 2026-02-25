@@ -60,4 +60,9 @@ public class RedisPrefix {
      * 未博客延时发布 Zset 队列
      */
     public static final String BLOG_PUBLISH_ZSET = "blog:publish:zset:";
+
+    /**
+     * Ai对话面试
+     */
+    public static final String AI_INTERVIEW_PREFIX = "interview:session:";
 }

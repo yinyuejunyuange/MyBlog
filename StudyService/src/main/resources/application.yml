@@ -1,0 +1,117 @@
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      lettuce:
+        pool:
+          min-idle: 0
+          max-active: 16
+          max-wait: -1ms
+          max-idle: 8
+  elasticsearch:
+    uris: http://localhost:9200
+    username: elasticsearch
+    password: K-N4N4-yPsGWy5hSPvd6
+      
+  cloud:
+    nacos:
+      discovery:
+        service: StudyService
+        server-addr: localhost:8848
+        cluster-name: BJ  # 假设网关部署在 BJ 集群，优先调用 BJ 集群的 StudyService
+  application:
+    name: StudyService
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    type: com.alibaba.druid.pool.DruidDataSource
+    url: jdbc:mysql://localhost:3306/my_blog_study?serverTimezone=UTC # ?前面是数据库名
+    username: root
+    password: OYyj0715
+
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: admin
+    password: admin
+    publisher-confirm-type: correlated # 开启生产者确认模式
+    publisher-returns: false # 生产者返回模式  ---- return 返回  没必要开 消耗性能（return 回来的 基本都是因为配置的mq存在问题）
+    listener:
+      simple:
+        concurrency: 1 #消费者数量
+        max-concurrency: 1  #消费者最大数量
+        default-requeue-rejected: false #消息消费失败后，重新进入消费队列中
+        acknowledge-mode: manual #消费者 手动确认
+        prefetch: 1 #每一次预取一条数据
+        retry: # 只是重试连接机制
+          enabled: true # 开启重试
+          max-attempts: 3 # 最大重试次数
+          initial-interval:  1000ms # 初始重试间隔
+    virtual-host: firstHost
+    cache:
+      channel:
+        size: 25 # 缓存通道的数量，根据并发量调整
+        checkout-timeout: 10000ms # 等待获取通道的超时时间（建议设置）
+      connection:
+        mode: CHANNEL # 缓存模式，通常CHANNEL模式性能更好
+        size: 1 # 缓存连接数
+
+
+mybatis-plus:
+  global-config:
+    db-config:
+      logic-delete-field: isDelete #默认deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  configuration: #配置打印MyBatis日志
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+  mapper-locations: classpath*:mapper/*.xml
+server:
+  port: 8084
+
+tokenBucket:
+  capacity: 2000
+  addTokenNum: 1500
+
+
+# 雪花算法配置（不同服务/机器配置不同的worker-id，避免重复）
+snowflake:
+  worker-id: 1        # 机器ID（范围0-1023，分布式环境下每台机器唯一）
+  datacenter-id: 0    # 数据中心ID（范围0-31，可选）
+
+
+cors:
+  allow: http://localhost:8001/  # 规定前端允许的域名
+
+# minio 相关配置
+minio:
+  endpoint: http://127.0.0.1:9090
+  access-key: minioadmin
+  access-secret: minioadmin
+  image-bucket-name: image-bucket  # 存储头像 文章中的图片 等等图片存储桶
+  document-bucket-name: document-bucket # 存储用户的文档相关的桶
+  file-chunk-bucket-name: file-chunk-bucket # 分片桶
+  max-file-size: 10 # 单独上传最大限制 MB
+  part-file-size: 5 # 分片上传 片大小 MB
+  buckets: image-bucket,document-bucket,file-chunk-bucket
+
+  # 文件临时目录
+  temp-file-path: D:\oyyj\Documents\temp
+  local-file-path: D:\oyyj\Documents\local
+
+ai:
+  deepseek:
+    api-key: "sk-cfd98ca4c957451daef54f866a837ee7"
+    base-url: "https://api.deepseek.com"
+    model: "deepseek-chat"
+
+elasticsearch:
+  host: localhost
+  port: 9200
+  scheme: http
+  username: elasticsearch  # 如果启用了安全认证，填写用户名
+  password: K-N4N4-yPsGWy5hSPvd6  # 填写密码
+  index-name: knowledge_base_embed  # 用于存储知识点向量的索引名

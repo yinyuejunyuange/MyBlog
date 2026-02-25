@@ -114,6 +114,8 @@ app:
   normalize:
     service:
       url: http://127.0.0.1:8000/search/normalize
+      toxic-url: http://127.0.0.1:8000/predict
+      blog-summary-url: http://127.0.0.1:8000/blog/summary
   hot-hours: 10
   hot-top: 100
   recommend-limit: 20
