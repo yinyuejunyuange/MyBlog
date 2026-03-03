@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.oyyj.studyservice.config.ai.agent.assistant.ChatAssistant;
 import org.oyyj.studyservice.config.ai.agent.assistant.InterviewerAssistant;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -21,13 +22,13 @@ public class AiServiceConfig {
 
     @Bean
     public InterviewerAssistant interviewerAssistant(
-            StreamingChatLanguageModel streamingChatModel,        // 注入你的流式模型
+            @Qualifier("deepSeekStreamingChatModel")
+            StreamingChatLanguageModel chatModel,
             ChatMemoryProvider chatMemoryProvider,
             ContentRetriever contentRetriever) {
 
-
         return AiServices.builder(InterviewerAssistant.class)
-                .streamingChatLanguageModel(streamingChatModel)
+                .streamingChatLanguageModel(chatModel)
                 .chatMemoryProvider(chatMemoryProvider)
                 .contentRetriever(contentRetriever)
                 .build();
@@ -35,6 +36,7 @@ public class AiServiceConfig {
 
     @Bean
     public ChatAssistant chatAssistant(
+            @Qualifier("deepSeekStreamingChatModel")
             StreamingChatLanguageModel streamingChatModel,        // 注入你的流式模型
             ChatMemoryProvider chatMemoryProvider,
             ContentRetriever contentRetriever) {

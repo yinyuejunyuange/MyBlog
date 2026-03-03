@@ -138,13 +138,13 @@ public class UserController {
     public Map<Long,String> getUserImageInIds(@RequestParam("ids") List<String>ids, HttpServletRequest request){
         String source = request.getHeader("source");
         //System.out.println(source+":================");
-        if(source==null||!source.equals("BLOGSERVICE")){
-            log.error("请求来源错误");
-            return null;
-        }
-        if(ids.isEmpty()){
-            return null;
-        }
+//        if(source==null||!source.equals("BLOGSERVICE")){
+//            log.error("请求来源错误");
+//            return null;
+//        }
+//        if(ids.isEmpty()){
+//            return null;
+//        }
 
         Map<Long, String> collect = userService.list(Wrappers.<User>lambdaQuery()
                         .in(User::getId, ids.stream().map(Long::valueOf).toList()))

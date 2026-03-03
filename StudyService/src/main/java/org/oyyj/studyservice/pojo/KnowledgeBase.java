@@ -40,4 +40,10 @@ public class KnowledgeBase {
     @TableField("description")
     private String description; // 知识库简介
 
+    /**
+     * 类别
+     */
+    @TableField("category")
+    private String category;
+
 }

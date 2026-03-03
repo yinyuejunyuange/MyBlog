@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import org.checkerframework.checker.units.qual.K;
 import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.studyservice.dto.knowledgeBase.KnowledgeBaseDTO;
 import org.oyyj.studyservice.dto.knowledgePoint.KnowledgeBaseRelationDTO;
@@ -164,6 +165,24 @@ public class KnowledgeBaseServiceImpl extends ServiceImpl<KnowledgeBaseMapper, K
         }
 
         return ResultUtil.success("知识点添加成功");
+    }
+
+    @Override
+    public ResultUtil<List<KnowledgeBaseDTO>> listKnowledgeBase(String type) {
+        List<KnowledgeBaseDTO> list = list(Wrappers.<KnowledgeBase>lambdaQuery()
+                .like(StringUtils.hasText(type), KnowledgeBase::getCategory, type)
+        ).stream().map(item -> new KnowledgeBaseDTO().entityToDTO(item)).toList();
+
+        return ResultUtil.success(list);
+    }
+
+    @Override
+    public ResultUtil<List<String>> listAllType() {
+        List<String> strings = new ArrayList<>();
+        strings.add("全部");
+        strings.addAll(baseMapper.listAllBaseTypes());
+
+        return ResultUtil.success(strings);
     }
 
     @Override

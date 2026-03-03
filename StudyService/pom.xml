@@ -43,11 +43,6 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
-		<!--        <dependency>-->
-		<!--            <groupId>org.mybatis.spring.boot</groupId>-->
-		<!--            <artifactId>mybatis-spring-boot-starter</artifactId>-->
-		<!--            <version>3.0.4</version>-->
-		<!--        </dependency>-->
 
 		<!--redis依赖-->
 		<dependency>
@@ -74,6 +69,17 @@
 			<groupId>dev.langchain4j</groupId>
 			<artifactId>langchain4j-open-ai</artifactId>
 			<version>0.32.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>dev.langchain4j</groupId>
+			<artifactId>langchain4j-elasticsearch</artifactId>
+			<version>0.32.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.elasticsearch</groupId>
+			<artifactId>elasticsearch</artifactId>
+			<version>8.5.1</version>
 		</dependency>
 
 		<!-- redisson 依赖-->
@@ -142,17 +148,7 @@
 			<version>1.18.36</version>
 		</dependency>
 
-		<dependency>
-			<groupId>dev.langchain4j</groupId>
-			<artifactId>langchain4j-elasticsearch</artifactId>
-			<version>1.10.0-beta18</version>
-		</dependency>
 
-		<dependency>
-			<groupId>org.elasticsearch</groupId>
-			<artifactId>elasticsearch</artifactId>
-			<version>8.5.1</version>
-		</dependency>
 
 
 		<dependency>

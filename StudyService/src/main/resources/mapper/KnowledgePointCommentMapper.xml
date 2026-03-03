@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.oyyj.studyservice.mapper.KnowledgePointCommentMapper">
+
+
+    <select id="getCommentNumByCommentId"
+            resultType="org.oyyj.studyservice.dto.knowledgePointComment.CommentCountDTO">
+        SELECT root_id AS rootId, COUNT(id) AS count
+        FROM knowledge_point_comment
+        WHERE root_id IN
+        <foreach collection="commentIds" item="item" separator="," open="(" close=")">
+            #{item}
+        </foreach>
+            AND is_delete = 0
+        GROUP BY root_id
+    </select>
+</mapper>

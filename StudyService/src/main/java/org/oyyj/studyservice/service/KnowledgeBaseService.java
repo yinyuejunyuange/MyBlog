@@ -26,4 +26,8 @@ public interface KnowledgeBaseService extends IService<KnowledgeBase> {
     ResultUtil<String> removeKnowledgePoints(Long knowledgeBaseId, List<String> knowledgeIds);
 
     ResultUtil<String> addKnowledgePoints(Long knowledgeBaseId, List<String> knowledgeIds);
+
+    ResultUtil<List<KnowledgeBaseDTO>> listKnowledgeBase(String type);
+
+    ResultUtil<List<String>> listAllType();
 }

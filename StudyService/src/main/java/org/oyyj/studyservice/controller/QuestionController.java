@@ -6,13 +6,16 @@ import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.studyservice.dto.question.QuestionDTO;
 import org.oyyj.studyservice.service.QuestionService;
+import org.oyyj.studyservice.utils.ParamTypeUtil;
 import org.oyyj.studyservice.vo.question.QuestionPageVO;
 import org.oyyj.studyservice.vo.question.SubmitAnswerDTO;
 import org.oyyj.studyservice.vo.question.SubmitResultVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/myBlog/question")
@@ -90,11 +93,15 @@ public class QuestionController {
      */
     @GetMapping("/random")
     public ResultUtil<QuestionPageVO> getRandomQuestions(
-            @RequestParam(required = false) Long knowledgeBaseId,
-            @RequestParam(required = false) List<Long> knowledgePointIds,
+            @RequestParam(required = false, value = "knowledgeBaseId") String knowledgeBaseId,
+            @RequestParam(required = false, value = "knowledgePointIds") List<String> knowledgePointIds,
             @RequestParam(defaultValue = "10") Integer count,
             @RequestUser LoginUser loginUser) {
-        QuestionPageVO result = questionService.getRandomQuestions(loginUser.getUserId(), knowledgeBaseId, knowledgePointIds, count);
+        List<Long> pointIdStrIds = null;
+        if(knowledgePointIds != null && !knowledgePointIds.isEmpty()) {
+            pointIdStrIds = knowledgePointIds.stream().map(Long::valueOf).toList();
+        }
+        QuestionPageVO result = questionService.getRandomQuestions(loginUser.getUserId(), ParamTypeUtil.toLong(knowledgeBaseId), pointIdStrIds, count);
         return ResultUtil.success(result);
     }
 

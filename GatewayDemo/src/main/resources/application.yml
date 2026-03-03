@@ -77,6 +77,11 @@ spring:
           predicates:
             - Path=/task/**
 
+        - id: StudyService
+          uri: lb://StudyService
+          predicates:
+            - Path=/myBlog/agent/**,/myBlog/knowledge/** , /myBlog/knowledgeBase/** , /myBlog/question/** , /myBlog/point/**
+
         - id: BlogService
           uri: lb://BlogService
           predicates:

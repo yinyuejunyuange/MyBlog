@@ -12,6 +12,7 @@ import org.springframework.beans.BeanUtils;
 
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Data
 @AllArgsConstructor
@@ -26,6 +27,7 @@ public class KnowledgeBaseDTO {
     private String name;
     private String icon;
     private String description;
+    private List<String> types;
 
     private List<String> knowledgeIds;
 
@@ -35,6 +37,9 @@ public class KnowledgeBaseDTO {
         if(entity.getId()!=null){
             dto.setId(entity.getId().toString());
         }
+        if(entity.getCategory()!=null){
+            dto.setTypes(List.of(entity.getCategory().split(",")));
+        }
         return dto;
     }
 
@@ -43,6 +48,9 @@ public class KnowledgeBaseDTO {
         BeanUtils.copyProperties(dto, entity);
         if(dto.getId()!=null){
             entity.setId(Long.parseLong(dto.getId()));
+        }
+        if(dto.getTypes()!=null  && !dto.getTypes().isEmpty()){
+            entity.setCategory(String.join(",", dto.getTypes()));
         }
         return entity;
     }

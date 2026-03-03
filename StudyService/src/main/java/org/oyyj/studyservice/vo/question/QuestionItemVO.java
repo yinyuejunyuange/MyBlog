@@ -37,12 +37,14 @@ public class QuestionItemVO {
             questionItemVO.setType(byValue.getDesc());
         }
         List<String> strings = null;
-        try {
-            strings = mapper.readValue(question.getOptions(), new TypeReference<List<String>>() {
-            });
-        } catch (JsonProcessingException e) {
-            log.error("数据异常 选项无法转换成集合 {}",question.getOptions(),e);
-            questionItemVO.setOptions(List.of()); // 返回空列表
+        if(question.getOptions() != null){
+            try {
+                strings = mapper.readValue(question.getOptions(), new TypeReference<List<String>>() {
+                });
+            } catch (JsonProcessingException e) {
+                log.error("数据异常 选项无法转换成集合 {}",question.getOptions(),e);
+                questionItemVO.setOptions(List.of()); // 返回空列表
+            }
         }
         questionItemVO.setOptions(strings);
         return questionItemVO;

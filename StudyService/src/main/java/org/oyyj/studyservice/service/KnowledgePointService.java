@@ -1,5 +1,6 @@
 package org.oyyj.studyservice.service;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.studyservice.dto.knowledgePoint.KnowledgePointDTO;
@@ -15,6 +16,12 @@ public interface KnowledgePointService extends IService<KnowledgePoint> {
 
     ResultUtil<String> deleteByIds(List<Long> ids);
 
+    ResultUtil<Page<KnowledgePointDTO>> listAllKnowledgePoint(Integer page,
+                                                              Integer pageSize,
+                                                              Long baseId,
+                                                              String level,
+                                                              String tags,
+                                                              String search);
 
-
+    ResultUtil<List<KnowledgePointDTO>> listAllKnowledgePoint(Long baseId);
 }

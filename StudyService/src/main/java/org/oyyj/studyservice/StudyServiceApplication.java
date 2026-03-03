@@ -4,10 +4,11 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootApplication
-
+@EnableFeignClients(value="org.oyyj.studyservice.feign")
 @EnableDiscoveryClient
 @ComponentScan(basePackages = {"org.oyyj.studyservice", "org.oyyj.mycommon","org.oyyj.mycommonbase"})
 @MapperScan({

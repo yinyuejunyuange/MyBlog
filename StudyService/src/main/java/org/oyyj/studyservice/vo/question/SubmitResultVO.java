@@ -20,8 +20,21 @@ public class SubmitResultVO {
     @NoArgsConstructor
     public static class QuestionResultVO {
         private Long questionId;
+
+        private String title;
+
         private Boolean isCorrect;                    // 是否正确
+
         private BigDecimal score;                      // 该题实际得分
+
+        private String explanation;                     // 问题的详细解析
+
+        private List<String> userAnswer;                    // 用户的答案
+
+        private List<String> correctAnswers;          // 正确答案
+
+        private List<String> options; //
+
     }
 
 

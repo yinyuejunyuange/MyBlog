@@ -5,17 +5,16 @@ import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
 import dev.langchain4j.data.segment.TextSegment;
-import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
+import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
 import dev.langchain4j.store.embedding.EmbeddingStore;
-import dev.langchain4j.store.embedding.elasticsearch.ElasticsearchConfiguration;
 import dev.langchain4j.store.embedding.elasticsearch.ElasticsearchEmbeddingStore;
-import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -27,15 +26,16 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class EmbeddingConfig {
-    @Value("${ai.deepseek.api-key}")
-    private String apiKey;
 
-    @Value("${ai.deepseek.base-url}")
-    private String apiUrl;
 
-    @Value("${ai.deepseek.model}")
-    private String apiModel;
+    @Value("${ai.embedding.api-key}")
+    private String embeddingApiKey;
 
+    @Value("${ai.embedding.base-url}")
+    private String embeddingApiUrl;
+
+    @Value("${ai.embedding.model}")
+    private String embeddingApiModel;
 
     // Elasticsearch 配置
     @Value("${elasticsearch.host:localhost}")
@@ -63,12 +63,14 @@ public class EmbeddingConfig {
      */
     @Bean
     public EmbeddingModel embeddingModel() {
+        // OpenAiEmbeddingModel 会自动拼接
         return OpenAiEmbeddingModel.builder()
-                .apiKey(apiKey)
-                .baseUrl(apiUrl)
-                .modelName(apiModel)
+                .apiKey(embeddingApiKey)
+                .baseUrl(embeddingApiUrl)
+                .modelName(embeddingApiModel)
                 .build();
     }
+
 
     /**
      * Elasticsearch RestClient
@@ -105,10 +107,14 @@ public class EmbeddingConfig {
      * 避免存储再内容中
      */
     @Bean
-    public EmbeddingStore<TextSegment> embeddingStore(RestClient restClient) {
+    public EmbeddingStore<TextSegment> embeddingStore(
+            RestClient restClient,
+            EmbeddingModel embeddingModel) {
+
         return ElasticsearchEmbeddingStore.builder()
                 .restClient(restClient)
                 .indexName(indexName)
+                .dimension(embeddingModel.dimension()) // 自动匹配智谱维度
                 .build();
     }
 

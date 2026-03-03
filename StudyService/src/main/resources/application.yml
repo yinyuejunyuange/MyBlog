@@ -107,6 +107,10 @@ ai:
     api-key: "sk-cfd98ca4c957451daef54f866a837ee7"
     base-url: "https://api.deepseek.com"
     model: "deepseek-chat"
+  embedding:
+    base-url: "https://open.bigmodel.cn/api/paas/v4"
+    model: "embedding-3"
+    api-key: "1bdf24eedbcd4969ba1c152037bf8498.wisFMig6Oi83cd23"
 
 elasticsearch:
   host: localhost

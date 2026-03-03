@@ -28,7 +28,7 @@ public class KnowledgeLoader {
     @Autowired
     private KnowledgePointMapper mapper;
     @Autowired
-    private EmbeddingStore<TextSegment> store;
+    private EmbeddingStore<TextSegment> embeddingStore;
     @Autowired
     private EmbeddingModel embeddingModel;
 
@@ -53,7 +53,7 @@ public class KnowledgeLoader {
             TextSegment segment = TextSegment.from(
                     kp.getTitle() + "\n" + kp.getRecommendedAnswer()
             );
-            store.add(embeddingModel.embed(segment).content(), segment);
+            embeddingStore.add(embeddingModel.embed(segment).content(), segment);
         }
 
         log.info("知识点加载完成");

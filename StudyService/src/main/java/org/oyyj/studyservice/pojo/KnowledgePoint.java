@@ -1,5 +1,8 @@
 package org.oyyj.studyservice.pojo;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
@@ -9,7 +12,16 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.util.Strings;
+import org.oyyj.studyservice.dto.knowledgePoint.InterviewQuestionsDTO;
+import org.oyyj.studyservice.dto.knowledgePoint.KnowledgePointDTO;
+import org.springframework.beans.BeanUtils;
+
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 
 /**
  * 知识点表
@@ -18,6 +30,7 @@ import java.util.Date;
 @NoArgsConstructor
 @AllArgsConstructor
 @TableName("knowledge_point")
+@Slf4j
 public class KnowledgePoint {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
@@ -88,6 +101,35 @@ public class KnowledgePoint {
             }
             return null;
         }
+    }
+
+    public KnowledgePointDTO entityToDTO(KnowledgePoint entity) {
+
+        ObjectMapper mapper = new ObjectMapper();
+        KnowledgePointDTO knowledgePointDTO = new KnowledgePointDTO();
+        BeanUtils.copyProperties(entity, knowledgePointDTO);
+        knowledgePointDTO.setId(String.valueOf(entity.getId()));
+        List<InterviewQuestionsDTO> interviewQuestionsDTOS = new ArrayList<>();
+        try {
+            if(entity.getRelatedQuestions()!=null){
+                interviewQuestionsDTOS = mapper.readValue(entity.getRelatedQuestions(), new TypeReference<List<InterviewQuestionsDTO>>() {
+                });
+            }
+        } catch (JsonProcessingException e) {
+            log.error("知识点相关面试题转换失败，数据如下：{}",entity.getRelatedQuestions(),e);
+        }
+        knowledgePointDTO.setRelatedQuestions(interviewQuestionsDTOS);
+        KnowledgePoint.LevelEnum byValue = KnowledgePoint.LevelEnum.getByValue(entity.getLevel());
+        if(byValue==null){
+            log.error("难度等级不正确{}",entity.getLevel());
+        }else{
+            knowledgePointDTO.setLevel(byValue.getDesc());
+        }
+        if(entity.getType()!=null && Strings.isNotBlank(entity.getType()) ){
+            knowledgePointDTO.setType(Arrays.asList(entity.getType().split(",")));
+        }
+
+        return knowledgePointDTO;
     }
 
 }

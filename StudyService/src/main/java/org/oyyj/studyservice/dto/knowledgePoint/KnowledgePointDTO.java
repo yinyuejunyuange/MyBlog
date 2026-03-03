@@ -19,8 +19,7 @@ import java.util.List;
 @NoArgsConstructor
 public class KnowledgePointDTO {
 
-
-    private Long id;
+    private String id;
     private String createBy;
     private Date createTime;
     private String updateBy;

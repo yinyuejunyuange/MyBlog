@@ -36,6 +36,8 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -213,12 +215,18 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         List<SubmitResultVO.QuestionResultVO> detailResults = new ArrayList<>();
         int totalScoreInt = 0; // 存储乘以100后的整数总分
 
+        List<Long> questionIds = submitDTO.getAnswers().stream().map(SubmitAnswerDTO.UserAnswerItem::getQuestionId).toList();
+
+        Map<Long, Question> collect = list(Wrappers.<Question>lambdaQuery()
+                .in(Question::getId, questionIds)
+        ).stream().collect(Collectors.toMap(Question::getId, Function.identity()));
+
         for (SubmitAnswerDTO.UserAnswerItem item : submitDTO.getAnswers()) {
             Long questionId = item.getQuestionId();
             List<String> userAnswer = item.getUserAnswer();
 
             // 获取题目信息
-            Question question = this.getById(questionId);
+            Question question = collect.get(questionId);
             if (question == null) {
                 log.warn("题目不存在，questionId={}", questionId);
                 continue;
@@ -258,6 +266,24 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
             resultVO.setQuestionId(questionId);
             resultVO.setIsCorrect(isCorrect);
             resultVO.setScore(scoreRatio); // 返回实际小数得分
+            resultVO.setExplanation(question.getExplanation());
+            resultVO.setTitle(question.getQuestionText());
+            if(question.getAnswer() != null){
+                try {
+                    resultVO.setCorrectAnswers( objectMapper.readValue(question.getAnswer(),new TypeReference<List<String>>() {}) );
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            if(question.getOptions() != null){
+                try {
+                    resultVO.setOptions(objectMapper.readValue(question.getOptions(), new TypeReference<List<String>>() {}));
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            resultVO.setUserAnswer(item.getUserAnswer());
             detailResults.add(resultVO);
         }
 
