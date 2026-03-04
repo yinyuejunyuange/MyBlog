@@ -57,7 +57,7 @@ public class AgentController {
             session = interviewSessionService.createSession(loginUser, aiChatDTO.getKnowledgeBaseId());
             interviewSessionService.save(redisSession,session);
 
-            aiChatDTO.setMessage("请告诉我题目！");
+            aiChatDTO.setMessage("请告诉我题目。");
 
 //            String firstQuestion = """
 //                    面试开始。
@@ -91,6 +91,8 @@ public class AgentController {
         interviewFlowEngine.handleUserAnswer(
                 session,
                 redisSession,
+                Long.valueOf(aiChatDTO.getKnowledgeBaseId()),
+                loginUser.getUserId(),
                 aiChatDTO.getMessage(),
                 new StreamingResponseHandler<>() {
                     @Override

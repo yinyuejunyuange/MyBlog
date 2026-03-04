@@ -8,13 +8,11 @@ import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.oyyj.studyservice.mapper.KnowledgePointMapper;
 import org.oyyj.studyservice.pojo.KnowledgePoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;

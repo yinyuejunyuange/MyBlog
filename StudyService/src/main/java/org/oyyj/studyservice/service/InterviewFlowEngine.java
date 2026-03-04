@@ -5,6 +5,8 @@ import dev.langchain4j.model.output.Response;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import net.bytebuddy.utility.nullability.AlwaysNull;
 import org.oyyj.studyservice.config.ai.agent.assistant.InterviewerAssistant;
+import org.oyyj.studyservice.mapper.ChatMessageMapper;
+import org.oyyj.studyservice.pojo.ChatMessage;
 import org.oyyj.studyservice.pojo.KnowledgePoint;
 import org.oyyj.studyservice.pojo.model.interview.InterviewLog;
 import org.oyyj.studyservice.pojo.model.interview.InterviewSession;
@@ -26,12 +28,19 @@ public class InterviewFlowEngine {
     @Autowired
     private InterviewSessionService interviewSessionService;
 
+    @Autowired
+    private ChatMessageMapper chatMessageMapper;
+
+    @Autowired
+    private ChatMessageService chatMessageService;
 
     // 不再需要 EmbeddingStore 和 EmbeddingModel
 
     public void handleUserAnswer(
             InterviewSession session,
             String userSessionPrefix,
+            Long baseId,
+            Long userId,
             String userAnswer,
             StreamingResponseHandler<String> handler
     ) {
@@ -50,8 +59,20 @@ public class InterviewFlowEngine {
         log.setRoundIndex(session.getCurrentRound() + 1);
         log.setCandidateAnswer(userAnswer);
         session.getInterviewLogs().add(log);
-        // TODO 存储到数据库
 
+        ChatMessage msg = new ChatMessage();
+        msg.setSessionId(String.valueOf(session.getId()));
+        msg.setUserId(userId);
+        msg.setKnowledgeBaseId(baseId);
+        msg.setKnowledgePointId(kp.getId());
+        msg.setRoundNum(session.getCurrentRound());
+        msg.setRole("USER");
+        msg.setKnowledgePointName(kp.getTitle());
+        msg.setAnswerForId(session.getLastAssistantId());
+        msg.setContent(userAnswer);
+        chatMessageMapper.insert(msg);
+
+        chatMessageService.getUserMessageComment(msg.getId());
 
         // 2. 构造用户消息（包含当前状态）
         String userMessage = String.format("""
@@ -76,6 +97,19 @@ public class InterviewFlowEngine {
                 .onComplete(response -> {
                     String text = response.content().text();
 
+                    ChatMessage aiMsg = new ChatMessage();
+                    aiMsg.setSessionId(String.valueOf(session.getId()));
+                    aiMsg.setUserId(userId);
+                    aiMsg.setKnowledgeBaseId(baseId);
+                    aiMsg.setKnowledgePointId(kp.getId());
+                    aiMsg.setRoundNum(session.getCurrentRound());
+                    aiMsg.setRole("ASSISTANT");
+                    aiMsg.setKnowledgePointName(kp.getTitle());
+                    aiMsg.setContent(text);
+                    aiMsg.setFinishComment(-1);// 不需要评论
+                    chatMessageMapper.insert(aiMsg);
+
+                    session.setLastAssistantId(aiMsg.getId());
                     // 4. 流程判断（与之前相同）
                     if (text.contains("面试结束")) {
                         chatMemoryStore.deleteMessages(session.getId());
@@ -101,4 +135,7 @@ public class InterviewFlowEngine {
                 .onError(handler::onError)
                 .start();
     }
+
+
+
 }

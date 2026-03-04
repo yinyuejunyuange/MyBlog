@@ -16,6 +16,10 @@ public class InterviewSession {
     private int currentQuestionIndex = 0;
     private int currentRound = 0;
     private int maxRound = 3;
+    /**
+     * 上一个问题的ID
+     */
+    private Long lastAssistantId;
 
     private List<InterviewLog> interviewLogs = new ArrayList<>();
 
