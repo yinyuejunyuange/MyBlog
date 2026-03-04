@@ -4,6 +4,7 @@ import cn.hutool.core.lang.Snowflake;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
+import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import org.oyyj.mycommonbase.common.RedisPrefix;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.mycommonbase.utils.RedisUtil;
@@ -32,6 +33,9 @@ public class InterviewSessionService {
 
     @Autowired
     private Snowflake snowflake;
+
+    @Autowired
+    private ChatMemoryStore chatMemoryStore;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -77,7 +81,11 @@ public class InterviewSessionService {
      * @return
      */
     public InterviewSession load(String candidateId) {
-        String json = redisUtil.get(RedisPrefix.AI_INTERVIEW_PREFIX + candidateId).toString();
+        Object o = redisUtil.get(RedisPrefix.AI_INTERVIEW_PREFIX + candidateId);
+        if(o==null){
+            return null;
+        }
+        String json = o.toString();
         if (json == null) return null;
         try {
             return objectMapper.readValue(json, InterviewSession.class);
@@ -92,6 +100,8 @@ public class InterviewSessionService {
      */
     public void clear(String candidateId) {
         redisUtil.delete(RedisPrefix.AI_INTERVIEW_PREFIX+ candidateId);
+        // 清空记忆信息
+        chatMemoryStore.deleteMessages(candidateId);
     }
 
 }

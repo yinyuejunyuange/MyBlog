@@ -73,7 +73,7 @@ public class CommentController {
 
     /**
      * ===============================
-     * 5️⃣ 删除评论
+     * 删除评论
      * ===============================
      */
     @DeleteMapping("/delete/{commentId}")

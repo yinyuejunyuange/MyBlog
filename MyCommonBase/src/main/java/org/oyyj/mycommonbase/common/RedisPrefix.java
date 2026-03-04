@@ -65,4 +65,6 @@ public class RedisPrefix {
      * Ai对话面试
      */
     public static final String AI_INTERVIEW_PREFIX = "interview:session:";
+
+    public static final String AI_MEMORY = "ai:memory:";
 }

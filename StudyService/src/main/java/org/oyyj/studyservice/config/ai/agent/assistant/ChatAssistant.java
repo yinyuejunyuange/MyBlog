@@ -12,6 +12,7 @@ public interface ChatAssistant {
         你是一个技术助理。
         回答必须优先基于已知知识点，
         如果不足可以合理补充，但要标明推断。
+        需要返回MarkDown格式的结果
         """)
     TokenStream chat(@MemoryId String sessionId, @UserMessage String userMessage);
 }

@@ -1,11 +1,13 @@
 package org.oyyj.studyservice.pojo.model.interview;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import org.oyyj.studyservice.pojo.KnowledgePoint;
 
 import java.util.ArrayList;
 import java.util.List;
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class InterviewSession {
 
     private Long id;
@@ -19,6 +21,13 @@ public class InterviewSession {
 
     public KnowledgePoint currentQuestion() {
         return questions.get(currentQuestionIndex);
+    }
+
+    public KnowledgePoint getNextQuestion() {
+        if(hasNextQuestion()){
+            return questions.get(currentQuestionIndex+1);
+        }
+        return null;
     }
 
     public boolean hasNextRound() {
