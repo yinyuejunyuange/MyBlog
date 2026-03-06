@@ -12,14 +12,18 @@ import org.oyyj.studyservice.config.ai.agent.assistant.InterviewerAssistant;
 import org.oyyj.studyservice.config.ai.agent.assistant.ChatAssistant;
 import org.oyyj.studyservice.dto.ai.AiChatDTO;
 import org.oyyj.studyservice.pojo.model.interview.InterviewSession;
+import org.oyyj.studyservice.service.ChatMessageService;
 import org.oyyj.studyservice.service.InterviewFlowEngine;
 import org.oyyj.studyservice.service.InterviewSessionService;
+import org.oyyj.studyservice.vo.chatMessage.ChatMessageVO;
+import org.oyyj.studyservice.vo.chatMessage.InterviewEvaluationVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -36,6 +40,9 @@ public class AgentController {
 
     @Autowired
     private InterviewFlowEngine  interviewFlowEngine;
+
+    @Autowired
+    private ChatMessageService  chatMessageService;
 
     /**
      * 基于知识库模拟你面试
@@ -152,4 +159,54 @@ public class AgentController {
         return ResultUtil.success("删除成功");
 
     }
+
+    /**
+     * 查看历史记录
+     * @param loginUser
+     * @return
+     */
+    @GetMapping("/interview/history")
+    public ResultUtil<List<ChatMessageVO>> historyInterview(@RequestUser LoginUser loginUser){
+        return chatMessageService.listUserHistory(loginUser);
+    }
+
+    /**
+     * 查看历史详情
+     * @param sessionId
+     * @return
+     */
+    @GetMapping("/interview/historyInfo")
+    public ResultUtil<List<InterviewEvaluationVO>> historyInterviewDetail(@RequestParam("sessionId")String sessionId){
+        return chatMessageService.listBySessionId(sessionId);
+    }
+
+    /**
+     * 检查是否还有遗漏的面试信息
+     * @param loginUser
+     * @param knowledgeBaseId
+     * @return
+     */
+    @GetMapping("/interview/haveOmission")
+    public ResultUtil<Boolean> haveOmission(@RequestUser LoginUser loginUser ,@RequestParam("knowledgeBaseId")  String knowledgeBaseId){
+        String redisSession = RedisPrefix.AI_INTERVIEW_PREFIX + loginUser.getUserId()+":" + knowledgeBaseId;
+
+        InterviewSession session = interviewSessionService.load(redisSession);
+        return ResultUtil.success(session!=null);
+    }
+
+    /**
+     * 清理遗漏的面试题
+     * @param loginUser
+     * @param knowledgeBaseId
+     * @return
+     */
+    @PutMapping("/interview/cleanOmission")
+    public ResultUtil<Boolean> cleanOmission(@RequestUser LoginUser loginUser ,@RequestParam("knowledgeBaseId")  String knowledgeBaseId){
+        String redisSession = RedisPrefix.AI_INTERVIEW_PREFIX + loginUser.getUserId()+":" + knowledgeBaseId;
+        interviewSessionService.clear(redisSession);
+        return ResultUtil.success(true);
+    }
+
+
+
 }

@@ -59,12 +59,17 @@ public class ChatMessage {
     @TableField("comment")
     private String comment;
 
+    @TableField("sort")
+    private Integer sort;
+
+    @TableField("is_finish")
+    private Integer isFinish;
 
     /**
      * 创建时间，插入时自动填充当前时间
      * 需要配合 MetaObjectHandler 使用
      */
-    @TableField(value = "create_time", fill = FieldFill.INSERT)
+    @TableField(value = "create_time")
     private Date createTime;
 
 }

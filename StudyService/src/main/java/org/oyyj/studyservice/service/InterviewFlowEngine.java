@@ -60,6 +60,12 @@ public class InterviewFlowEngine {
         log.setCandidateAnswer(userAnswer);
         session.getInterviewLogs().add(log);
 
+        if(session.getSort() == null){
+            session.setSort(0);
+        }else{
+            session.setSort(session.getSort() + 1);
+        }
+
         ChatMessage msg = new ChatMessage();
         msg.setSessionId(String.valueOf(session.getId()));
         msg.setUserId(userId);
@@ -70,6 +76,7 @@ public class InterviewFlowEngine {
         msg.setKnowledgePointName(kp.getTitle());
         msg.setAnswerForId(session.getLastAssistantId());
         msg.setContent(userAnswer);
+        msg.setSort(session.getSort());
         chatMessageMapper.insert(msg);
 
         chatMessageService.getUserMessageComment(msg.getId());
@@ -97,6 +104,8 @@ public class InterviewFlowEngine {
                 .onComplete(response -> {
                     String text = response.content().text();
 
+                    session.setSort(session.getSort() + 1);
+
                     ChatMessage aiMsg = new ChatMessage();
                     aiMsg.setSessionId(String.valueOf(session.getId()));
                     aiMsg.setUserId(userId);
@@ -107,6 +116,7 @@ public class InterviewFlowEngine {
                     aiMsg.setKnowledgePointName(kp.getTitle());
                     aiMsg.setContent(text);
                     aiMsg.setFinishComment(-1);// 不需要评论
+                    aiMsg.setSort(session.getSort());
                     chatMessageMapper.insert(aiMsg);
 
                     session.setLastAssistantId(aiMsg.getId());

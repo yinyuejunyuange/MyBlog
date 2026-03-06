@@ -21,6 +21,8 @@ public class InterviewSession {
      */
     private Long lastAssistantId;
 
+    private Integer sort;
+
     private List<InterviewLog> interviewLogs = new ArrayList<>();
 
     public KnowledgePoint currentQuestion() {

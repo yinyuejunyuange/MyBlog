@@ -11,6 +11,8 @@ public class InterviewEvaluationDTO {
     private int accuracy;      // 准确性评分
     private int logic;         // 逻辑评分
     private int depth;         // 深度评分
+    private String advantages; // 优点
+    private String disAdvantages; // 缺点
     private String suggestion;  // 改进建议（评价）
     private int score;          // 总体评分
 }
