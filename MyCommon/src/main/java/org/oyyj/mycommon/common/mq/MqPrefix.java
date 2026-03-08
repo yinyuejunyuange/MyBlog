@@ -53,4 +53,23 @@ public class MqPrefix {
     public static final String BLOG_PUBLISH_QUEUE="blog.publish.queue"; // 队列
     public static final String BLOG_PUBLISH_ROUTING_KEY="blog.publish.routing.key"; // 消息路由
 
+
+    /**
+     * 实时交流队列信息  需要获取相关的配置信息
+     */
+    public static final String MESSAGE_PUBLISH_EXCHANGE="message.publish.exchange:";
+    public static final String MESSAGE_PUBLISH_QUEUE="message.publish.queue:";
+    public static final String MESSAGE_PUBLISH_ROUTING_KEY="message.publish.routing.key:";
+
+
+    /**
+     * 将实时交流的消磁存储到es数据库中
+     */
+    public static final String MESSAGE_ES_EXCHANGE="message.es.exchange";
+    public static final String MESSAGE_ES_QUEUE="message.es.queue";
+    public static final String MESSAGE_ES_ROUTING_KEY="message.es.routing.key";
+
+
+
+
 }

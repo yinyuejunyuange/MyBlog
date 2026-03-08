@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.oyyj.chatservice.mapper.ChatMessageMapper">
+
+    <select id="selectLastMessageByDialogId" resultType="org.oyyj.chatservice.pojo.ChatMessage">
+
+        SELECT
+            cm.id,
+            cm.msg_id,
+            cm.chat_type,
+            cm.content,
+            cm.dialog_id,
+            cm.status,
+            cm.`timestamp`,
+            cm.created_at
+        FROM chat_message cm
+        INNER JOIN (
+            SELECT
+                dialog_id,
+                MAX(created_at) AS max_time
+            FROM chat_message
+            WHERE is_delete = 0
+              AND (status = 0 OR status = 1)
+            GROUP BY dialog_id
+        ) t
+        ON cm.dialog_id = t.dialog_id AND cm.created_at = t.max_time
+        WHERE cm.dialog_id in
+            <foreach collection="dialogs" close=")" open="(" separator="," item="item">
+                #{item}
+            </foreach>
+
+    </select>
+    <select id="selectSendMessageByToUserId" resultType="org.oyyj.chatservice.pojo.ChatMessage">
+        SELECT
+            id,
+            msg_id,
+            chat_type,
+            content,
+            dialog_id,
+            status,
+            `timestamp`,
+            created_at
+        FROM chat_message
+        WHERE to_user_id = #{toUserId}
+          AND status = 0
+          AND is_delete = 0
+        ORDER BY created_at Desc
+    </select>
+</mapper>

@@ -70,6 +70,10 @@ public class JWTAuthenticationTokenFilter implements WebFilter { // 原来的过
 
         // 获取token
         String token = request.getHeaders().getFirst("X-Token");
+        // WebSocket兼容
+        if (!StringUtils.hasText(token)) {
+            token = request.getQueryParams().getFirst("token");
+        }
         // token 为空交给 SpringSecurity的authorizeExchange决定
         if (!StringUtils.hasText(token)) {
             // 匿名请求 获取访问者的IP信息

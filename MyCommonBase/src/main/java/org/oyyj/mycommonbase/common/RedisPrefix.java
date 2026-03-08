@@ -67,4 +67,10 @@ public class RedisPrefix {
     public static final String AI_INTERVIEW_PREFIX = "interview:session:";
 
     public static final String AI_MEMORY = "ai:memory:";
+
+    /**
+     * 交流相关前缀
+     */
+    public static final String CHAT_MSG_INSTANCE = "chat:msg:instance:";
+
 }

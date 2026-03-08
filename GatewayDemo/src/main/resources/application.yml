@@ -62,6 +62,16 @@ spring:
           predicates: # 路由匹配规则
             - Path=/myBlog/user/**
 
+        - id: ChatServiceHttp
+          uri: lb://ChatService
+          predicates:
+            - Path=/myBlog/chat/**
+
+        - id: ChatServiceWS
+          uri: lb:ws://ChatService
+          predicates:
+            - Path=/ws/**
+
         - id: AIChatDemoService
           uri: lb://AIChatDemoService
           predicates:

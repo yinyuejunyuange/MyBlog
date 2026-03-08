@@ -24,6 +24,7 @@
         <module>MyCommonBase</module>
         <module>GatewayDemo</module>
         <module>StudyService</module>
+        <module>ChatService</module>
     </modules>
     <url/>
     <licenses>

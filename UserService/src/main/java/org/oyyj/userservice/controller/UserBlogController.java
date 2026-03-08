@@ -120,22 +120,15 @@ public class UserBlogController {
     // 判断用户是否点赞回复
     @GetMapping("/getUserKudosReply")
     public Boolean getUserKudosReply(@RequestParam("replyId")String replyId,@RequestParam("userId")Long userId,HttpServletRequest request){
-        try {
-            String source = request.getHeader("source");
-            if(source==null||!source.equals("BLOGSERVICE")){
-                throw new AuthenticationException("请求来源不正确");
-            }
 
-            // 判断 用户是否点赞此评论
-            UserReply one = userReplyService.getOne(Wrappers.<UserReply>lambdaQuery()
-                    .eq(UserReply::getReplyId, Long.valueOf(replyId))
-                    .eq(UserReply::getUserId, userId)
-            );
 
-            return !Objects.isNull(one);
-        } catch (AuthenticationException e) {
-            throw new RuntimeException(e);
-        }
+        // 判断 用户是否点赞此评论
+        UserReply one = userReplyService.getOne(Wrappers.<UserReply>lambdaQuery()
+                .eq(UserReply::getReplyId, Long.valueOf(replyId))
+                .eq(UserReply::getUserId, userId)
+        );
+
+        return !Objects.isNull(one);
     }
 
     @GetMapping("/isUserLikeComments")
