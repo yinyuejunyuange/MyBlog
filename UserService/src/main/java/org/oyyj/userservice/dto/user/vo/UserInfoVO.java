@@ -11,6 +11,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class UserInfoVO {
+
+    private String userId;
+
+    private Boolean isUserSelf;
+
     private String userName;
 
     private String introduce;

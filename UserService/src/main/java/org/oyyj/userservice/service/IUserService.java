@@ -43,7 +43,7 @@ public interface IUserService extends IService<User> {
 
     Map<String,Object> changeUserInfo(ChangeUserDTO changeUserDTO,LoginUser loginUser);
 
-    void upLoadBlogToAI(BlogDTO blogDTO);
+//    void upLoadBlogToAI(BlogDTO blogDTO);
 
 
 

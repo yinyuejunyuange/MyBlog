@@ -16,6 +16,7 @@ import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.mycommonbase.common.commonEnum.YesOrNoEnum;
 import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.oyyj.mycommonbase.utils.ResultUtil;
+import org.oyyj.userservice.Feign.ChatFeign;
 import org.oyyj.userservice.dto.*;
 import org.oyyj.userservice.Feign.AIChatFeign;
 import org.oyyj.userservice.Feign.BlogFeign;
@@ -63,8 +64,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     @Autowired
     private IUserAttentionService userAttentionService;
 
+//    @Autowired
+//    private AIChatFeign aiChatFeign;
+
     @Autowired
-    private AIChatFeign aiChatFeign;
+    private ChatFeign chatFeign;
 
 
     @Autowired
@@ -79,6 +83,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             return ResultUtil.fail("获取用户信息失败");
         }
         userInfoVO.setUserName(one.getNickName());
+        userInfoVO.setUserId(String.valueOf(one.getId()));
         userInfoVO.setHead(one.getImageUrl());
         userInfoVO.setIntroduce(Strings.isNotBlank(one.getIntroduce())? one.getIntroduce():"这个人很神秘 什么都没留下...");
         UserBlogInfoDTO userBlogInfo = blogFeign.getUserBlogInfo(one.getId());
@@ -90,20 +95,28 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         userInfoVO.setFunS(TransUtil.formatNumber(funS));
 
         if(Objects.equals(YesOrNoEnum.YES.getCode(), loginUser.getIsUserLogin())){
-            // 判断当前用户是否关注此作者
-            UserAttention userAttention = userAttentionService.getOne(Wrappers.<UserAttention>lambdaQuery()
-                    .eq(UserAttention::getUserId, loginUser.getUserId())
-                    .eq(UserAttention::getAttentionId, id)
-            );
 
-            if(Objects.isNull(userAttention)){
+            if(id.equals(loginUser.getUserId())){
+                userInfoVO.setIsUserSelf(true);
                 userInfoVO.setIsUserStar(YesOrNoEnum.NO.getCode());
             }else{
-                userInfoVO.setIsUserStar(YesOrNoEnum.YES.getCode());
+                userInfoVO.setIsUserSelf(false);
+                // 判断当前用户是否关注此作者
+                UserAttention userAttention = userAttentionService.getOne(Wrappers.<UserAttention>lambdaQuery()
+                        .eq(UserAttention::getUserId, loginUser.getUserId())
+                        .eq(UserAttention::getAttentionId, id)
+                );
+
+                if(Objects.isNull(userAttention)){
+                    userInfoVO.setIsUserStar(YesOrNoEnum.NO.getCode());
+                }else{
+                    userInfoVO.setIsUserStar(YesOrNoEnum.YES.getCode());
+                }
             }
 
         }else{
             userInfoVO.setIsUserStar(YesOrNoEnum.NO.getCode());
+            userInfoVO.setIsUserSelf(false);
         }
 
         return ResultUtil.success(userInfoVO);
@@ -292,6 +305,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             if(Objects.isNull(one)){
                 return false;
             }
+            // 提交关注信息
+            chatFeign.addFansInfo(String.valueOf(userId),authorId);
             return update(Wrappers.<User>lambdaUpdate()
                     .eq(User::getId, attentionId)
                     .set(User::getStar, one.getStar() + 1)
@@ -326,7 +341,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             if(Objects.isNull(one)){
                 return false;
             }
-
+            chatFeign.unfollow(String.valueOf(userId),authorId);
             return update(Wrappers.<User>lambdaUpdate()
                     .eq(User::getId, attentionId)
                     .set(User::getStar, one.getStar() - 1)
@@ -419,55 +434,55 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         boolean b = saveOrUpdate(one);
         return ResultUtil.successMap(b,"修改成功");
     }
-
-    @Async("asyncTaskExecutor")
-    @Override
-    public void upLoadBlogToAI(BlogDTO blogDTO) {
-
-        // 将用户生成的文档转换成txt格式的文件存储下来并上传到ai中
-        String filePath="H:/MyBlogFiles/";
-
-        String fileName=blogDTO.getTitle().replaceAll(" ","_")+".txt";
-        File file=new File(filePath,fileName); // 生成一个本地文件
-
-        // 向文件中写数据
-        try {
-            FileWriter writer=new FileWriter(file);
-
-            writer.write("博客标题\n"+blogDTO.getTitle()+"\n\n");
-            writer.write("博客作者\n"+blogDTO.getUserName()+"\n\n");
-            writer.write("博客简介\n"+blogDTO.getIntroduce()+"\n\n");
-            writer.write("博客内容\n"+blogDTO.getText()+"\n\n");
-
-            writer.flush(); // 让所有缓存全部存储到文件中
-
-            writer.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        // 将File转换成Multipartfile
-        try {
-            byte[] bytes = Files.readAllBytes(file.toPath());
-            MockMultipartFile multiPartFile = new MockMultipartFile("file", bytes);
-
-            AIFileDTO build = AIFileDTO.builder()
-                    .fileAddress(filePath + fileName)
-                    .isUpload(0)
-                    .isDelete(0)
-                    .build();
-
-            ObjectMapper objectMapper = new ObjectMapper();
-            String s = objectMapper.writeValueAsString(build);
-
-            // 调用接口 上传文件到工作区
-            aiChatFeign.uploadFileToWorkShape(multiPartFile,"myllm",s);
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-    }
+//
+//    @Async("asyncTaskExecutor")
+//    @Override
+//    public void upLoadBlogToAI(BlogDTO blogDTO) {
+//
+//        // 将用户生成的文档转换成txt格式的文件存储下来并上传到ai中
+//        String filePath="H:/MyBlogFiles/";
+//
+//        String fileName=blogDTO.getTitle().replaceAll(" ","_")+".txt";
+//        File file=new File(filePath,fileName); // 生成一个本地文件
+//
+//        // 向文件中写数据
+//        try {
+//            FileWriter writer=new FileWriter(file);
+//
+//            writer.write("博客标题\n"+blogDTO.getTitle()+"\n\n");
+//            writer.write("博客作者\n"+blogDTO.getUserName()+"\n\n");
+//            writer.write("博客简介\n"+blogDTO.getIntroduce()+"\n\n");
+//            writer.write("博客内容\n"+blogDTO.getText()+"\n\n");
+//
+//            writer.flush(); // 让所有缓存全部存储到文件中
+//
+//            writer.close();
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
+//
+//        // 将File转换成Multipartfile
+//        try {
+//            byte[] bytes = Files.readAllBytes(file.toPath());
+//            MockMultipartFile multiPartFile = new MockMultipartFile("file", bytes);
+//
+//            AIFileDTO build = AIFileDTO.builder()
+//                    .fileAddress(filePath + fileName)
+//                    .isUpload(0)
+//                    .isDelete(0)
+//                    .build();
+//
+//            ObjectMapper objectMapper = new ObjectMapper();
+//            String s = objectMapper.writeValueAsString(build);
+//
+//            // 调用接口 上传文件到工作区
+//            aiChatFeign.uploadFileToWorkShape(multiPartFile,"myllm",s);
+//
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
+//
+//    }
 
 
     @Override

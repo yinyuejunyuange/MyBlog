@@ -8,6 +8,7 @@ import com.github.rholder.retry.RetryException;
 import lombok.extern.slf4j.Slf4j;
 import org.oyyj.blogservice.dto.ReadCommentDTO;
 import org.oyyj.blogservice.dto.ReadReplyDTO;
+import org.oyyj.blogservice.feign.ChatFeign;
 import org.oyyj.blogservice.feign.UserFeign;
 import org.oyyj.blogservice.mapper.ReplyMapper;
 import org.oyyj.blogservice.pojo.Comment;
@@ -48,6 +49,8 @@ public class ReplyServiceImpl extends ServiceImpl<ReplyMapper, Reply> implements
     private final Integer pageSize = 20; // 每次查询的数量
     @Autowired
     private TransactionTemplate transactionTemplate;
+    @Autowired
+    private ChatFeign chatFeign;
 
     // 回复点赞数加一或者减一
     @Override
@@ -94,8 +97,12 @@ public class ReplyServiceImpl extends ServiceImpl<ReplyMapper, Reply> implements
                         boolean  userFeignResult;
                         if(Objects.equals(isAdd, YesOrNoEnum.YES.getCode())){
                             userFeignResult = userFeign.kudosReply(String.valueOf(replyId), loginUser.getUserId());
+
+                            chatFeign.addLikeStar(String.valueOf(loginUser.getUserId()),String.valueOf(one.getUserId()),String.valueOf(replyId),3,1);
+
                         }else{
                             userFeignResult = userFeign.cancelKudosReply(String.valueOf(replyId), loginUser.getUserId());
+                            chatFeign.cancelLikeStar(String.valueOf(loginUser.getUserId()),String.valueOf(replyId),3,1);
                         }
                         if(!userFeignResult){
                             throw new RuntimeException("用户端处理回复失败{}");

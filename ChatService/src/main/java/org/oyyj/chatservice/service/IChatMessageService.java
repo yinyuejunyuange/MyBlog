@@ -3,6 +3,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import org.oyyj.chatservice.pojo.ChatMessage;
 import org.oyyj.chatservice.pojo.vo.ChatMsgVO;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
+import org.oyyj.mycommonbase.utils.ResultUtil;
 
 import java.util.List;
 
@@ -61,4 +62,28 @@ public interface IChatMessageService extends IService<ChatMessage> {
     List<ChatMsgVO> messageList(LoginUser loginUser ,
                                 String dialogId,
                                 String lastMsgId);
+
+    /**
+     * 清空阅读记录
+     * @param loginUser
+     * @param dialogId
+     * @return
+     */
+    Boolean readMsg(LoginUser loginUser, String dialogId);
+
+    /**
+     * 用户是否允许
+     * @param loginUser
+     * @return
+     */
+    ResultUtil<Integer> isUserAllow(LoginUser loginUser);
+
+    /**
+     * 修改用户信息 是否接收陌生人信息
+     * @param loginUser
+     * @param allowStranger
+     * @return
+     */
+    ResultUtil<Integer> updateUserAllow(LoginUser loginUser, Integer allowStranger);
+
 }

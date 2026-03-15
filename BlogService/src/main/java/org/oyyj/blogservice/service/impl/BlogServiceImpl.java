@@ -20,6 +20,7 @@ import org.oyyj.blogservice.config.mqConfig.sender.RabbitMqPublishSender;
 import org.oyyj.blogservice.config.mqConfig.sender.RabbitMqUserBehaviorSender;
 import org.oyyj.blogservice.config.pojo.BlogActivityLevel;
 import org.oyyj.blogservice.dto.*;
+import org.oyyj.blogservice.feign.ChatFeign;
 import org.oyyj.blogservice.feign.UserFeign;
 import org.oyyj.blogservice.mapper.BlogMapper;
 import org.oyyj.blogservice.mapper.TypeTableMapper;
@@ -145,6 +146,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     @Autowired
     private PyApiUtil pyApiUtil;
+
+    @Autowired
+    private ChatFeign chatFeign;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -1342,25 +1346,45 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     @Override
     @Transactional
     public boolean blogStar(Long blogId,LoginUser loginUser) {
-        return blogIncr(blogId,RedisPrefix.BLOG_START_LOCK,loginUser.getUserId());
+        boolean success = blogIncr(blogId, RedisPrefix.BLOG_START_LOCK, loginUser.getUserId());
+        if(success){
+            Blog byId = getById(blogId);
+            chatFeign.addLikeStar(String.valueOf(loginUser.getUserId()),String.valueOf(byId.getUserId()),String.valueOf(blogId),1,2);
+        }
+        return success;
     }
 
     @Override
     @Transactional
     public boolean cancelStar(Long blogId , LoginUser loginUser) {
-        return blogDecr(blogId,RedisPrefix.BLOG_START_LOCK,loginUser.getUserId());
+        boolean success = blogDecr(blogId, RedisPrefix.BLOG_START_LOCK, loginUser.getUserId());
+        if(success){
+            chatFeign.cancelLikeStar(String.valueOf(loginUser.getUserId()),String.valueOf(blogId),1,2);
+        }
+        return success;
     }
 
     @Override
     @Transactional
     public boolean blogKudos(Long blogId , LoginUser loginUser) {
-        return blogIncr(blogId,RedisPrefix.BLOG_KUDOS_LOCK,loginUser.getUserId());
+        boolean success = blogIncr(blogId, RedisPrefix.BLOG_KUDOS_LOCK, loginUser.getUserId());
+        if(success){
+            Blog byId = getById(blogId);
+            chatFeign.addLikeStar( String.valueOf(loginUser.getUserId()),String.valueOf(byId.getUserId())
+                    ,String.valueOf(blogId),1,1);
+        }
+        return success;
     }
 
     @Override
     @Transactional
     public boolean cancelKudos(Long blogId , LoginUser loginUser) {
-        return blogDecr(blogId,RedisPrefix.BLOG_KUDOS_LOCK,loginUser.getUserId());
+        boolean success = blogDecr(blogId, RedisPrefix.BLOG_KUDOS_LOCK, loginUser.getUserId());
+        if(success){
+            chatFeign.cancelLikeStar( String.valueOf(loginUser.getUserId()),
+                    String.valueOf(blogId),1,1);
+        }
+        return success;
     }
 
     @Override

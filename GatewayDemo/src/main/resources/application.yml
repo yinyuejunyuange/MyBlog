@@ -65,7 +65,7 @@ spring:
         - id: ChatServiceHttp
           uri: lb://ChatService
           predicates:
-            - Path=/myBlog/chat/**
+            - Path=/myBlog/chat/** , /myBlog/follow/**
 
         - id: ChatServiceWS
           uri: lb:ws://ChatService

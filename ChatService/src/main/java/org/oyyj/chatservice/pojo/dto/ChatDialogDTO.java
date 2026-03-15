@@ -25,4 +25,9 @@ public class ChatDialogDTO {
 
     private Integer count;
 
+    /**
+     * 用户是否免打扰
+     */
+    private Integer isUserMute;
+
 }

@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
 import org.oyyj.blogservice.dto.ReadCommentDTO;
 import org.oyyj.blogservice.dto.ReadReplyDTO;
+import org.oyyj.blogservice.feign.ChatFeign;
 import org.oyyj.blogservice.feign.UserFeign;
 import org.oyyj.blogservice.mapper.CommentMapper;
 import org.oyyj.blogservice.mapper.ReplyMapper;
@@ -55,6 +56,9 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     private TransactionTemplate transactionTemplate;
 
     private final Integer pageSize = 20; // 每次查询的数量
+    @Autowired
+    private ChatFeign chatFeign;
+
     // 获取评论
     @Override
     public CommentResultVO getBlogComment(String blogId, LoginUser loginUser , Date lastTime, String lastId) {
@@ -168,8 +172,12 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
                 // 调用用户服务接口 让用户添加加1/减1
                 if (YesOrNoEnum.YES.getCode().equals(isAdd)) {
                     userFeignResult = userFeign.kudosComment(String.valueOf(commentId), loginUser.getUserId());
+
+                    chatFeign.addLikeStar(String.valueOf(loginUser.getUserId()),String.valueOf(one.getUserId()),String.valueOf(one.getId()),2,1);
+
                 } else {
                     userFeignResult = userFeign.cancelKudosComment(String.valueOf(commentId), loginUser.getUserId());
+                    chatFeign.cancelLikeStar(String.valueOf(loginUser.getUserId()),String.valueOf(one.getId()),2,1);
                 }
 
                 if (!userFeignResult) {

@@ -17,5 +17,16 @@ public interface ChatMessageMapper extends BaseMapper<ChatMessage> {
 
     List<ChatMessage> selectSendMessageByToUserId(@Param("toUserId")String toUserId);
 
+    /**
+     * 用户是否允许陌生人私信
+     * @param userId
+     * @return
+     */
+    Integer isUserAllowStrange(@Param("userId") Long userId);
+
+
+    Boolean insertUserChatSetting(@Param("userId") Long userId,@Param("allowStranger") Integer allowStranger);
+
+    Boolean updateUserAllowStranger(@Param("userId") Long userId,@Param("allowStranger") Integer allowStranger);
 
 }

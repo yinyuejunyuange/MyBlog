@@ -1,14 +1,17 @@
 package org.oyyj.chatservice.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
+import org.apache.logging.log4j.util.Strings;
 import org.oyyj.chatservice.mapper.ChatMessageMapper;
 import org.oyyj.chatservice.pojo.ChatMessage;
 import org.oyyj.chatservice.pojo.vo.ChatMsgVO;
 import org.oyyj.chatservice.service.IChatMessageService;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
+import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -83,6 +86,9 @@ public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatM
 
     @Override
     public List<ChatMsgVO> messageList(LoginUser loginUser, String dialogId, String lastMsgId) {
+        // 清空当前的未读信息
+        readMsg(loginUser, dialogId);
+
         List<ChatMessage> list = list(Wrappers.<ChatMessage>lambdaQuery()
                 .eq(ChatMessage::getDialogId, Long.parseLong(dialogId))
                 .and(wrapper->
@@ -90,7 +96,7 @@ public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatM
                                 .or()
                                 .eq(ChatMessage::getStatus,ChatMessage.ChatMessageStatus.READ.getCode())
                 )
-                .lt(lastMsgId != null, ChatMessage::getId, lastMsgId).orderByDesc(ChatMessage::getTimestamp)
+                .lt(lastMsgId != null, ChatMessage::getMsgId, lastMsgId).orderByDesc(ChatMessage::getTimestamp)
                 .last("limit 20")
         );
 
@@ -104,5 +110,40 @@ public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatM
             vo.setIsBelongUser(String.valueOf(loginUser.getUserId()).equals(item.getFromUserId()));
             return vo;
         }).toList();
+    }
+
+    @Override
+    public Boolean readMsg(LoginUser loginUser, String dialogId) {
+        LambdaUpdateWrapper<ChatMessage> luw= Wrappers.<ChatMessage>lambdaUpdate()
+                .eq(ChatMessage::getToUserId, loginUser.getUserId());
+
+        if(Strings.isNotBlank(dialogId)){
+            luw.eq(ChatMessage::getDialogId,Long.parseLong(dialogId));
+        }
+
+        luw.set(ChatMessage::getStatus,ChatMessage.ChatMessageStatus.READ.getCode());
+        return update(luw);
+    }
+
+    @Override
+    public ResultUtil<Integer> isUserAllow(LoginUser loginUser) {
+        Integer userAllowStrange = baseMapper.isUserAllowStrange(loginUser.getUserId());
+        if(userAllowStrange != null){
+            return ResultUtil.success(userAllowStrange);
+        }
+        baseMapper.insertUserChatSetting(loginUser.getUserId(),1);
+        return ResultUtil.success(1);
+
+    }
+
+    @Override
+    public ResultUtil<Integer> updateUserAllow(LoginUser loginUser, Integer allowStranger) {
+        if(allowStranger == null){
+            return ResultUtil.fail("修改失败");
+        }
+
+        baseMapper.updateUserAllowStranger(loginUser.getUserId(),allowStranger);
+        return ResultUtil.success(1);
+
     }
 }

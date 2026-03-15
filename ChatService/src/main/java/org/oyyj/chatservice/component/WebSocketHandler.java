@@ -4,14 +4,18 @@ package org.oyyj.chatservice.component;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.oyyj.chatservice.mapper.BlacklistMapper;
 import org.oyyj.chatservice.mapper.ChatMessageMapper;
 import org.oyyj.chatservice.mq.sender.MessagePublishSender;
+import org.oyyj.chatservice.pojo.Blacklist;
 import org.oyyj.chatservice.pojo.ChatMessage;
 import org.oyyj.chatservice.pojo.MqMessageLog;
 import org.oyyj.chatservice.pojo.es.MessageDocument;
 import org.oyyj.chatservice.pojo.ws.ResultInfo;
+import org.oyyj.chatservice.service.BlacklistService;
 import org.oyyj.chatservice.service.es.MessageDocumentService;
 import org.oyyj.mycommonbase.common.RedisPrefix;
+import org.oyyj.mycommonbase.common.commonEnum.YesOrNoEnum;
 import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -23,9 +27,10 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -55,6 +60,10 @@ public class WebSocketHandler extends TextWebSocketHandler {
 
     // 当前实例唯一标识
     private final String instanceId = UUID.randomUUID().toString();
+    @Autowired
+    private BlacklistService blacklistService;
+    @Autowired
+    private BlacklistMapper blacklistMapper;
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
@@ -92,10 +101,13 @@ public class WebSocketHandler extends TextWebSocketHandler {
     private void handleChatMessage(String fromUserId, ChatMessage chatMessage, WebSocketSession session ) throws IOException {
 
 
+        // 判断用户是否允许陌生人私信
+        // todo 排除admin 相关信息
+
 
         if(chatMessage == null){
             log.error("消息不可为空");
-            ResultInfo result = new ResultInfo("RESULT",null, ResultInfo.ResultInfoEnum.DATA_WRONG.getValue(), null);
+            ResultInfo result = new ResultInfo("RESULT",null, ResultInfo.ResultInfoEnum.DATA_WRONG.getValue(),null,null);
             //发送确认消息给客户端 使得消息是否发送成功
             session.sendMessage(new TextMessage(objectMapper.writeValueAsBytes(result)));
             return;
@@ -103,16 +115,39 @@ public class WebSocketHandler extends TextWebSocketHandler {
         chatMessage.setFromUserId(fromUserId);
         if(chatMessage.getStatus() == null){
             log.error("消息的发送状态不可为空，msgId:{}",chatMessage.getMsgId());
-            ResultInfo result = new ResultInfo("RESULT", chatMessage.getMsgId(), ResultInfo.ResultInfoEnum.DATA_WRONG.getValue(), null);
+            ResultInfo result = new ResultInfo("RESULT", chatMessage.getMsgId(), ResultInfo.ResultInfoEnum.DATA_WRONG.getValue(), chatMessage,"");
             //发送确认消息给客户端 使得消息是否发送成功
             session.sendMessage(new TextMessage(objectMapper.writeValueAsBytes(result)));
             return;
         }
 
         String toUserId = chatMessage.getToUserId();
+
+        Integer userAllowStrange = chatMessageMapper.isUserAllowStrange(Long.parseLong(toUserId));
+        if(YesOrNoEnum.NO.getCode().equals(userAllowStrange)){
+            ResultInfo result = new ResultInfo("RESULT",null, ResultInfo.ResultInfoEnum.CONDITION_FAIL.getValue(),chatMessage,"当前用户不接受私信");
+            //发送确认消息给客户端 使得消息是否发送成功
+            session.sendMessage(new TextMessage(objectMapper.writeValueAsBytes(result)));
+            return;
+        }
+
+        // 判断是否是当前用户的黑名单
+        List<Long> list = blacklistMapper.selectList(Wrappers.<Blacklist>lambdaQuery()
+                .eq(Blacklist::getUserId, Long.parseLong(toUserId))
+        ).stream().map(Blacklist::getBlackUserId).toList();
+
+        if(!list.isEmpty()&&list.contains(Long.parseLong(fromUserId))){
+            ResultInfo result = new ResultInfo("RESULT",null, ResultInfo.ResultInfoEnum.CONDITION_FAIL.getValue(),chatMessage,"消息不可发送");
+            //发送确认消息给客户端 使得消息是否发送成功
+            session.sendMessage(new TextMessage(objectMapper.writeValueAsBytes(result)));
+            return;
+        }
+
+
         long timestamp = System.currentTimeMillis();
         // 存储到数据库
         chatMessage.setTimestamp(timestamp);
+        chatMessage.setCreatedAt(new Date());
         // 先判断是否存在重复发送
         ChatMessage selectOne = chatMessageMapper.selectOne(Wrappers.<ChatMessage>lambdaQuery()
                 .eq(ChatMessage::getMsgId, chatMessage.getMsgId())
@@ -120,7 +155,7 @@ public class WebSocketHandler extends TextWebSocketHandler {
         if(selectOne != null && ChatMessage.ChatMessageStatus.SEND.getCode().equals(chatMessage.getStatus())){
             log.error("消息重复发送：{}",chatMessage.getMsgId());
 
-            ResultInfo result = new ResultInfo("RESULT", chatMessage.getMsgId(), ResultInfo.ResultInfoEnum.REPEAT.getValue(), null);
+            ResultInfo result = new ResultInfo("RESULT", chatMessage.getMsgId(), ResultInfo.ResultInfoEnum.REPEAT.getValue(), chatMessage,null);
             //发送确认消息给客户端 使得消息是否发送成功
             session.sendMessage(new TextMessage(objectMapper.writeValueAsBytes(result)));
             return;
@@ -134,7 +169,7 @@ public class WebSocketHandler extends TextWebSocketHandler {
             ChatMessage.ChatMessageStatus chatMessageStatus = ChatMessage.ChatMessageStatus.getChatMessageStatus(chatMessage.getStatus());
             if(chatMessageStatus == null){
                 log.error("消息状态不存在{}，状态{}",chatMessage.getMsgId(),chatMessage.getStatus());
-                ResultInfo result = new ResultInfo("RESULT", chatMessage.getMsgId(), ResultInfo.ResultInfoEnum.DATA_WRONG.getValue(), null);
+                ResultInfo result = new ResultInfo("RESULT", chatMessage.getMsgId(), ResultInfo.ResultInfoEnum.DATA_WRONG.getValue(), chatMessage,null);
                 //发送确认消息给客户端 使得消息是否发送成功
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsBytes(result)));
                 return;
@@ -151,7 +186,7 @@ public class WebSocketHandler extends TextWebSocketHandler {
         if (exeNum == 0) {
             log.error("消息数据保存失败");
             //发送确认消息给客户端 使得消息是否发送成功
-            ResultInfo result = new ResultInfo("RESULT", chatMessage.getMsgId(), ResultInfo.ResultInfoEnum.FAIL_SAVE.getValue(), null);
+            ResultInfo result = new ResultInfo("RESULT", chatMessage.getMsgId(), ResultInfo.ResultInfoEnum.FAIL_SAVE.getValue(), chatMessage,null);
             session.sendMessage(new TextMessage(objectMapper.writeValueAsBytes(result)));
             return;
         }
@@ -170,7 +205,7 @@ public class WebSocketHandler extends TextWebSocketHandler {
         String targetInstance = redisUtil.getString(RedisPrefix.CHAT_MSG_INSTANCE+ toUserId);
         if (targetInstance == null) {
             // 用户不在线，消息已存入 ES，等待上线拉取离线消息
-            ResultInfo result = new ResultInfo("RESULT", chatMessage.getMsgId(), ResultInfo.ResultInfoEnum.SUCCESS.getValue(), null);
+            ResultInfo result = new ResultInfo("RESULT", chatMessage.getMsgId(), ResultInfo.ResultInfoEnum.SUCCESS.getValue(), chatMessage,null);
             //发送确认消息给客户端 使得消息是否发送成功
             session.sendMessage(new TextMessage(objectMapper.writeValueAsString(result)));
             return;
@@ -181,13 +216,13 @@ public class WebSocketHandler extends TextWebSocketHandler {
             WebSocketSession targetSession = sessions.get(toUserId);
             if (targetSession != null && targetSession.isOpen()) {
                 try {
-                    ResultInfo result = new ResultInfo("SEND", chatMessage.getMsgId(), ResultInfo.ResultInfoEnum.SUCCESS.getValue(), chatMessage);
+                    ResultInfo result = new ResultInfo("SEND", chatMessage.getMsgId(), ResultInfo.ResultInfoEnum.SUCCESS.getValue(), chatMessage,null);
                     targetSession.sendMessage(new TextMessage(objectMapper.writeValueAsBytes(result)));
                 } catch (IOException e) {
                     // 发送失败，可考虑重试或记录日志
                     log.error("消息发送到本地实例失败：{}",targetSession.getId(),e);
                     // 消息处理结果
-                    ResultInfo result = new ResultInfo("RESULT", chatMessage.getMsgId(), ResultInfo.ResultInfoEnum.FAIL_SEND.getValue(), null);
+                    ResultInfo result = new ResultInfo("RESULT", chatMessage.getMsgId(), ResultInfo.ResultInfoEnum.FAIL_SEND.getValue(), chatMessage,null);
                     //发送确认消息给客户端 使得消息是否发送成功
                     session.sendMessage(new TextMessage(objectMapper.writeValueAsBytes(result)));
                 }
@@ -196,7 +231,7 @@ public class WebSocketHandler extends TextWebSocketHandler {
             // 目标在其他实例，通过 RabbitMQ 转发
             messagePublishSender.sendMessage(chatMessage,targetInstance);
         }
-        ResultInfo result = new ResultInfo("RESULT", chatMessage.getMsgId(), ResultInfo.ResultInfoEnum.SUCCESS.getValue(), null);
+        ResultInfo result = new ResultInfo("RESULT", chatMessage.getMsgId(), ResultInfo.ResultInfoEnum.SUCCESS.getValue(), chatMessage,null);
         //发送确认消息给客户端 使得消息是否发送成功
         session.sendMessage(new TextMessage(objectMapper.writeValueAsString(result)));
 

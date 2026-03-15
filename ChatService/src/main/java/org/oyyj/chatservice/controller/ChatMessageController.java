@@ -1,5 +1,7 @@
 package org.oyyj.chatservice.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.oyyj.chatservice.pojo.vo.BlackListVO;
 import org.oyyj.chatservice.pojo.vo.ChatMsgVO;
 import org.oyyj.chatservice.pojo.dto.ChatDialogDTO;
 import org.oyyj.chatservice.pojo.vo.DialogCreateVO;
@@ -133,4 +135,56 @@ public class ChatMessageController {
                                                     @RequestParam(value = "lastMsgId",required = false)String lastMsgId){
         return ResultUtil.success(chatMessageService.messageList(loginUser,dialogId,lastMsgId));
     }
+
+    /**
+     * 清空所有未读记录
+     * @param loginUser
+     * @return
+     */
+    @PutMapping("/cleanUnRead")
+    public ResultUtil<Boolean> cleanUnRead(@RequestUser LoginUser loginUser,
+                                           @RequestParam(value = "dialogId",required = false) String dialogId){
+        return ResultUtil.success(chatMessageService.readMsg(loginUser,dialogId));
+    }
+
+    /**
+     * 查看用户的配置信息
+     * @param loginUser
+     * @return
+     */
+    @GetMapping("/chatSetting")
+    public ResultUtil<Integer>  getChatSetting(@RequestUser LoginUser loginUser){
+        return chatMessageService.isUserAllow(loginUser);
+    }
+
+    /**
+     * 修改用户的配置信息
+     * @param loginUser
+     * @param allowStrange
+     * @return
+     */
+    @PutMapping("/chatSetting")
+    public ResultUtil<Integer> updateChatSetting(@RequestUser LoginUser loginUser,@RequestParam("allowStrange") Integer  allowStrange){
+        return chatMessageService.updateUserAllow(loginUser,allowStrange);
+    }
+
+
+    /**
+     * 分页获取列表黑名单信息
+     * @param loginUser
+     * @param pageNum
+     * @param pageSize
+     * @return
+     */
+    @GetMapping("/blackList")
+    public ResultUtil<Page<BlackListVO>> blackList(@RequestUser LoginUser loginUser,
+                                                   @RequestParam("pageNum") Integer pageNum,
+                                                   @RequestParam("pageSize")Integer pageSize){
+
+        return blacklistService.listBlackUser(loginUser.getUserId(),pageNum,pageSize);
+
+    }
+
+
+
 }

@@ -4,10 +4,13 @@ package org.oyyj.chatservice.service.impl;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
+import org.apache.logging.log4j.util.Strings;
 import org.oyyj.chatservice.feign.UserFeign;
+import org.oyyj.chatservice.mapper.BlacklistMapper;
 import org.oyyj.chatservice.mapper.ChatDialogMapper;
 import org.oyyj.chatservice.mapper.ChatMessageMapper;
 import org.oyyj.chatservice.mapper.UserChatInfoMapper;
+import org.oyyj.chatservice.pojo.Blacklist;
 import org.oyyj.chatservice.pojo.ChatDialog;
 import org.oyyj.chatservice.pojo.ChatMessage;
 import org.oyyj.chatservice.pojo.UserChatInfo;
@@ -34,6 +37,9 @@ public class ChatDialogServiceImpl
 
     @Autowired
     private UserChatInfoMapper userChatInfoMapper;
+
+    @Autowired
+    private BlacklistMapper blacklistMapper;
 
     @Autowired
     private ChatMessageMapper chatMessageMapper;
@@ -88,6 +94,14 @@ public class ChatDialogServiceImpl
                 .eq(UserChatInfo::getUserId, userId)
         );
 
+        // 查询用户的黑名单列表
+        List<Long> blackUserIds = blacklistMapper.selectList(Wrappers.<Blacklist>lambdaQuery()
+                .eq(Blacklist::getUserId, userId)
+                .select(Blacklist::getBlackUserId)
+        ).stream().map(Blacklist::getBlackUserId).toList();
+
+
+
         List<Long> list = userChatInfos.stream().map(UserChatInfo::getDialogId).toList();
         if (list.isEmpty()) {
             return ResultUtil.success(List.of());
@@ -96,6 +110,7 @@ public class ChatDialogServiceImpl
         List<UserChatInfo> userChatInfosList = userChatInfoMapper.selectList(Wrappers.<UserChatInfo>lambdaQuery()
                 .ne(UserChatInfo::getUserId, userId)
                 .in(UserChatInfo::getDialogId, list)
+                .notIn(!blackUserIds.isEmpty(), UserChatInfo::getUserId, blackUserIds) // 排除黑名单中的人
         );
 
         List<ChatMessage> chatMessages = chatMessageMapper.selectLastMessageByDialogId(list);
@@ -113,6 +128,7 @@ public class ChatDialogServiceImpl
             chatDialogDTO.setId(String.valueOf(userChatInfo.getDialogId()));
             chatDialogDTO.setUserId(String.valueOf(userChatInfo.getUserId()));
             chatDialogDTO.setUserName(userChatInfo.getUserName());
+            chatDialogDTO.setIsUserMute(userChatInfo.getIsDisturb());
             if(dialogInfoMap.containsKey(userChatInfo.getDialogId())) {
                 ChatMessage chatMessage = dialogInfoMap.get(userChatInfo.getDialogId());
                 chatDialogDTO.setLastMessage(chatMessage.getContent());

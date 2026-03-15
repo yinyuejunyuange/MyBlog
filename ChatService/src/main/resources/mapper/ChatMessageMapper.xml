@@ -1,6 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.oyyj.chatservice.mapper.ChatMessageMapper">
+    <insert id="insertUserChatSetting">
+        INSERT INTO user_chat_setting (
+            user_id,
+            allow_stranger
+        ) VALUES (
+            #{userId},
+            #{allowStranger}
+        )
+    </insert>
+    <update id="updateUserAllowStranger">
+        UPDATE user_chat_setting
+        <set>
+            <if test="allowStranger != null">
+                allow_stranger = #{allowStranger},
+            </if>
+        </set>
+        WHERE user_id = #{userId}
+    </update>
 
     <select id="selectLastMessageByDialogId" resultType="org.oyyj.chatservice.pojo.ChatMessage">
 
@@ -46,4 +64,20 @@
           AND is_delete = 0
         ORDER BY created_at Desc
     </select>
+    <select id="isUserAllowStrange" resultType="java.lang.Integer">
+        SELECT allow_stranger FROM user_chat_setting
+        WHERE user_id = #{userId}
+    </select>
+
+<!--    <insert id="insertUserChatSetting" parameterType="java.lang.String">-->
+<!--        INSERT INTO user_chat_setting (-->
+<!--        user_id,-->
+<!--        allow_stranger-->
+<!--        &lt;!&ndash; 根据实际表结构补充其他字段 &ndash;&gt;-->
+<!--        ) VALUES (-->
+<!--        #{userId},-->
+<!--        #{allowStranger}-->
+<!--        )-->
+<!--    </insert>-->
+
 </mapper>

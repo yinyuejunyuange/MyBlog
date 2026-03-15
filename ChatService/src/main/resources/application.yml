@@ -32,7 +32,7 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     type: com.alibaba.druid.pool.DruidDataSource
-    url: jdbc:mysql://localhost:3306/my_blog_chat?serverTimezone=UTC # ?前面是数据库名
+    url: jdbc:mysql://localhost:3306/my_blog_chat?serverTimezone=Asia/Shanghai&useSSL=false # ?前面是数据库名 设置时区
     username: root
     password: OYyj0715
 

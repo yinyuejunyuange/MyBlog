@@ -20,6 +20,8 @@ public class ResultInfo {
 
     private Object data;
 
+    private String msg;
+
     @Getter
     public enum ResultInfoEnum{
 
@@ -27,6 +29,7 @@ public class ResultInfo {
         DATA_WRONG("data_wrong"),
         REPEAT("repeat"),
         FAIL_SEND("fail_send"),
+        CONDITION_FAIL("condition_fail"),
         FAIL_SAVE("fail_save");
 
         private final String value;
