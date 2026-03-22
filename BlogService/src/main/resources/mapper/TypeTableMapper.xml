@@ -14,4 +14,16 @@
             </if>
         </where>
     </select>
+    <select id="findBlogTypeNum" resultType="org.oyyj.blogservice.vo.admin.BlogTypeVO">
+        SELECT tt.name,COUNT(tb.blog_id)
+        FROM type_table tt
+        INNER JOIN type_blog tb ON tb.type_id = tt.id
+        <where>
+            <if test="typeId!= null and typeId !='' ">
+                tb.type_id = #{typeId}
+            </if>
+        </where>
+        GROUP BY
+            tt.name
+    </select>
 </mapper>

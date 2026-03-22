@@ -1,5 +1,6 @@
 package org.oyyj.userservice.pojo;
 
+import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import lombok.AllArgsConstructor;
@@ -14,7 +15,7 @@ import java.util.Date;
 @NoArgsConstructor
 @Builder
 public class SysRole {
-    @TableId("id")
+    @TableId(value = "id" , type = IdType.AUTO)
     private Long id;
     @TableField("role_name")
     private String roleName;

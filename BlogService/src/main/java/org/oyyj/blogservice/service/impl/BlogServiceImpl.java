@@ -1,6 +1,7 @@
 package org.oyyj.blogservice.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -30,11 +31,14 @@ import org.oyyj.blogservice.service.*;
 import org.oyyj.blogservice.service.es.EsBlogService;
 import org.oyyj.blogservice.util.PyApiUtil;
 import org.oyyj.blogservice.util.ResultUtil;
+import org.oyyj.blogservice.vo.admin.BlogTypeVO;
 import org.oyyj.blogservice.vo.blogs.BlogSearchVO;
 import org.oyyj.blogservice.vo.blogs.CommendBlogsByAuthor;
 import org.oyyj.mycommon.common.BehaviorEnum;
 import org.oyyj.mycommon.common.EsBlogWork;
 import org.oyyj.mycommon.pojo.dto.UserBlogInfoDTO;
+import org.oyyj.mycommon.pojo.dto.blog.Blog12MonthDTO;
+import org.oyyj.mycommon.pojo.dto.blog.ComRepForUserDTO;
 import org.oyyj.mycommon.utils.FileUtil;
 import org.oyyj.mycommon.utils.SnowflakeUtil;
 import org.oyyj.mycommonbase.common.RedisPrefix;
@@ -64,6 +68,9 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Function;
@@ -1271,9 +1278,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     }
 
     @Override
-    public String getBlogListByAdmin(String blogName, String authorName, Date startDate, Date endDate, String status, Integer currentPage) throws JsonProcessingException {
+    public PageDTO<BlogDTO> getBlogListByAdmin(String blogName, String authorName, Date startDate, Date endDate, String status, Integer currentPage, Integer pageSize) throws JsonProcessingException {
 
-        IPage<Blog> page=new Page<>(currentPage,10);
+        IPage<Blog> page=new Page<>(currentPage,pageSize);
 
         LambdaQueryWrapper<Blog> lqw=new LambdaQueryWrapper<>();
         if(Objects.nonNull(blogName)&&!blogName.isEmpty()){
@@ -1314,10 +1321,33 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
         Map<Long, String> nameInIds = userFeign.getNameInIds(userId);
 
-        List<BlogDTO> blogDTOS = list(page, lqw).stream().map(i -> BlogDTO.builder()
+        if (list.isEmpty()) {
+            return new PageDTO<>();
+        }
+
+// 2. 提取所有博客 ID，批量查询所有相关的标签关联关系 (1次查询)
+        List<Long> blogIds = list.stream().map(Blog::getId).toList();
+        List<BlogType> allBlogTypes = blogTypeService.list(
+                Wrappers.<BlogType>lambdaQuery().in(BlogType::getBlogId, blogIds)
+        );
+
+// 3. 提取所有类型 ID，批量查询类型名称 (1次查询)
+        List<Long> typeIds = allBlogTypes.stream().map(BlogType::getTypeId).distinct().toList();
+        Map<Long, String> typeNameMap = typeTableMapper.selectList(
+                Wrappers.<TypeTable>lambdaQuery().in(TypeTable::getId, typeIds)
+        ).stream().collect(Collectors.toMap(TypeTable::getId, TypeTable::getName));
+
+// 4. 将标签按 blogId 分组，预处理成 Map<BlogId, List<TypeName>>
+        Map<Long, List<String>> blogIdToNamesMap = allBlogTypes.stream()
+                .collect(Collectors.groupingBy(
+                        BlogType::getBlogId,
+                        Collectors.mapping(bt -> typeNameMap.get(bt.getTypeId()), Collectors.toList())
+                ));
+
+// 5. 最后进行内存转换
+        List<BlogDTO> blogDTOS = list.stream().map(i -> BlogDTO.builder()
                 .id(String.valueOf(i.getId()))
                 .title(i.getTitle())
-                .context(i.getContext())
                 .userId(String.valueOf(i.getUserId()))
                 .userName(nameInIds.get(i.getUserId()))
                 .introduce(i.getIntroduce())
@@ -1325,11 +1355,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .updateTime(i.getUpdateTime())
                 .status(i.getStatus())
                 .commentNum(String.valueOf(i.getCommentNum()))
-                .typeList(blogTypeService.list(Wrappers.<BlogType>lambdaQuery().eq(BlogType::getBlogId, i.getId()))
-                        .stream().map(j -> {
-                            TypeTable typeTables = typeTableMapper.selectOne(Wrappers.<TypeTable>lambdaQuery().eq(TypeTable::getId, j.getTypeId()));
-                            return typeTables.getName();
-                        }).toList())
+                // 直接从内存 Map 中获取，无需再查库
+                .typeList(blogIdToNamesMap.getOrDefault(i.getId(), Collections.emptyList()))
                 .build()).toList();
 
         PageDTO<BlogDTO> pageDTO =new PageDTO<>();
@@ -1338,8 +1365,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         pageDTO.setTotal((int)page.getTotal());
         pageDTO.setPageSize(10);
 
-        ObjectMapper objectMapper =new ObjectMapper();
-        return objectMapper.writeValueAsString(pageDTO);
+        return pageDTO;
 
     }
 
@@ -1740,4 +1766,140 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         return backstopStrategyService.incrBlog(blogId,prefix);
     }
 
+    @Override
+    public Blog12MonthDTO getBlog12MonthByUserId(Long userId) {
+        // 1. 生成近12个月的月份列表（格式：yyyy-MM）
+        List<String> monthList = new ArrayList<>();
+        YearMonth currentYearMonth = YearMonth.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM");
+        for (int i = 11; i >= 0; i--) {
+            YearMonth yearMonth = currentYearMonth.minusMonths(i);
+            monthList.add(yearMonth.format(formatter));
+        }
+
+        // 2. 计算时间范围（用于提高查询效率）
+        LocalDateTime startTime = currentYearMonth.minusMonths(11).atDay(1).atStartOfDay();
+        LocalDateTime endTime = currentYearMonth.atEndOfMonth().atTime(23, 59, 59);
+
+        // 3. 查询数据库，按月份分组统计博客数量
+        QueryWrapper<Blog> queryWrapper = new QueryWrapper<>();
+        queryWrapper.select("DATE_FORMAT(publish_time, '%Y-%m') as month", "count(*) as count")
+                .eq(userId!= null,"user_id", userId)
+                .eq("status", 1)
+                .eq("is_delete", 0)        // 未删除
+                .between("publish_time", startTime, endTime)
+                .groupBy("month")
+                .orderByAsc("month");
+
+        List<Map<String, Object>> maps = baseMapper.selectMaps(queryWrapper);
+
+        // 4. 将查询结果转换为 Map<月份, 数量>
+        Map<String, Integer> countMap = new HashMap<>();
+        for (Map<String, Object> map : maps) {
+            String month = (String) map.get("month");
+            Long count = (Long) map.get("count");
+            countMap.put(month, count.intValue());
+        }
+
+        // 5. 遍历月份列表，获取对应月份的数量（无数据则填充0）
+        List<Integer> blogCountList = new ArrayList<>();
+        for (String month : monthList) {
+            blogCountList.add(countMap.getOrDefault(month, 0));
+        }
+
+        // 6. 封装DTO
+        Blog12MonthDTO dto = new Blog12MonthDTO();
+        dto.setMonthList(monthList);
+        dto.setBlogCountList(blogCountList);
+        return dto;
+    }
+
+    @Override
+    public Map<Long, Integer> countByUserList(List<Long> userIds) {
+        if(userIds == null|| userIds.isEmpty()){
+            return Map.of();
+        }
+        Map<Long, Long> collect = list(Wrappers.<Blog>lambdaQuery()
+                .in(Blog::getUserId, userIds)
+                .select(Blog::getId)
+        ).stream().collect(Collectors.groupingBy(Blog::getUserId, Collectors.counting()));
+
+        Map<Long,Integer> result = new  HashMap<>();
+        collect.forEach((k,v)->{
+            Integer resultCount = Math.toIntExact(v);
+            result.put(k,resultCount);
+        });
+        return result;
+    }
+
+    @Override
+    public List<ComRepForUserDTO> countCommentReplyByUserList(List<Long> userIds) {
+        if(userIds == null|| userIds.isEmpty()){
+            return List.of();
+        }
+        List<Comment> comments = commentService.list(Wrappers.<Comment>lambdaQuery()
+                .in(Comment::getUserId, userIds)
+        );
+
+        List<Reply> replyList = replyService.list(Wrappers.<Reply>lambdaQuery()
+                .in(Reply::getUserId, userIds)
+        );
+
+        Map<Long, List<Comment>> commentMap = comments.stream().collect(Collectors.groupingBy(Comment::getUserId));
+        Map<Long, List<Reply>> replyMap = replyList.stream().collect(Collectors.groupingBy(Reply::getUserId));
+
+        return userIds.stream().map(item -> {
+            ComRepForUserDTO comRepForUserDTO = new ComRepForUserDTO();
+            int toxicCount = 0;
+            int totalComRep = 0;
+            if (commentMap.containsKey(item)) {
+                List<Comment> commentsByUser = commentMap.get(item);
+                totalComRep += commentsByUser.size();
+                comRepForUserDTO.setCommentCount(commentsByUser.size());
+                List<Comment> toxicList = commentsByUser.stream().filter(info -> YesOrNoEnum.YES.getCode().equals(info.getIsToxic())).toList();
+                toxicCount += toxicList.size();
+            }
+            if (replyMap.containsKey(item)) {
+                List<Reply> replyByUser = replyMap.get(item);
+                totalComRep += replyByUser.size();
+                comRepForUserDTO.setReplyCount(replyByUser.size());
+                List<Reply> toxicList = replyByUser.stream().filter(info -> YesOrNoEnum.YES.getCode().equals(info.getIsToxic())).toList();
+                toxicCount += toxicList.size();
+            }
+            comRepForUserDTO.setToxicCount(toxicCount);
+            if (totalComRep == 0 || toxicCount == 0) {
+                comRepForUserDTO.setToxicRate(BigDecimal.ZERO);
+                return comRepForUserDTO;
+            }
+            comRepForUserDTO.setToxicRate(new BigDecimal(toxicCount).divide(
+                    new BigDecimal(totalComRep), 2, RoundingMode.HALF_UP
+            ));
+            return comRepForUserDTO;
+        }).toList();
+    }
+
+    @Override
+    public ResultUtil<List<BlogTypeVO>> blogTypeList() {
+        // 1. 获取原始数据
+        List<BlogTypeVO> allTypes = typeTableMapper.findBlogTypeNum(null);
+        // 2. 如果数据量小于等于 6，直接返回（没必要合并，或者只有 6 个时合并不划算）
+        if (allTypes == null || allTypes.size() <= 5) {
+            return ResultUtil.success(allTypes);
+        }
+        // 3. 按数量（num）从大到小排序
+        allTypes.sort((a, b) -> b.getNum().compareTo(a.getNum()));
+        // 4. 提取前 5 个
+        List<BlogTypeVO> result = new ArrayList<>(allTypes.subList(0, 5));
+        // 5. 计算剩余项的总和
+        int otherSum = allTypes.subList(5, allTypes.size())
+                .stream()
+                .mapToInt(BlogTypeVO::getNum)
+                .sum();
+        // 6. 创建并添加“其他”项
+        BlogTypeVO other = new BlogTypeVO();
+        other.setBlogType("其他");
+        other.setNum(otherSum);
+        result.add(other);
+        return  ResultUtil.success(result);
+    }
 }

@@ -18,6 +18,7 @@ import org.oyyj.blogservice.service.IBackstopStrategyService;
 import org.oyyj.blogservice.service.ICommentService;
 import org.oyyj.blogservice.util.PyApiUtil;
 import org.oyyj.blogservice.vo.commet.CommentResultVO;
+import org.oyyj.mycommon.pojo.vo.UserComRepVO;
 import org.oyyj.mycommonbase.common.RedisPrefix;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.mycommonbase.common.commonEnum.YesOrNoEnum;
@@ -199,6 +200,14 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         return  YesOrNoEnum.YES.getCode().equals(isAdd)
                 ? backstopStrategyService.incrKudosComment(commentId)
                 : backstopStrategyService.decrKudosComment(commentId);
+    }
+
+    @Override
+    public List<UserComRepVO> getUserComRepByUserId(Long userId) {
+        list(Wrappers.<Comment>lambdaQuery()
+                .eq(Comment::getUserId, userId)
+                .ne(Comment::getKudos, 0)
+        );
     }
 
     /**

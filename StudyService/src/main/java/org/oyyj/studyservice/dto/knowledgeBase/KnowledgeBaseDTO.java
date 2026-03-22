@@ -28,7 +28,6 @@ public class KnowledgeBaseDTO {
     private String icon;
     private String description;
     private List<String> types;
-
     private List<String> knowledgeIds;
 
     public KnowledgeBaseDTO entityToDTO(KnowledgeBase entity) {

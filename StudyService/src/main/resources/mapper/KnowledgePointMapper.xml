@@ -20,6 +20,23 @@
         WHERE knowledge_base_id = #{knowledgeBaseId}
         AND is_delete = 0
     </select>
+    <select id="selectKnowledgeBaseRelationByKnowledgePointId"
+            resultType="org.oyyj.studyservice.dto.knowledgePoint.KnowledgeBaseRelationDTO">
+        SELECT <include refid="Base_Column_List"/>
+        FROM knowledge_base_relation
+        WHERE knowledge_point_id = #{knowledgePointId}
+        AND is_delete = 0
+    </select>
+    <select id="selectKnowledgeBaseRelationByKnowledgeBaseIds"
+            resultType="org.oyyj.studyservice.dto.knowledgePoint.KnowledgeBaseRelationDTO">
+        SELECT <include refid="Base_Column_List"/>
+        FROM knowledge_base_relation
+        WHERE knowledge_point_id in
+            <foreach collection="knowledgeBaseIds" open="(" separator="," close=")" item="item">
+                #{item}
+            </foreach>
+        AND is_delete = 0
+    </select>
 
     <insert id="insertKnowledgeBaseRelation" parameterType="org.oyyj.studyservice.dto.knowledgePoint.KnowledgeBaseRelationDTO" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO knowledge_base_relation (create_time, update_time, is_delete, knowledge_base_id, knowledge_point_id)

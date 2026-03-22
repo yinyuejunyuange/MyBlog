@@ -48,7 +48,6 @@ public class LocalRequestFilter extends AbstractGatewayFilterFactory<LocalReques
 
     private static final DataBufferFactory BUFFER_FACTORY = new DefaultDataBufferFactory(); // 字节缓冲应对GATEWAY
 
-    // todo 补充 管理员端的 登录（管理员的注册和注销只能由超管负责）
     @Override
     public GatewayFilter apply(Config config) {
         return (exchange, chain)->{
@@ -70,6 +69,7 @@ public class LocalRequestFilter extends AbstractGatewayFilterFactory<LocalReques
             case LOGIN -> handleLogin(request, response);
             case REGISTER -> handleRegister(request, response);
             case LOGOUT -> handleLogout(request, response);
+            case REGISTER_ADMIN -> handleRegAdmin(request, response);
             default -> Mono.empty();
         };
     }
@@ -142,11 +142,32 @@ public class LocalRequestFilter extends AbstractGatewayFilterFactory<LocalReques
         if(StringUtils.isEmpty(token)){
             return writeErrorResponse(response,HttpStatus.UNAUTHORIZED,"TOKEN不可为空");
         }
-
         userService.LoginOut();
         return writeSuccessResponse(response,"用户登出成功");
     }
 
+
+    private Mono<Void> handleRegAdmin(ServerHttpRequest request, ServerHttpResponse response){
+        String token = extractToken(request);
+        if(StringUtils.isEmpty(token)){
+            return writeErrorResponse(response,HttpStatus.UNAUTHORIZED,"TOKEN不可为空");
+        }
+        return parseRequestBody(request, LoginDTO.class)
+                .flatMap(loginRequest->{
+                    if(StringUtils.isEmpty(loginRequest.getPassword())||
+                            StringUtils.isEmpty(loginRequest.getUsername())){
+                        return writeErrorResponse(response,HttpStatus.BAD_REQUEST,"用户名或密码不可为空");
+                    }
+
+                    return userService.registerAdmin(loginRequest,request)
+                            .flatMap(loginVO->{
+                                return writeSuccessResponse(response,loginVO);
+                            })
+                            .onErrorResume(e->{
+                                return writeErrorResponse(response,HttpStatus.UNAUTHORIZED,"用户名或密码错误");
+                            });
+                });
+    }
 
 
 
@@ -239,7 +260,8 @@ public class LocalRequestFilter extends AbstractGatewayFilterFactory<LocalReques
     public enum HandlerType {
         LOGIN,
         REGISTER,
-        LOGOUT
+        LOGOUT,
+        REGISTER_ADMIN
     }
 
 }

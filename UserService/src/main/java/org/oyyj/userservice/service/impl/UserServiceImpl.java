@@ -1,5 +1,7 @@
 package org.oyyj.userservice.service.impl;
 
+import com.alibaba.nacos.common.utils.StringUtils;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -10,6 +12,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
 import org.oyyj.mycommon.pojo.dto.UserBlogInfoDTO;
+import org.oyyj.mycommon.pojo.dto.blog.Blog12MonthDTO;
+import org.oyyj.mycommon.pojo.dto.blog.ComRepForUserDTO;
+import org.oyyj.mycommon.pojo.vo.UserComRepVO;
 import org.oyyj.mycommon.utils.FileUtil;
 import org.oyyj.mycommon.utils.TransUtil;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
@@ -17,6 +22,7 @@ import org.oyyj.mycommonbase.common.commonEnum.YesOrNoEnum;
 import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.userservice.Feign.ChatFeign;
+import org.oyyj.userservice.Feign.StudyFeign;
 import org.oyyj.userservice.dto.*;
 import org.oyyj.userservice.Feign.AIChatFeign;
 import org.oyyj.userservice.Feign.BlogFeign;
@@ -25,6 +31,10 @@ import org.oyyj.userservice.mapper.SysRoleMapper;
 import org.oyyj.userservice.mapper.UserMapper;
 import org.oyyj.userservice.pojo.*;
 import org.oyyj.userservice.service.*;
+import org.oyyj.userservice.vo.DashboardTitleVO;
+import org.oyyj.userservice.vo.UserInfoForAdminVO;
+import org.oyyj.userservice.vo.user.User12MonthVO;
+import org.oyyj.userservice.vo.user.UserDetailDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.mock.web.MockMultipartFile;
@@ -37,7 +47,11 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -73,6 +87,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Autowired
     private FileUtil fileUtils;
+    @Autowired
+    private SysRoleMapper sysRoleMapper;
+    @Autowired
+    private StudyFeign studyFeign;
+    @Autowired
+    private UserMapper userMapper;
 
     @Override
     public ResultUtil<UserInfoVO> userInfoById(Long id , LoginUser loginUser) {
@@ -550,4 +570,180 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         return ResultUtil.success(userInfoVO);
     }
+
+    @Override
+    public List<String> getUserRoleInfo(Long userId) {
+        return sysRoleMapper.roleNameByUserId(userId);
+    }
+
+    /**
+     * 分页查询用户信息
+     * @param userName
+     * @param startTime
+     * @param endTime
+     * @param isUserFreeze
+     * @param pageNum
+     * @param pageSize
+     * @return
+     */
+    @Override
+    public Page<UserInfoForAdminVO> getUserInfoForAdmin(String userName, Date startTime, Date endTime, Integer isUserFreeze, Integer pageNum, Integer pageSize) {
+
+        LambdaQueryWrapper<User> lqw = Wrappers.<User>lambdaQuery();
+
+        if(StringUtils.isNotEmpty(userName)){
+            lqw.like(User::getName,userName);
+        }
+
+        if(Objects.nonNull(startTime)){
+            lqw.ge(User::getCreateTime,startTime);
+        }
+
+        if(Objects.nonNull(endTime)){
+            lqw.le(User::getCreateTime,endTime);
+        }
+
+        if(Objects.nonNull(isUserFreeze)){
+            lqw.eq(User::getIsFreeze,isUserFreeze);
+        }
+
+        if(pageNum == null || pageNum <= 0){
+            pageNum = 1;
+        }
+        if(pageSize == null || pageSize <= 0){
+            pageSize = 10;
+        }
+
+        Page<User> page = new Page<>(pageNum,pageSize);
+        List<User> list = list(page, lqw);
+        List<Long> userIds = list.stream().map(User::getId).toList();
+
+        List<ComRepForUserDTO> comRepForUserDTOS = blogFeign.countCommentReplyByUserList(userIds);
+        Map<Long, ComRepForUserDTO> comRepMap = comRepForUserDTOS.stream().collect(Collectors.toMap(ComRepForUserDTO::getUserId, Function.identity()));
+        Map<Long, Integer> longIntegerMap = blogFeign.countByUserList(userIds);
+
+        List<UserInfoForAdminVO> result = list.stream().map(item -> {
+            UserInfoForAdminVO userInfoForAdminVO = UserInfoForAdminVO.fromUser(item);
+            if (comRepMap.containsKey(item.getId())) {
+                ComRepForUserDTO comRepForUserDTO = comRepMap.get(item.getId());
+                userInfoForAdminVO.setComRepCount(comRepForUserDTO.getCommentCount() + comRepForUserDTO.getReplyCount());
+                userInfoForAdminVO.setToxicCount(comRepForUserDTO.getToxicCount());
+                userInfoForAdminVO.setToxicRate(comRepForUserDTO.getToxicRate());
+            }
+            userInfoForAdminVO.setBlogCount(longIntegerMap.get(item.getId()));
+            return userInfoForAdminVO;
+        }).toList();
+
+        Page<UserInfoForAdminVO> resultPage = new Page<>(pageNum,pageSize);
+        resultPage.setTotal(page.getTotal());
+        resultPage.setRecords(result);
+        return resultPage;
+    }
+
+    @Override
+    public Page<User> getAdminPage(String userName, Date startTime, Date endTime, Integer isUserFreeze, Integer pageNum, Integer pageSize) {
+        LambdaQueryWrapper<User> lqw = Wrappers.<User>lambdaQuery();
+
+        if(StringUtils.isNotEmpty(userName)){
+            lqw.like(User::getName,userName);
+        }
+
+        if(Objects.nonNull(startTime)){
+            lqw.ge(User::getCreateTime,startTime);
+        }
+
+        if(Objects.nonNull(endTime)){
+            lqw.le(User::getCreateTime,endTime);
+        }
+
+        if(Objects.nonNull(isUserFreeze)){
+            lqw.eq(User::getIsFreeze,isUserFreeze);
+        }
+
+        if(pageNum == null || pageNum <= 0){
+            pageNum = 1;
+        }
+        if(pageSize == null || pageSize <= 0){
+            pageSize = 10;
+        }
+        Page<User> page = new Page<>(pageNum,pageSize);
+
+        return page(page, lqw);
+    }
+
+    @Override
+    public UserDetailDTO getUserDetail(String userId) {
+        User byId = getById(Long.parseLong(userId));
+        UserDetailDTO userDetailDTO = UserDetailDTO.fromUser(byId);
+        Blog12MonthDTO blog12MonthByUserId = blogFeign.getBlog12MonthByUserId(Long.parseLong(userId));
+        userDetailDTO.setBlog12MonthDTO(blog12MonthByUserId);
+
+        List<UserComRepVO> userComRepVOS = blogFeign.toxicComRepResult(Long.parseLong(userId));
+        userDetailDTO.setUserComRepVOList(userComRepVOS);
+
+
+        return userDetailDTO;
+    }
+
+    /**
+     * 获取仪表盘的title信息
+     * @return
+     */
+    @Override
+    public ResultUtil<DashboardTitleVO> getDashboardTitle() {
+        CompletableFuture<Long> totalBlogFuture = CompletableFuture.supplyAsync(() -> blogFeign.totalBlogs());
+
+        CompletableFuture<Long> totalComRepFuture = CompletableFuture.supplyAsync(() -> blogFeign.totalComReps());
+
+        CompletableFuture<Long> totalPointFuture = CompletableFuture.supplyAsync(() -> studyFeign.totalCount());
+
+        CompletableFuture<Long> totalUserFuture = CompletableFuture.supplyAsync(this::count);
+
+        CompletableFuture.allOf(totalBlogFuture,totalComRepFuture,totalPointFuture,totalUserFuture).join();
+
+        DashboardTitleVO dashboardTitleVO = new DashboardTitleVO();
+        dashboardTitleVO.setUsers(Math.toIntExact(totalUserFuture.join()));
+        dashboardTitleVO.setBlogs(Math.toIntExact(totalBlogFuture.join()));
+        dashboardTitleVO.setComments(Math.toIntExact(totalComRepFuture.join()));
+        dashboardTitleVO.setKnowledgePoints(Math.toIntExact(totalPointFuture.join()));
+
+        return ResultUtil.success(dashboardTitleVO);
+    }
+
+    /**
+     * 近12个月的用户增长信息
+     * @return
+     */
+    @Override
+    public ResultUtil<User12MonthVO> user12MonthVOResultUtil() {
+        // 1. 从数据库获取原始数据
+        List<User12MonthDTO> rawData = baseMapper.selectUserGrowthLast12Months();
+
+        // 将原始数据转为 Map 方便检索: { "2025-03": 15 }
+        Map<String, Integer> dataMap = rawData.stream().collect(Collectors.toMap(
+                User12MonthDTO::getMonth,
+                User12MonthDTO::getCount
+        ));
+
+        List<String> months = new ArrayList<>();
+        List<Integer> counts = new ArrayList<>();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("YYYY-MM");
+
+        // 2. 生成近12个月的连续时间轴并填充数据
+        for (int i = 11; i >= 0; i--) {
+            String month = LocalDate.now().minusMonths(i).format(formatter);
+            months.add(month);
+            // 如果某月没数据，补 0
+            counts.add(dataMap.getOrDefault(month, 0));
+        }
+
+        // 3. 组装 VO
+        User12MonthVO vo = new User12MonthVO();
+        vo.setMonthList(months);
+        // 如果你坚持 VO 里的类型是 List<Integer>，这里需要转一下
+        vo.setUserCountList(counts);
+        return ResultUtil.success(vo);
+    }
+
+
 }

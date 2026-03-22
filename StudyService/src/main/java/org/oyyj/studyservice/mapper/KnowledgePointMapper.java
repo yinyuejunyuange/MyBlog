@@ -14,6 +14,9 @@ public interface KnowledgePointMapper extends BaseMapper<KnowledgePoint> {
     // 根据知识库ID查询未删除的关联记录
     List<KnowledgeBaseRelationDTO> selectKnowledgeBaseRelationByKnowledgeBaseId(@Param("knowledgeBaseId") Long knowledgeBaseId);
 
+    //依据知识库IDList 查询关联记录
+    List<KnowledgeBaseRelationDTO> selectKnowledgeBaseRelationByKnowledgeBaseIds(@Param("knowledgeBaseIds") List<Long> knowledgeBaseIds);
+
     // 插入一条关联记录
     int insertKnowledgeBaseRelation(KnowledgeBaseRelationDTO relation);
 
@@ -27,4 +30,6 @@ public interface KnowledgePointMapper extends BaseMapper<KnowledgePoint> {
     int insertRelateByIds(@Param("pointIds") List<Long> pointIds, @Param("baseId") Long baseId );
 
     int deleteRelationByIds(@Param("pointIds") List<Long> pointIds, @Param("baseId") Long baseId );
+
+    List<KnowledgeBaseRelationDTO> selectKnowledgeBaseRelationByKnowledgePointId(@Param("knowledgePointId") Long knowledgePointId);
 }

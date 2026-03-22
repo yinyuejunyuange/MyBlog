@@ -11,4 +11,60 @@
         </if>
 
     </select>
+
+    <select id="listInterviewRecords" resultType="org.oyyj.studyservice.vo.chatMessage.ChatMessageVO">
+        SELECT
+        cm.session_id as sessionId,
+        kb.name as baseName,
+        cm.knowledge_point_name as firstQuestionName,
+        cm.create_time as createTime
+        FROM chat_message cm
+        LEFT JOIN knowledge_base kb ON cm.knowledge_base_id = kb.id
+        WHERE cm.sort = 1 AND cm.is_finish = 1
+        <if test="knowledgeBaseId != null">
+            AND cm.knowledge_base_id = #{knowledgeBaseId}
+        </if>
+        <if test="userId != null">
+            AND cm.user_id = #{userId}
+        </if>
+        <if test="startTime != null">
+            AND cm.create_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND cm.create_time &lt;= #{endTime}
+        </if>
+        ORDER BY cm.create_time DESC
+    </select>
+
+    <select id="getKnowledgePointStats" resultType="org.oyyj.studyservice.dto.ai.KnowledgePointInterviewStatsDTO">
+        SELECT
+        kp.id as knowledgePointId,
+        kp.title as knowledgePointName,
+        COUNT(DISTINCT cm.session_id) as interviewCount,
+        COUNT(cm.id) as questionCount,
+        AVG(CAST(JSON_EXTRACT(cm.comment, '$.score') AS DECIMAL(10,2))) as avgScore
+        FROM chat_message cm
+        LEFT JOIN knowledge_point kp ON cm.knowledge_point_id = kp.id
+        WHERE cm.role = 'user' AND cm.finish_comment = 1
+        <if test="knowledgeBaseId != null">
+            AND cm.knowledge_base_id = #{knowledgeBaseId}
+        </if>
+        GROUP BY kp.id, kp.title
+        ORDER BY interviewCount DESC
+    </select>
+
+    <select id="getKnowledgeBaseStats" resultType="org.oyyj.studyservice.dto.ai.KnowledgeBaseInterviewStatsDTO">
+        SELECT
+            kb.id as knowledgeBaseId,
+            kb.name as knowledgeBaseName,
+            COUNT(DISTINCT cm.session_id) as interviewCount,
+            COUNT(cm.id) as answerCount,
+            AVG(CAST(JSON_EXTRACT(cm.comment, '$.score') AS DECIMAL(10,2))) as avgScore
+        FROM chat_message cm
+                 LEFT JOIN knowledge_base kb ON cm.knowledge_base_id = kb.id
+        WHERE cm.role = 'user' AND cm.finish_comment = 1
+        GROUP BY kb.id, kb.name
+        ORDER BY interviewCount DESC
+    </select>
+
 </mapper>

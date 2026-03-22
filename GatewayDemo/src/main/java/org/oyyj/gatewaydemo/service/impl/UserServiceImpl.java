@@ -3,10 +3,14 @@ package org.oyyj.gatewaydemo.service.impl;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.oyyj.gatewaydemo.mapper.SysPermissionMapper;
 import org.oyyj.gatewaydemo.mapper.SysRoleMapper;
 import org.oyyj.gatewaydemo.mapper.UserMapper;
 import org.oyyj.gatewaydemo.pojo.auth.AuthUser;
+import org.oyyj.gatewaydemo.pojo.dto.LoginDTO;
+import org.oyyj.mycommonbase.common.RoleEnum;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.gatewaydemo.pojo.User;
 import org.oyyj.gatewaydemo.pojo.dto.RegisterDTO;
@@ -14,7 +18,9 @@ import org.oyyj.gatewaydemo.pojo.vo.JWTUserVO;
 import org.oyyj.gatewaydemo.service.IUserService;
 import org.oyyj.gatewaydemo.utils.JWTUtils;
 import org.oyyj.mycommonbase.utils.RedisUtil;
+import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -45,6 +51,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Autowired
     private SysPermissionMapper sysPermissionMapper;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // 用户默认头像
     private static final String USER_HEAD = "userhead.png";
@@ -158,6 +166,64 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }else{
             throw  new RuntimeException("注册失败");
         }
+    }
+
+    /**
+     * 新增管理员
+     * @param loginDTO
+     * @return
+     * @throws IOException
+     */
+    @Override
+    public Mono<ResultUtil<String>> registerAdmin(LoginDTO loginDTO, ServerHttpRequest request){
+        String roles = request.getHeaders().getFirst("X-User-Role");
+        if(roles==null){
+            throw  new RuntimeException("当权用户无权创建管理员");
+        }
+
+        List<String> roleList = List.of();
+        try {
+            roleList = objectMapper.readValue(roles, new TypeReference<List<String>>() {
+            });
+        } catch (JsonProcessingException e) {
+            log.error("用户角色数据解析失败"+e.getMessage(),e);
+            throw  new RuntimeException("当权用户无权创建管理员");
+        }
+        if(!roleList.contains(RoleEnum.SUPER_ADMIN)){
+            throw  new RuntimeException("当权用户无权创建管理员");
+        }
+
+        User one = getOne(Wrappers.<User>lambdaQuery().eq(User::getName, loginDTO.getUsername()));
+        if(!Objects.isNull(one)){
+            return null;
+        }
+        Date date = new Date();
+        User build = User.builder()
+                .name(loginDTO.getUsername())
+                .imageUrl(USER_HEAD)
+                .createTime(date)
+                .updateTime(date)
+                .isDelete(0)
+                .isFreeze(0)
+                .build();
+        String encode = passwordEncoder.encode(loginDTO.getPassword());
+        build.setPassword(encode);
+
+        boolean save = save(build);
+
+        if(save){
+            // 默认将 新注册的用户设置为 user
+            Long roleId = roleMapper.selectRoleBuName(RoleEnum.ADMIN);
+            Integer i = roleMapper.defaultSetUser(build.getId(), roleId);
+            if(i==0){
+                // 权限添加失败
+                throw new RuntimeException("权限添加 失败");
+            }
+        }else{
+            throw  new RuntimeException("管理员创建失败");
+        }
+
+        return Mono.just(ResultUtil.success("管理员创建成功"));
     }
 
 }

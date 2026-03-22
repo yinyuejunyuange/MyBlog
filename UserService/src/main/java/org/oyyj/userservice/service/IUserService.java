@@ -1,5 +1,6 @@
 package org.oyyj.userservice.service;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -10,9 +11,14 @@ import org.oyyj.userservice.dto.*;
 import org.oyyj.userservice.dto.user.vo.UserInfoVO;
 import org.oyyj.userservice.pojo.JWTUser;
 import org.oyyj.userservice.pojo.User;
+import org.oyyj.userservice.vo.DashboardTitleVO;
+import org.oyyj.userservice.vo.UserInfoForAdminVO;
+import org.oyyj.userservice.vo.user.User12MonthVO;
+import org.oyyj.userservice.vo.user.UserDetailDTO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -69,5 +75,61 @@ public interface IUserService extends IService<User> {
     List<Long> getUserStarBlog(Long userId ,Integer currentPage ,Integer pageSize);
 
     ResultUtil<org.oyyj.userservice.vo.UserInfoVO> getUserInfo(Long userId,LoginUser loginUser);
+
+    /**
+     * 当前用户的角色信息
+     * @param userId
+     * @return
+     */
+    List<String> getUserRoleInfo(Long userId);
+
+
+    /**
+     * 分页查询用户
+     * @param userName
+     * @param startTime
+     * @param endTime
+     * @param isUserFreeze
+     * @return
+     */
+    Page<UserInfoForAdminVO> getUserInfoForAdmin(String userName,
+                                                 Date startTime,
+                                                 Date endTime,
+                                                 Integer isUserFreeze,
+                                                 Integer pageNum,
+                                                 Integer pageSize);
+
+    /**
+     * 获取管理员分页信息
+     * @param userName
+     * @param startTime
+     * @param endTime
+     * @param isUserFreeze
+     * @param pageNum
+     * @param pageSize
+     * @return
+     */
+    Page<User> getAdminPage(String userName,
+                            Date startTime,
+                            Date endTime,
+                            Integer isUserFreeze,
+                            Integer pageNum,
+                            Integer pageSize);
+
+
+    UserDetailDTO getUserDetail(String userId);
+
+    /**
+     * 获取仪表盘最上面的title信息
+     * @return
+     */
+    ResultUtil<DashboardTitleVO> getDashboardTitle();
+
+    /**
+     * 获取12个月的用户增长信息
+     * @return
+     */
+    ResultUtil<User12MonthVO> user12MonthVOResultUtil();
+
 
 }

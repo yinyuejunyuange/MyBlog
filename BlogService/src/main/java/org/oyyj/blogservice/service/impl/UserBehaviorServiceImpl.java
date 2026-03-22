@@ -1,17 +1,24 @@
 package org.oyyj.blogservice.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.oyyj.blogservice.mapper.UserBehaviorMapper;
 import org.oyyj.blogservice.pojo.UserBehavior;
 import org.oyyj.blogservice.service.IUserBehaviorService;
+import org.oyyj.blogservice.vo.behavior.MonthlyBehaviorVO;
 import org.oyyj.mycommon.common.BehaviorEnum;
 import org.oyyj.mycommonbase.common.RedisPrefix;
 import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.Objects;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -70,5 +77,62 @@ public class UserBehaviorServiceImpl extends ServiceImpl<UserBehaviorMapper,User
 
         return true;
     }
+
+    @Override
+    public List<MonthlyBehaviorVO> getBlogBehaviorTrend(Long blogId) throws Exception {
+        // 1 查最近12个月数据
+        Date startTime = Date.from(
+                LocalDate.now().minusMonths(11)
+                        .withDayOfMonth(1)
+                        .atStartOfDay(ZoneId.systemDefault())
+                        .toInstant()
+        );
+
+        List<UserBehavior> list = userBehaviorMapper.selectList(
+                new LambdaQueryWrapper<UserBehavior>()
+                        .eq(UserBehavior::getBlogId, blogId)
+                        .eq(UserBehavior::getIsDelete, 0)
+                        .ge(UserBehavior::getCreateTime, startTime)
+        );
+
+        // 2 按 月份 + 行为类型 分组
+        Map<String, Map<Integer, Long>> groupMap = list.stream()
+                .collect(Collectors.groupingBy(
+                        item -> {
+                            LocalDateTime time = item.getCreateTime().toInstant()
+                                    .atZone(ZoneId.systemDefault())
+                                    .toLocalDateTime();
+                            return time.format(DateTimeFormatter.ofPattern("yyyy-MM"));
+                        },
+                        Collectors.groupingBy(
+                                UserBehavior::getBehaviorType,
+                                Collectors.counting()
+                        )
+                ));
+
+        // 3 构造最近12个月（补0🔥）
+        List<MonthlyBehaviorVO> result = new ArrayList<>();
+
+        for (int i = 11; i >= 0; i--) {
+            String month = LocalDate.now()
+                    .minusMonths(i)
+                    .format(DateTimeFormatter.ofPattern("yyyy-MM"));
+
+            Map<Integer, Long> behaviorMap = groupMap.getOrDefault(month, new HashMap<>());
+
+            MonthlyBehaviorVO vo = new MonthlyBehaviorVO();
+            vo.setMonth(month);
+            vo.setViewCount(behaviorMap.getOrDefault(0, 0L));
+            vo.setLikeCount(behaviorMap.getOrDefault(1, 0L));
+            vo.setCommentCount(behaviorMap.getOrDefault(2, 0L));
+            vo.setCollectCount(behaviorMap.getOrDefault(3, 0L));
+            vo.setShareCount(behaviorMap.getOrDefault(4, 0L));
+
+            result.add(vo);
+        }
+
+        return result;
+    }
+
 
 }

@@ -14,4 +14,10 @@ public interface IReplyService extends IService<Reply> {
     Boolean changeReplyKudos(Long replyId, Integer isAdd,LoginUser loginUser);
 
     ReplyResultVO getReply(Long commentId, LoginUser loginUser, String lastId, Date lastTime);
+
+    /**
+     * 查询近一个月的回复增加数量
+     * @return 回复增加数量
+     */
+    Long getRecentReplyIncrease();
 }

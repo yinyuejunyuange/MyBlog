@@ -210,4 +210,13 @@ public class ReplyServiceImpl extends ServiceImpl<ReplyMapper, Reply> implements
         // 格式化Date为字符串
         return sdf.format(date);
     }
+
+    @Override
+    public Long getRecentReplyIncrease() {
+        // 计算一个月前的日期
+        Date oneMonthAgo = Date.from(java.time.LocalDateTime.now().minusMonths(1)
+                .atZone(java.time.ZoneId.systemDefault()).toInstant());
+
+        return baseMapper.countRecentReplies(oneMonthAgo);
+    }
 }

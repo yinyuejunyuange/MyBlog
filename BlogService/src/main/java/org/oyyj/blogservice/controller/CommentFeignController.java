@@ -6,7 +6,9 @@ import org.oyyj.blogservice.pojo.Comment;
 import org.oyyj.blogservice.pojo.Reply;
 import org.oyyj.blogservice.service.ICommentService;
 import org.oyyj.blogservice.service.IReplyService;
+import org.oyyj.mycommon.pojo.dto.comment.CommentToxicDTO;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -57,4 +59,38 @@ public class CommentFeignController {
         ).stream().collect(Collectors.toMap(Reply::getId, Reply::getContext));
     }
 
+    /**
+     * 异步填写攻击性判断
+     * @param commentToxicDTO
+     */
+    @PostMapping("/toxicJudgement")
+    @Async
+    void toxicJudgement(@RequestBody CommentToxicDTO commentToxicDTO){
+        if(commentToxicDTO == null){
+            return;
+        }
+        String mulType ;
+        if(commentToxicDTO.getTopicList() != null && !commentToxicDTO.getTopicList().isEmpty()){
+            mulType = String.join(commentToxicDTO.getTopicList(), ",");
+        }else{
+            mulType = "";
+        }
+        if(commentToxicDTO.getType() == 0){
+            // 处理评论
+            commentService.update(Wrappers.<Comment>lambdaUpdate()
+                    .eq(Comment::getId,commentToxicDTO.getId())
+                    .set(Comment::getIsToxic,commentToxicDTO.getIsToxic())
+                    .set(Comment::getMulType,mulType)
+            );
+        }
+        if(commentToxicDTO.getType() == 1){
+            // 处理回复
+            replyService.update(
+                    Wrappers.<Reply>lambdaUpdate()
+                    .eq(Reply::getId,commentToxicDTO.getId())
+                    .set(Reply::getIsToxic,commentToxicDTO.getIsToxic())
+                    .set(Reply::getMulType,mulType)
+            );
+        }
+    }
 }

@@ -9,18 +9,21 @@ import org.checkerframework.checker.units.qual.K;
 import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.studyservice.dto.knowledgeBase.KnowledgeBaseDTO;
 import org.oyyj.studyservice.dto.knowledgePoint.KnowledgeBaseRelationDTO;
+import org.oyyj.studyservice.mapper.ChatMessageMapper;
 import org.oyyj.studyservice.mapper.KnowledgeBaseMapper;
 import org.oyyj.studyservice.mapper.KnowledgePointMapper;
+import org.oyyj.studyservice.mapper.QuestionMapper;
+import org.oyyj.studyservice.pojo.ChatMessage;
 import org.oyyj.studyservice.pojo.KnowledgeBase;
 import org.oyyj.studyservice.pojo.KnowledgePoint;
+import org.oyyj.studyservice.pojo.Question;
 import org.oyyj.studyservice.service.KnowledgeBaseService;
+import org.oyyj.studyservice.vo.knowledgeBase.BaseDashboardVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,6 +31,9 @@ public class KnowledgeBaseServiceImpl extends ServiceImpl<KnowledgeBaseMapper, K
 
     @Autowired
     private KnowledgePointMapper knowledgePointMapper;
+    @Autowired
+    private QuestionMapper questionMapper;
+    private ChatMessageMapper chatMessageMapper;
 
     @Override
     public ResultUtil<String> add(KnowledgeBaseDTO dto) {
@@ -243,5 +249,136 @@ public class KnowledgeBaseServiceImpl extends ServiceImpl<KnowledgeBaseMapper, K
         }
 
         return ResultUtil.success("知识点移除成功");
+    }
+
+    @Override
+    public ResultUtil<KnowledgeBaseDTO> getKnowledgeBaseDetail(Long knowledgeBaseId) {
+        if (knowledgeBaseId == null) {
+            return ResultUtil.fail("题库ID不能为空");
+        }
+
+        KnowledgeBase knowledgeBase = this.getById(knowledgeBaseId);
+        if (knowledgeBase == null) {
+            return ResultUtil.fail("题库不存在");
+        }
+
+        KnowledgeBaseDTO dto = new KnowledgeBaseDTO().entityToDTO(knowledgeBase);
+
+        List<KnowledgeBaseRelationDTO> relations = knowledgePointMapper
+                .selectKnowledgeBaseRelationByKnowledgeBaseId(knowledgeBaseId);
+
+        if (relations != null && !relations.isEmpty()) {
+            List<String> knowledgeIds = relations.stream()
+                    .map(relation -> String.valueOf(relation.getKnowledgePointId()))
+                    .collect(Collectors.toList());
+            dto.setKnowledgeIds(knowledgeIds);
+        }
+
+        return ResultUtil.success(dto);
+    }
+
+    @Override
+    public ResultUtil<IPage<KnowledgeBaseDTO>> getKnowledgePointsByBaseId(Long knowledgeBaseId, Integer page, Integer pageSize) {
+        if (knowledgeBaseId == null) {
+            return ResultUtil.fail("题库ID不能为空");
+        }
+
+        if (page == null || page < 1) {
+            page = 1;
+        }
+        if (pageSize == null || pageSize < 1) {
+            pageSize = 10;
+        }
+
+        KnowledgeBase knowledgeBase = this.getById(knowledgeBaseId);
+        if (knowledgeBase == null) {
+            return ResultUtil.fail("题库不存在");
+        }
+
+        List<KnowledgeBaseRelationDTO> relations = knowledgePointMapper
+                .selectKnowledgeBaseRelationByKnowledgeBaseId(knowledgeBaseId);
+
+        Page<KnowledgeBaseDTO> resultPage = new Page<>(page, pageSize, 0);
+
+        if (relations == null || relations.isEmpty()) {
+            resultPage.setRecords(new ArrayList<>());
+            return ResultUtil.success(resultPage);
+        }
+
+        List<Long> pointIds = relations.stream()
+                .map(KnowledgeBaseRelationDTO::getKnowledgePointId)
+                .collect(Collectors.toList());
+
+        int total = pointIds.size();
+        int start = (page - 1) * pageSize;
+        int end = Math.min(start + pageSize, total);
+
+        if (start >= total) {
+            resultPage.setRecords(new ArrayList<>());
+            resultPage.setTotal(total);
+            return ResultUtil.success(resultPage);
+        }
+
+        List<Long> pagePointIds = pointIds.subList(start, end);
+
+        List<KnowledgePoint> knowledgePoints = knowledgePointMapper.selectBatchIds(pagePointIds);
+
+        List<KnowledgeBaseDTO> dtoList = knowledgePoints.stream()
+                .map(point -> {
+                    KnowledgeBaseDTO dto = new KnowledgeBaseDTO();
+                    dto.setId(String.valueOf(point.getId()));
+                    dto.setName(point.getTitle());
+                    dto.setDescription(point.getRecommendedAnswer());
+                    dto.setCreateTime(point.getCreateTime());
+                    dto.setUpdateTime(point.getUpdateTime());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+
+        resultPage.setRecords(dtoList);
+        resultPage.setTotal(total);
+
+        return ResultUtil.success(resultPage);
+    }
+
+    @Override
+    public ResultUtil<List<BaseDashboardVO>> getBaseDashboard() {
+        List<BaseDashboardVO> result = new ArrayList<>();
+        List<KnowledgeBase> list = list(Wrappers.<KnowledgeBase>lambdaQuery()
+                .select(KnowledgeBase::getId, KnowledgeBase::getName)
+        );
+        if (list == null || list.isEmpty()) {
+            return ResultUtil.success(result);
+        }
+        List<Long> baseIds = list.stream().map(KnowledgeBase::getId).toList();
+        List<KnowledgeBaseRelationDTO> knowledgeBaseRelationDTOS = knowledgePointMapper.selectKnowledgeBaseRelationByKnowledgeBaseIds(baseIds);
+        Map<Long, List<KnowledgeBaseRelationDTO>> basePointMap = knowledgeBaseRelationDTOS.stream().collect(Collectors.groupingBy(KnowledgeBaseRelationDTO::getKnowledgeBaseId));
+        List<Long> pointIds = knowledgeBaseRelationDTOS.stream().map(KnowledgeBaseRelationDTO::getKnowledgePointId).toList();
+        List<Question> questions = questionMapper.selectList(Wrappers.<Question>lambdaQuery()
+                .in(Question::getKnowledgePointId, pointIds)
+                .select(Question::getId, Question::getKnowledgePointId)
+        );
+        Map<Long, List<Question>> questionsMap = questions.stream().collect(Collectors.groupingBy(Question::getKnowledgePointId));
+        List<ChatMessage> chatMessages = chatMessageMapper.selectList(Wrappers.<ChatMessage>lambdaQuery()
+                .select(ChatMessage::getKnowledgeBaseId, ChatMessage::getId, ChatMessage::getSessionId)
+        );
+        Map<Long, List<ChatMessage>> chatMessageMap = chatMessages.stream().collect(Collectors.groupingBy(ChatMessage::getKnowledgeBaseId));
+        for (KnowledgeBase knowledgeBase : list) {
+            BaseDashboardVO baseDashboardVO = new BaseDashboardVO();
+            baseDashboardVO.setBaseName(knowledgeBase.getName());
+            if(basePointMap.containsKey(knowledgeBase.getId())) {
+                baseDashboardVO.setPointsNum(basePointMap.get(knowledgeBase.getId()).size());
+            }
+            if(questionsMap.containsKey(knowledgeBase.getId())) {
+                baseDashboardVO.setQuestions(questionsMap.get(knowledgeBase.getId()).size());
+            }
+            if(chatMessageMap.containsKey(knowledgeBase.getId())) {
+                List<ChatMessage> chatMessagesList = chatMessageMap.get(knowledgeBase.getId());
+                Set<String> msgSet = chatMessagesList.stream().map(ChatMessage::getSessionId).collect(Collectors.toSet());
+                baseDashboardVO.setInterviewNum(msgSet.size());
+            }
+            result.add(baseDashboardVO);
+        }
+        return ResultUtil.success(result);
     }
 }

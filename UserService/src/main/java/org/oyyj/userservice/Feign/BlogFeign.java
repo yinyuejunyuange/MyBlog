@@ -2,7 +2,10 @@ package org.oyyj.userservice.Feign;
 
 import feign.Response;
 import jakarta.servlet.http.HttpServletResponse;
+import org.oyyj.mycommon.pojo.dto.blog.Blog12MonthDTO;
 import org.oyyj.mycommon.pojo.dto.UserBlogInfoDTO;
+import org.oyyj.mycommon.pojo.dto.blog.ComRepForUserDTO;
+import org.oyyj.mycommon.pojo.vo.UserComRepVO;
 import org.oyyj.userservice.dto.*;
 import org.oyyj.userservice.config.FeignUserConfig;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -113,4 +116,28 @@ public interface BlogFeign {
 
     @GetMapping("/myBlog/blog/userBlogInfo")
     UserBlogInfoDTO getUserBlogInfo(@RequestParam("userId") Long userId);
+
+
+
+    // 查询 某用户近12月的博客发表记录
+    @GetMapping("/myBlog/blogFeign/userBlog12Month")
+    Blog12MonthDTO getBlog12MonthByUserId(@RequestParam("userId")Long userId);
+
+    // 查询 指定的 userIds中的博客数量
+    @PostMapping("/myBlog/blogFeign/countBlogByUserList")
+    Map<Long,Integer> countByUserList(@RequestBody List<Long> userIds);
+
+    // 查询 指定 ids中的评论数量 攻击性评论占比
+    @PostMapping("/myBlog/blogFeign/countCommentReplyByUserList")
+    List<ComRepForUserDTO> countCommentReplyByUserList(@RequestBody List<Long> userIds);
+
+    @GetMapping("/myBlog/blogFeign/totalBlogs")
+    Long totalBlogs();
+
+    @GetMapping("/myBlog/blogFeign/totalComReps")
+    Long totalComReps();
+
+    @GetMapping("/myBlog/blogFeign/toxicComRepResult")
+    List<UserComRepVO> toxicComRepResult(@RequestParam("userId") Long userId);
+
 }

@@ -3,8 +3,12 @@ package org.oyyj.gatewaydemo.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.oyyj.gatewaydemo.pojo.User;
+import org.oyyj.gatewaydemo.pojo.dto.LoginDTO;
 import org.oyyj.gatewaydemo.pojo.dto.RegisterDTO;
 import org.oyyj.gatewaydemo.pojo.vo.JWTUserVO;
+import org.oyyj.mycommonbase.common.auth.LoginUser;
+import org.oyyj.mycommonbase.utils.ResultUtil;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import reactor.core.publisher.Mono;
 
 
@@ -20,5 +24,7 @@ public interface IUserService extends IService<User> {
     Mono<Void> LoginOut();
 
     Mono<JWTUserVO> registerUser(RegisterDTO registerDTO) throws IOException;
+
+    Mono<ResultUtil<String>> registerAdmin(LoginDTO registerDTO , ServerHttpRequest request);
 
 }

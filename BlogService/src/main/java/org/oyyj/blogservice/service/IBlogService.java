@@ -6,12 +6,18 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import org.oyyj.blogservice.dto.*;
 import org.oyyj.blogservice.pojo.Blog;
 import org.oyyj.blogservice.util.ResultUtil;
+import org.oyyj.blogservice.vo.admin.BlogTypeVO;
 import org.oyyj.blogservice.vo.blogs.BlogSearchVO;
 import org.oyyj.blogservice.vo.blogs.CommendBlogsByAuthor;
 import org.oyyj.mycommon.pojo.dto.UserBlogInfoDTO;
+import org.oyyj.mycommon.pojo.dto.blog.Blog12MonthDTO;
+import org.oyyj.mycommon.pojo.dto.blog.ComRepForUserDTO;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -78,12 +84,7 @@ public interface IBlogService extends IService<Blog> {
 
     Map<String,Long> getAllTypeNum();
 
-    String getBlogListByAdmin(String blogName,
-                              String authorName,
-                              Date startDate,
-                              Date endDate,  // spring框架默认是不支持前端 date的iso类型  所以要设置
-                              String status,
-                              Integer currentPage) throws JsonProcessingException;
+    PageDTO<BlogDTO> getBlogListByAdmin(String blogName, String authorName, Date startDate, Date endDate, String status, Integer currentPage, Integer pageSize) throws JsonProcessingException;
 
     /**
      * 收藏博客--博客记录数+1
@@ -179,4 +180,33 @@ public interface IBlogService extends IService<Blog> {
      * @return
      */
     ResultUtil<List<BlogDTO>> getBlogStar(Long userId,Integer currentPage, Integer pageSize);
+
+
+    /**
+     * 查询 某用户近12月的博客发表记录
+     * @param userId
+     * @return
+     */
+    Blog12MonthDTO getBlog12MonthByUserId(Long userId);
+
+    /**
+     * 查询 指定的 userIds中的博客数量
+     * @param userIds
+     * @return
+     */
+    Map<Long,Integer> countByUserList(List<Long> userIds);
+
+    /**
+     * 查询 指定 ids中的评论数量 攻击性评论占比
+     * @param userIds
+     * @return
+     */
+    List<ComRepForUserDTO> countCommentReplyByUserList(List<Long> userIds);
+
+    /**
+     * 查询管理端首页 博客 种类圆饼图 展示
+     * @return
+     */
+    ResultUtil<List<BlogTypeVO>> blogTypeList();
+
 }

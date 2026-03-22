@@ -7,6 +7,8 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.oyyj.userservice.pojo.SysRole;
 
+import java.util.List;
+
 
 @Mapper
 public interface SysRoleMapper extends BaseMapper<SysRole> {
@@ -16,5 +18,7 @@ public interface SysRoleMapper extends BaseMapper<SysRole> {
 
     @Select("select id from sys_role where role_name=#{name}")
     Long selectRoleBuName(@Param("name") String name);
+
+    List<String> roleNameByUserId(@Param("userId") Long userId);
 
 }

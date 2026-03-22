@@ -26,6 +26,8 @@ import org.oyyj.blogservice.vo.blogs.CommendBlogsByAuthor;
 import org.oyyj.mycommon.annotation.RequestUser;
 import org.oyyj.mycommon.config.RabbitMqConfig;
 import org.oyyj.mycommon.pojo.dto.UserBlogInfoDTO;
+import org.oyyj.mycommon.pojo.dto.blog.Blog12MonthDTO;
+import org.oyyj.mycommon.pojo.dto.blog.ComRepForUserDTO;
 import org.oyyj.mycommon.service.IUploadMetadataService;
 import org.oyyj.mycommonbase.common.RedisPrefix;
 import org.oyyj.mycommonbase.common.auth.LoginUser;

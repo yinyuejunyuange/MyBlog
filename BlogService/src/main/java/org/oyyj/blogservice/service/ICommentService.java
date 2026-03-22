@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import org.oyyj.blogservice.dto.ReadCommentDTO;
 import org.oyyj.blogservice.pojo.Comment;
 import org.oyyj.blogservice.vo.commet.CommentResultVO;
+import org.oyyj.mycommon.pojo.vo.UserComRepVO;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 
 import java.util.Date;
@@ -15,6 +16,6 @@ public interface ICommentService extends IService<Comment> {
 
     Boolean changeCommentKudos(Long commentId,Integer isAdd,LoginUser loginUser);
 
-
+    List<UserComRepVO> getUserComRepByUserId(Long userId);
 
 }
