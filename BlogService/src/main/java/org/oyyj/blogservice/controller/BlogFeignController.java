@@ -28,13 +28,11 @@ public class BlogFeignController {
 
     private final IBlogService iBlogService;
     private final ICommentService iCommentService;
-    private final IReplyReportService iReplyReportService;
     private final IReplyService iReplyService;
 
-    public BlogFeignController(IBlogService iBlogService, ICommentService iCommentService, IReplyReportService iReplyReportService, IReplyService iReplyService) {
+    public BlogFeignController(IBlogService iBlogService, ICommentService iCommentService, IReplyService iReplyService) {
         this.iBlogService = iBlogService;
         this.iCommentService = iCommentService;
-        this.iReplyReportService = iReplyReportService;
         this.iReplyService = iReplyService;
     }
 
@@ -61,6 +59,18 @@ public class BlogFeignController {
     @GetMapping("/userBlog12Month")
     public Blog12MonthDTO getBlog12MonthByUserId(@RequestParam("userId")Long userId){
         return iBlogService.getBlog12MonthByUserId(userId);
+    }
+
+    @GetMapping("/totalBlogs")
+    public Long getTotalBlogs(){
+        return iBlogService.count();
+    }
+
+    @GetMapping("/totalComReps")
+    public Long getTotalComReps(){
+        long commentNums = iCommentService.count();
+        long replyNums = iReplyService.count();
+        return commentNums + replyNums;
     }
 
     // 查询 指定的 userIds中的博客数量
@@ -104,8 +114,13 @@ public class BlogFeignController {
             blogList.addAll(list);
         }
 
-        Map<Long, String> collect = iBlogService.listByIds(blogList).stream().collect(Collectors.toMap(Blog::getId, Blog::getTitle));
+        Map<Long, String> collect;
 
+        if(!blogList.isEmpty()){
+            collect = iBlogService.listByIds(blogList).stream().collect(Collectors.toMap(Blog::getId, Blog::getTitle));
+        } else {
+            collect = Map.of();
+        }
 
         result.addAll(comments.stream().map(item -> {
             UserComRepVO userComRepVO = new UserComRepVO();

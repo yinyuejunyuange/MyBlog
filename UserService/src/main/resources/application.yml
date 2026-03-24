@@ -48,7 +48,12 @@ user:
   header-url: H:/10516/Test/image/
 
 cors:
-  allow: http://localhost:8001/  # 规定前端允许的域名
+  allow:
+    - "http://localhost:8001"
+    - "http://localhost:8002"
+    - "http://localhost:8003"
+    - "http://192.168.1.100:8001"
+    - "http://your-production-domain.com"
 
 
 # 雪花算法配置（不同服务/机器配置不同的worker-id，避免重复）

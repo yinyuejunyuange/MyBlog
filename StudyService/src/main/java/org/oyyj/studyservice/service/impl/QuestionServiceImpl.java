@@ -33,10 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -63,7 +60,17 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         // 将 List<String> answer 转为 JSON 字符串
         if (dto.getAnswer() != null) {
             try {
-                entity.setAnswer(objectMapper.writeValueAsString(dto.getAnswer()));
+                if(Question.QuestionType.TRUE_FALSE.getValue().equals(dto.getQuestionType())) {
+                    List<String> answer = dto.getAnswer();
+                    String answerOne = answer.get(0);
+                    if(answerOne.contains("true")){
+                        entity.setAnswer("["+true+"]");
+                    }else{
+                        entity.setAnswer("["+false+"]");
+                    }
+                }else{
+                    entity.setAnswer(objectMapper.writeValueAsString(dto.getAnswer()));
+                }
             } catch (JsonProcessingException e) {
                 log.error("答案 JSON 序列化失败", e);
                 throw new RuntimeException("答案格式错误");
@@ -307,8 +314,16 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         BeanUtils.copyProperties(entity, dto);
         if (entity.getAnswer() != null && !entity.getAnswer().isEmpty()) {
             try {
-                List<String> answerList = objectMapper.readValue(entity.getAnswer(), new TypeReference<List<String>>() {});
-                dto.setAnswer(answerList);
+                if(Question.QuestionType.TRUE_FALSE.getValue().equals(entity.getQuestionType())) {
+                    if(entity.getAnswer().contains("true")){
+                        dto.setAnswer(Collections.singletonList("true"));
+                    }else{
+                        dto.setAnswer(Collections.singletonList("false"));
+                    }
+                }else{
+                    List<String> answerList = objectMapper.readValue(entity.getAnswer(), new TypeReference<List<String>>() {});
+                    dto.setAnswer(answerList);
+                }
             } catch (JsonProcessingException e) {
                 log.error("答案解析失败", e);
                 dto.setAnswer(List.of());

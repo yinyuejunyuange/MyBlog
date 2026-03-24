@@ -217,9 +217,9 @@ public class AdminController {
                                                              @RequestParam(value = "startTime",required = false) Date startTime,
                                                              @RequestParam(value = "endTime",required = false) Date endTime,
                                                              @RequestParam(value = "isUserFreeze",required = false) Integer isUserFreeze,
-                                                             @RequestParam("pageNum") Integer pageNum,
+                                                             @RequestParam("currentPage") Integer currentPage,
                                                              @RequestParam("pageSize") Integer pageSize){
-        return ResultUtil.success(userService.getUserInfoForAdmin(userName,startTime,endTime,isUserFreeze,pageNum,pageSize));
+        return ResultUtil.success(userService.getUserInfoForAdmin(userName,startTime,endTime,isUserFreeze,currentPage,pageSize));
     }
 
     /**

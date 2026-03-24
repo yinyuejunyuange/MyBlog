@@ -15,7 +15,7 @@
         </where>
     </select>
     <select id="findBlogTypeNum" resultType="org.oyyj.blogservice.vo.admin.BlogTypeVO">
-        SELECT tt.name,COUNT(tb.blog_id)
+        SELECT tt.label AS blogType ,COUNT(tb.blog_id) AS num
         FROM type_table tt
         INNER JOIN type_blog tb ON tb.type_id = tt.id
         <where>
@@ -24,6 +24,6 @@
             </if>
         </where>
         GROUP BY
-            tt.name
+            tt.label
     </select>
 </mapper>

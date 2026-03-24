@@ -204,10 +204,12 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
 
     @Override
     public List<UserComRepVO> getUserComRepByUserId(Long userId) {
-        list(Wrappers.<Comment>lambdaQuery()
-                .eq(Comment::getUserId, userId)
-                .ne(Comment::getKudos, 0)
-        );
+//        List<Comment> comments = list(Wrappers.<Comment>lambdaQuery()
+//                .eq(Comment::getUserId, userId)
+//                .ne(Comment::getKudos, 0)
+//        );
+
+        return List.of();
     }
 
     /**

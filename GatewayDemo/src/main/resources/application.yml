@@ -70,7 +70,7 @@ spring:
         - id: UserService
           uri: lb://UserService
           predicates: # 路由匹配规则
-            - Path=/myBlog/user/**
+            - Path=/myBlog/user/** , /myBlog/admin/**
 
         - id: ChatServiceHttp
           uri: lb://ChatService
@@ -114,6 +114,8 @@ spring:
               - "http://localhost:5173" # 允许区域
               - "http://localhost:8079" # 允许区域
               - "http://localhost:8001" # 允许区域
+              - "http://localhost:8002" # 允许区域
+              - "http://localhost:8003" # 允许区域
             allowed-methods:
               - "GET"
               - "POST"

@@ -29,7 +29,7 @@ import javax.security.sasl.AuthenticationException;
 import java.util.*;
 
 @RestController
-@RequestMapping("/myBlog/admin/blog")
+@RequestMapping("/myBlog/blog/admin")
 @Slf4j
 public class BlogForAdminController {
 
@@ -386,7 +386,7 @@ public class BlogForAdminController {
     }
 
     @RequestRole(role = {RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN})
-    @PutMapping("/blog12Month")
+    @GetMapping("/blog12Month")
     public ResultUtil<Blog12MonthDTO> blog12Month() throws AuthenticationException {
         return ResultUtil.success(blogService.getBlog12MonthByUserId(null));
     }
@@ -398,7 +398,7 @@ public class BlogForAdminController {
      * @throws AuthenticationException
      */
     @RequestRole(role = {RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN})
-    @PutMapping("/blogTypeDashboard")
+    @GetMapping("/blogTypeDashboard")
     public ResultUtil<List<BlogTypeVO>> blogTypeList() throws AuthenticationException {
         return blogService.blogTypeList();
     }

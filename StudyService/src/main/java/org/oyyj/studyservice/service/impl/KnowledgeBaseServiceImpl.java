@@ -33,6 +33,7 @@ public class KnowledgeBaseServiceImpl extends ServiceImpl<KnowledgeBaseMapper, K
     private KnowledgePointMapper knowledgePointMapper;
     @Autowired
     private QuestionMapper questionMapper;
+    @Autowired
     private ChatMessageMapper chatMessageMapper;
 
     @Override

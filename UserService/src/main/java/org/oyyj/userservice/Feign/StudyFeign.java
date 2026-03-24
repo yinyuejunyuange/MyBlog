@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 @FeignClient(value = "StudyService")
 public interface StudyFeign {
 
-    @GetMapping("/myBlog/point/totalCount")
+    @GetMapping("/myBlog/knowledgePoint/admin/totalCount")
     Long totalCount();
 
 }

@@ -1331,20 +1331,25 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 Wrappers.<BlogType>lambdaQuery().in(BlogType::getBlogId, blogIds)
         );
 
+        Map<Long, List<String>> blogIdToNamesMap = new HashMap<>();
 // 3. 提取所有类型 ID，批量查询类型名称 (1次查询)
         List<Long> typeIds = allBlogTypes.stream().map(BlogType::getTypeId).distinct().toList();
-        Map<Long, String> typeNameMap = typeTableMapper.selectList(
-                Wrappers.<TypeTable>lambdaQuery().in(TypeTable::getId, typeIds)
-        ).stream().collect(Collectors.toMap(TypeTable::getId, TypeTable::getName));
 
-// 4. 将标签按 blogId 分组，预处理成 Map<BlogId, List<TypeName>>
-        Map<Long, List<String>> blogIdToNamesMap = allBlogTypes.stream()
-                .collect(Collectors.groupingBy(
-                        BlogType::getBlogId,
-                        Collectors.mapping(bt -> typeNameMap.get(bt.getTypeId()), Collectors.toList())
-                ));
+        if( !typeIds.isEmpty()){
+            Map<Long, String> typeNameMap = typeTableMapper.selectList(
+                    Wrappers.<TypeTable>lambdaQuery().in(TypeTable::getId, typeIds)
+            ).stream().collect(Collectors.toMap(TypeTable::getId, TypeTable::getName));
+
+            // 4. 将标签按 blogId 分组，预处理成 Map<BlogId, List<TypeName>>
+            blogIdToNamesMap = allBlogTypes.stream()
+                    .collect(Collectors.groupingBy(
+                            BlogType::getBlogId,
+                            Collectors.mapping(bt -> typeNameMap.get(bt.getTypeId()), Collectors.toList())
+                    ));
+        }
 
 // 5. 最后进行内存转换
+        Map<Long, List<String>> finalBlogIdToNamesMap = blogIdToNamesMap;
         List<BlogDTO> blogDTOS = list.stream().map(i -> BlogDTO.builder()
                 .id(String.valueOf(i.getId()))
                 .title(i.getTitle())
@@ -1356,7 +1361,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .status(i.getStatus())
                 .commentNum(String.valueOf(i.getCommentNum()))
                 // 直接从内存 Map 中获取，无需再查库
-                .typeList(blogIdToNamesMap.getOrDefault(i.getId(), Collections.emptyList()))
+                .typeList(finalBlogIdToNamesMap.getOrDefault(i.getId(), Collections.emptyList()))
                 .build()).toList();
 
         PageDTO<BlogDTO> pageDTO =new PageDTO<>();
@@ -1785,8 +1790,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         QueryWrapper<Blog> queryWrapper = new QueryWrapper<>();
         queryWrapper.select("DATE_FORMAT(publish_time, '%Y-%m') as month", "count(*) as count")
                 .eq(userId!= null,"user_id", userId)
-                .eq("status", 1)
-                .eq("is_delete", 0)        // 未删除
+                .eq("status", 2)
                 .between("publish_time", startTime, endTime)
                 .groupBy("month")
                 .orderByAsc("month");
@@ -1821,7 +1825,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         }
         Map<Long, Long> collect = list(Wrappers.<Blog>lambdaQuery()
                 .in(Blog::getUserId, userIds)
-                .select(Blog::getId)
+                .select(Blog::getId,Blog::getUserId)
         ).stream().collect(Collectors.groupingBy(Blog::getUserId, Collectors.counting()));
 
         Map<Long,Integer> result = new  HashMap<>();
@@ -1850,6 +1854,11 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
         return userIds.stream().map(item -> {
             ComRepForUserDTO comRepForUserDTO = new ComRepForUserDTO();
+            comRepForUserDTO.setUserId(item);
+            comRepForUserDTO.setCommentCount(0);
+            comRepForUserDTO.setReplyCount(0);
+            comRepForUserDTO.setToxicRate(BigDecimal.ZERO);
+            comRepForUserDTO.setToxicCount(0);
             int toxicCount = 0;
             int totalComRep = 0;
             if (commentMap.containsKey(item)) {
@@ -1886,20 +1895,26 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         if (allTypes == null || allTypes.size() <= 5) {
             return ResultUtil.success(allTypes);
         }
+
+        allTypes = allTypes.stream().filter( Objects::nonNull).collect(Collectors.toList());
+
         // 3. 按数量（num）从大到小排序
         allTypes.sort((a, b) -> b.getNum().compareTo(a.getNum()));
         // 4. 提取前 5 个
-        List<BlogTypeVO> result = new ArrayList<>(allTypes.subList(0, 5));
-        // 5. 计算剩余项的总和
-        int otherSum = allTypes.subList(5, allTypes.size())
-                .stream()
-                .mapToInt(BlogTypeVO::getNum)
-                .sum();
-        // 6. 创建并添加“其他”项
-        BlogTypeVO other = new BlogTypeVO();
-        other.setBlogType("其他");
-        other.setNum(otherSum);
-        result.add(other);
+        List<BlogTypeVO> result = new ArrayList<>(allTypes.subList(0, Math.min(allTypes.size(), 5)));
+        if(allTypes.size() > 5){
+            // 5. 计算剩余项的总和
+            int otherSum = allTypes.subList(5, allTypes.size())
+                    .stream()
+                    .mapToInt(BlogTypeVO::getNum)
+                    .sum();
+            // 6. 创建并添加“其他”项
+            BlogTypeVO other = new BlogTypeVO();
+            other.setBlogType("其他");
+            other.setNum(otherSum);
+            result.add(other);
+        }
+
         return  ResultUtil.success(result);
     }
 }

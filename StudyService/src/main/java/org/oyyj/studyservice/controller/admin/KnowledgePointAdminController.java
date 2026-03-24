@@ -26,17 +26,7 @@ import java.util.List;
 @Slf4j
 public class KnowledgePointAdminController {
 
-    // todo
 
-    // 创建知识点
-
-    // 修改知识点
-
-    // 查看知识点详情
-
-    // 分页查看知识点的评论信息
-
-    // 手动关联试题
     @Autowired
     private KnowledgePointService knowledgePointService;
 
@@ -58,6 +48,14 @@ public class KnowledgePointAdminController {
         }
 
         return knowledgePointService.add(knowledgePointDTO);
+    }
+
+    /**
+     * 创建知识点
+     */
+    @GetMapping("/totalCount")
+    public Long totalCount() throws AuthenticationException {
+        return knowledgePointService.count();
     }
 
     /**
