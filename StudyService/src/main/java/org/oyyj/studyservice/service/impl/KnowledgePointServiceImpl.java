@@ -71,6 +71,9 @@ public class KnowledgePointServiceImpl extends ServiceImpl<KnowledgePointMapper,
     private KnowledgePoint dtoToEntity(KnowledgePointDTO dto) {
         KnowledgePoint knowledgePoint = new KnowledgePoint();
         BeanUtils.copyProperties(dto, knowledgePoint);
+        if(Strings.isNotBlank(dto.getId())){
+            knowledgePoint.setId(Long.valueOf(dto.getId()));
+        }
         String str = null;
         try {
             str = mapper.writeValueAsString(dto.getRelatedQuestions());
@@ -147,12 +150,15 @@ public class KnowledgePointServiceImpl extends ServiceImpl<KnowledgePointMapper,
             if(knowledgeBaseRelationDTOS!=null&& !knowledgeBaseRelationDTOS.isEmpty()){
                 List<Long> pointIds = knowledgeBaseRelationDTOS.stream().map(KnowledgeBaseRelationDTO::getKnowledgePointId).toList();
                 wrapper.in(KnowledgePoint::getId, pointIds);
+            }else{
+                return ResultUtil.success(new Page<>(page,pageSize));
             }
         }
 
         wrapper.select(KnowledgePoint::getId,
                 KnowledgePoint::getTitle,
                 KnowledgePoint::getLevel,
+                KnowledgePoint::getRecommendedAnswer,
                 KnowledgePoint::getType);
 
         Page<KnowledgePoint> pageInfo = new Page<>(page, pageSize);
@@ -180,6 +186,58 @@ public class KnowledgePointServiceImpl extends ServiceImpl<KnowledgePointMapper,
         );
 
         return ResultUtil.success(list.stream().map(this::entityToDTO).toList());
+    }
+
+    @Override
+    public ResultUtil<Page<KnowledgePointDTO>> listAllKnowledgePoint(Long baseId, String keywords, Integer currentPage, Integer pageSize) {
+
+        Page<KnowledgePoint> pageInfo = new Page<>(currentPage, pageSize);
+
+        List<KnowledgeBaseRelationDTO> knowledgeBaseRelationDTOS = baseMapper.selectKnowledgeBaseRelationByKnowledgeBaseId(baseId);
+        List<Long> pointIds = new ArrayList<>();
+        if(knowledgeBaseRelationDTOS!=null&& !knowledgeBaseRelationDTOS.isEmpty()){
+            pointIds = knowledgeBaseRelationDTOS.stream().map(KnowledgeBaseRelationDTO::getKnowledgePointId).toList();
+        }
+
+        if(pointIds.isEmpty()){
+            return ResultUtil.success(new  Page<>());
+        }
+        List<KnowledgePoint> list = list(pageInfo, Wrappers.<KnowledgePoint>lambdaQuery()
+                .in(KnowledgePoint::getId, pointIds)
+                .select(KnowledgePoint::getId, KnowledgePoint::getTitle, KnowledgePoint::getLevel, KnowledgePoint::getRecommendedAnswer)
+        );
+        List<KnowledgePointDTO> resultList = list.stream().map(this::entityToDTO).toList();
+        Page<KnowledgePointDTO> result = new Page<>();
+        result.setTotal(pageInfo.getTotal());
+        result.setRecords(resultList);
+
+        return ResultUtil.success(result);
+    }
+
+    @Override
+    public ResultUtil<Page<KnowledgePointDTO>> getPointToSelect(String baseId,String keywords, Integer currentPage, Integer pageSize) {
+        Page<KnowledgePoint> pageInfo = new Page<>(currentPage, pageSize);
+        LambdaQueryWrapper<KnowledgePoint> wrapper = Wrappers.<KnowledgePoint>lambdaQuery();
+
+        List<KnowledgeBaseRelationDTO> knowledgeBaseRelationDTOS = baseMapper.selectKnowledgeBaseRelationByKnowledgeBaseId(Long.valueOf(baseId));
+        List<Long> pointIds = new ArrayList<>();
+        if(knowledgeBaseRelationDTOS!=null&& !knowledgeBaseRelationDTOS.isEmpty()){
+            pointIds = knowledgeBaseRelationDTOS.stream().map(KnowledgeBaseRelationDTO::getKnowledgePointId).toList();
+            wrapper.notIn(KnowledgePoint::getId, pointIds);
+        }
+        if(Strings.isNotBlank(keywords)){
+            wrapper.like(KnowledgePoint::getTitle,keywords);
+        }
+        Page<KnowledgePoint> page = page(pageInfo, wrapper);
+
+        List<KnowledgePoint> records = page.getRecords();
+        List<KnowledgePointDTO> list = records.stream().map(this::entityToDTO).toList();
+
+        Page<KnowledgePointDTO> result = new Page<>();
+        result.setTotal(page.getTotal());
+        result.setRecords(list);
+        return ResultUtil.success(result);
+
     }
 
 

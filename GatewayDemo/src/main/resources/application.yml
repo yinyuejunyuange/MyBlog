@@ -100,7 +100,7 @@ spring:
         - id: StudyService
           uri: lb://StudyService
           predicates:
-            - Path=/myBlog/agent/**,/myBlog/knowledge/** , /myBlog/knowledgeBase/** , /myBlog/question/** , /myBlog/point/**
+            - Path=/myBlog/agent/**,/myBlog/knowledge/** , /myBlog/knowledgeBase/** , /myBlog/question/** , /myBlog/point/** , /myBlog/knowledgePoint/**
 
         - id: BlogService
           uri: lb://BlogService

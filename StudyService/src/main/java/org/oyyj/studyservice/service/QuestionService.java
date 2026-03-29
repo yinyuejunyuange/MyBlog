@@ -22,6 +22,8 @@ public interface QuestionService extends IService<Question> {
     QuestionDTO getQuestionById(Long id);
     // 分页条件查询试题
     Page<QuestionDTO> getQuestionPage(Integer current, Integer size, String questionType, String keyword, Long knowledgePointId);
+    // 分页条件查询试题
+    Page<QuestionDTO> getQuestionPageForSelect(Integer current, Integer size, String questionType, String keyword);
 
     /**
      * 随机获取试题（用于答题）

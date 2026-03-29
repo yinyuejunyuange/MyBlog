@@ -101,7 +101,7 @@ public class QuestionAdminController {
      * 批量删除试题
      */
     @RequestRole(role = {RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN})
-    @DeleteMapping("/delete")
+    @PutMapping("/delete")
     public ResultUtil<String> deleteQuestions(@RequestBody List<Long> ids) throws AuthenticationException {
         
 
@@ -124,7 +124,7 @@ public class QuestionAdminController {
     @RequestRole(role = {RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN})
     @GetMapping("/list")
     public ResultUtil<Page<QuestionDTO>> listQuestions(
-            @RequestParam(value = "page", defaultValue = "1") Integer page,
+            @RequestParam(value = "currentPage", defaultValue = "1") Integer currentPage,
             @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize,
             @RequestParam(value = "questionType", required = false) String questionType,
             @RequestParam(value = "keyword", required = false) String keyword,
@@ -139,7 +139,7 @@ public class QuestionAdminController {
                     .selectKnowledgeBaseRelationByKnowledgeBaseId(knowledgeBaseId);
 
             if (relations == null || relations.isEmpty()) {
-                Page<QuestionDTO> emptyPage = new Page<>(page, pageSize, 0);
+                Page<QuestionDTO> emptyPage = new Page<>(currentPage, pageSize, 0);
                 emptyPage.setRecords(List.of());
                 return ResultUtil.success(emptyPage);
             }
@@ -148,15 +148,15 @@ public class QuestionAdminController {
                     .map(KnowledgeBaseRelationDTO::getKnowledgePointId)
                     .toList();
 
-            questionPage = new Page<>(page, pageSize, 0);
+            questionPage = new Page<>(currentPage, pageSize, 0);
             List<QuestionDTO> allQuestions = new java.util.ArrayList<>();
 
             for (Long pointId : pointIds) {
-                Page<QuestionDTO> tempPage = questionService.getQuestionPage(page, pageSize, questionType, keyword, pointId);
+                Page<QuestionDTO> tempPage = questionService.getQuestionPage(currentPage, pageSize, questionType, keyword, pointId);
                 allQuestions.addAll(tempPage.getRecords());
             }
 
-            int start = (page - 1) * pageSize;
+            int start = (currentPage - 1) * pageSize;
             int end = Math.min(start + pageSize, allQuestions.size());
 
             if (start < allQuestions.size()) {
@@ -167,9 +167,25 @@ public class QuestionAdminController {
                 questionPage.setTotal(0);
             }
         } else {
-            questionPage = questionService.getQuestionPage(page, pageSize, questionType, keyword, knowledgePointId);
+            questionPage = questionService.getQuestionPage(currentPage, pageSize, questionType, keyword, knowledgePointId);
         }
 
+        return ResultUtil.success(questionPage);
+    }
+
+    /**
+     * 分页查看 所有没有关联知识点的问题
+     */
+    @RequestRole(role = {RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN})
+    @GetMapping("/listForSelect")
+    public ResultUtil<Page<QuestionDTO>> listQuestionsForPoint(
+            @RequestParam(value = "currentPage", defaultValue = "1") Integer currentPage,
+            @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize,
+            @RequestParam(value = "questionType", required = false) String questionType,
+            @RequestParam(value = "keyword", required = false) String keyword) throws AuthenticationException {
+
+        Page<QuestionDTO> questionPage;
+        questionPage = questionService.getQuestionPageForSelect(currentPage, pageSize, questionType, keyword);
         return ResultUtil.success(questionPage);
     }
 
@@ -178,51 +194,10 @@ public class QuestionAdminController {
      */
     @RequestRole(role = {RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN})
     @GetMapping("/detail")
-    public ResultUtil<Map<String, Object>> getQuestionDetail(@RequestParam("id") Long id) throws AuthenticationException {
-        
+    public ResultUtil<QuestionDTO> getQuestionDetail(@RequestParam("id") Long id) throws AuthenticationException {
 
         QuestionDTO questionDTO = questionService.getQuestionById(id);
-        if (questionDTO == null) {
-            return ResultUtil.fail("试题不存在");
-        }
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("question", questionDTO);
-
-        if (questionDTO.getKnowledgePointId() != null) {
-            KnowledgePoint knowledgePoint = knowledgePointService.getById(questionDTO.getKnowledgePointId());
-            if (knowledgePoint != null) {
-                Map<String, Object> pointInfo = new HashMap<>();
-                pointInfo.put("id", knowledgePoint.getId());
-                pointInfo.put("title", knowledgePoint.getTitle());
-                pointInfo.put("level", knowledgePoint.getLevel());
-                result.put("knowledgePoint", pointInfo);
-
-                List<KnowledgeBaseRelationDTO> relations = knowledgePointMapper
-                        .selectKnowledgeBaseRelationByKnowledgePointId(knowledgePoint.getId());
-
-                if (relations != null && !relations.isEmpty()) {
-                    List<Map<String, Object>> baseList = relations.stream()
-                            .map(relation -> {
-                                KnowledgeBase base = knowledgeBaseService.getById(relation.getKnowledgeBaseId());
-                                if (base != null) {
-                                    Map<String, Object> baseInfo = new HashMap<>();
-                                    baseInfo.put("id", base.getId());
-                                    baseInfo.put("name", base.getName());
-                                    baseInfo.put("types", base.getCategory()); // 知识点相关类别
-                                    return baseInfo;
-                                }
-                                return null;
-                            })
-                            .filter(java.util.Objects::nonNull)
-                            .toList();
-
-                    result.put("knowledgeBases", baseList);
-                }
-            }
-        }
-
-        return ResultUtil.success(result);
+        return ResultUtil.success(questionDTO);
     }
 
     /**

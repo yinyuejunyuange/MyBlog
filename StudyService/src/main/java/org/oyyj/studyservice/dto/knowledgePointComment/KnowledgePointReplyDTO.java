@@ -52,4 +52,6 @@ public class KnowledgePointReplyDTO {
 
     private Boolean isBelongUser;
 
+    private Integer isVisible;
+
 }

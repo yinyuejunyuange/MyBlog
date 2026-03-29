@@ -3,10 +3,12 @@ package org.oyyj.studyservice.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.mycommonbase.common.commonEnum.YesOrNoEnum;
 import org.oyyj.mycommonbase.utils.ResultUtil;
+import org.oyyj.studyservice.dto.knowledgePoint.KnowledgePointDTO;
 import org.oyyj.studyservice.dto.knowledgePointComment.CommentCountDTO;
 import org.oyyj.studyservice.dto.knowledgePointComment.KnowledgePointCommentDTO;
 import org.oyyj.studyservice.dto.knowledgePointComment.KnowledgePointReplyDTO;
@@ -156,6 +158,64 @@ public class KnowledgePointCommentServiceImpl
     }
 
     /**
+     * 获取知识点的相关评论
+     *
+     * @param knowledgeBaseId
+     * @param userName
+     * @param replyCommentId
+     * @param currentPage
+     * @param pageSize
+     * @return
+     */
+    @Override
+    public ResultUtil<Page<KnowledgePointCommentDTO>> getCommentForAdmin(Long knowledgeBaseId, String userName, Long replyCommentId, Integer currentPage, Integer pageSize) {
+        LambdaQueryWrapper<KnowledgePointComment> queryWrapper = Wrappers.<KnowledgePointComment>lambdaQuery();
+        if(knowledgeBaseId!=null){
+            queryWrapper.eq(KnowledgePointComment::getKnowledgeId, knowledgeBaseId );
+        }
+        if(userName!=null){
+            queryWrapper.like(KnowledgePointComment::getUserName, userName);
+        }
+        if(replyCommentId!=null){
+            queryWrapper.eq(KnowledgePointComment::getParentId, replyCommentId);
+        }
+        Page<KnowledgePointComment> page = new Page<>(currentPage, pageSize);
+
+        List<KnowledgePointComment> list = list(page, queryWrapper);
+
+        Page<KnowledgePointCommentDTO> result = new Page<>();
+        if(list.isEmpty()){
+            result.setTotal(0);
+            result.setRecords(List.of());
+            return  ResultUtil.success(result);
+        }
+
+        result.setTotal(page.getTotal());
+        result.setRecords(list.stream().map(KnowledgePointComment::toDTO).collect(Collectors.toList()));
+
+        return ResultUtil.success(result);
+    }
+
+    @Override
+    public ResultUtil<String> setCommentVisible(String commentId) {
+        update(Wrappers.<KnowledgePointComment>lambdaUpdate()
+                .eq(KnowledgePointComment::getId, Long.valueOf(commentId))
+                .set(KnowledgePointComment::getIsVisible, YesOrNoEnum.NO.getCode())
+        );
+        return ResultUtil.success("状态修改成功");
+    }
+
+    @Override
+    public ResultUtil<String> setCommentUnVisible(String commentId) {
+        update(Wrappers.<KnowledgePointComment>lambdaUpdate()
+                .eq(KnowledgePointComment::getId, Long.valueOf(commentId))
+                .set(KnowledgePointComment::getIsVisible, YesOrNoEnum.YES.getCode())
+        );
+        return ResultUtil.success("状态修改成功");
+    }
+
+
+    /**
      * 使得同一段的回复信息包装成一块
      *
      * @param parentId
@@ -302,6 +362,7 @@ public class KnowledgePointCommentServiceImpl
 
         return  ResultUtil.success("删除成功");
     }
+
 
 
 

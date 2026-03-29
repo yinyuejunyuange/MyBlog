@@ -641,8 +641,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     }
 
     @Override
-    public Page<User> getAdminPage(String userName, Date startTime, Date endTime, Integer isUserFreeze, Integer pageNum, Integer pageSize) {
+    public Page<UserInfoForAdminVO> getAdminPage(String userName, Date startTime, Date endTime, Integer isUserFreeze, Integer pageNum, Integer pageSize) {
         LambdaQueryWrapper<User> lqw = Wrappers.<User>lambdaQuery();
+
+        // 查询所有是Admin且非 SupperAdmin的用户
+
+        List<Long> longs = sysRoleMapper.selectAllAdmin();
+        if(longs == null || longs.isEmpty()){
+            return new  Page<>(pageNum,pageSize);
+        }else{
+            lqw.in(User::getId,longs);
+        }
 
         if(StringUtils.isNotEmpty(userName)){
             lqw.like(User::getName,userName);
@@ -668,7 +677,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         Page<User> page = new Page<>(pageNum,pageSize);
 
-        return page(page, lqw);
+        page = page(page, lqw);
+
+        List<User> records = page.getRecords();
+        List<UserInfoForAdminVO> collect = records.stream().map(UserInfoForAdminVO::fromUser).collect(Collectors.toList());
+
+        Page<UserInfoForAdminVO> resultPage = new Page<>(pageNum,pageSize);
+        resultPage.setTotal(page.getTotal());
+        resultPage.setRecords(collect);
+        return resultPage;
     }
 
     @Override
@@ -677,10 +694,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         UserDetailDTO userDetailDTO = UserDetailDTO.fromUser(byId);
         Blog12MonthDTO blog12MonthByUserId = blogFeign.getBlog12MonthByUserId(Long.parseLong(userId));
         userDetailDTO.setBlog12MonthDTO(blog12MonthByUserId);
-
         List<UserComRepVO> userComRepVOS = blogFeign.toxicComRepResult(Long.parseLong(userId));
         userDetailDTO.setUserComRepVOList(userComRepVOS);
+        Map<Long, Integer> blogMap= blogFeign.countByUserList(Collections.singletonList(Long.parseLong(userId)));
+        if(blogMap!= null && !blogMap.isEmpty() && blogMap.containsKey(Long.parseLong(userId))){
+            userDetailDTO.setBlogCount(blogMap.get(Long.parseLong(userId)));
+        }
+        List<ComRepForUserDTO> comRepForUserDTOS = blogFeign.countCommentReplyByUserList(Collections.singletonList(Long.parseLong(userId)));
+        Map<Long, ComRepForUserDTO> comRepMap = comRepForUserDTOS.stream().collect(Collectors.toMap(ComRepForUserDTO::getUserId, Function.identity()));
 
+        if (comRepMap.containsKey(Long.parseLong(userId))) {
+            ComRepForUserDTO comRepForUserDTO = comRepMap.get(Long.parseLong(userId));
+            userDetailDTO.setComRepCount(comRepForUserDTO.getCommentCount() + comRepForUserDTO.getReplyCount());
+            userDetailDTO.setToxicCount(comRepForUserDTO.getToxicCount());
+            userDetailDTO.setToxicRate(comRepForUserDTO.getToxicRate());
+        }
 
         return userDetailDTO;
     }

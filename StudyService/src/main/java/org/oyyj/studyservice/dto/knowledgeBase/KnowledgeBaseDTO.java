@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
+import jodd.util.StringUtil;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -45,7 +46,7 @@ public class KnowledgeBaseDTO {
     public KnowledgeBase dtoToEntity(KnowledgeBaseDTO dto) {
         KnowledgeBase entity = new KnowledgeBase();
         BeanUtils.copyProperties(dto, entity);
-        if(dto.getId()!=null){
+        if(dto.getId()!=null && StringUtil.isNotEmpty(dto.getId())){
             entity.setId(Long.parseLong(dto.getId()));
         }
         if(dto.getTypes()!=null  && !dto.getTypes().isEmpty()){

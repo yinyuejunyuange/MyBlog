@@ -109,7 +109,7 @@ public interface IUserService extends IService<User> {
      * @param pageSize
      * @return
      */
-    Page<User> getAdminPage(String userName,
+    Page<UserInfoForAdminVO> getAdminPage(String userName,
                             Date startTime,
                             Date endTime,
                             Integer isUserFreeze,

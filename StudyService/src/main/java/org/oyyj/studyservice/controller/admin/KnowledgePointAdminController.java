@@ -1,13 +1,20 @@
 package org.oyyj.studyservice.controller.admin;
 
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.util.Strings;
 import org.oyyj.mycommon.annotation.RequestRole;
 import org.oyyj.mycommonbase.common.RoleEnum;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.mycommonbase.utils.ResultUtil;
+import org.oyyj.studyservice.dto.knowledgePoint.InterviewQuestionsDTO;
 import org.oyyj.studyservice.dto.knowledgePoint.KnowledgePointDTO;
+import org.oyyj.studyservice.dto.knowledgePointComment.KnowledgePointCommentDTO;
 import org.oyyj.studyservice.dto.question.QuestionDTO;
 import org.oyyj.studyservice.pojo.KnowledgePoint;
 import org.oyyj.studyservice.pojo.Question;
@@ -35,6 +42,9 @@ public class KnowledgePointAdminController {
 
     @Autowired
     private QuestionService questionService;
+
+    @Autowired
+    private ObjectMapper mapper = new ObjectMapper();
 
     /**
      * 创建知识点
@@ -77,7 +87,7 @@ public class KnowledgePointAdminController {
      * 删除知识点
      */
     @RequestRole(role = {RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN})
-    @DeleteMapping("/delete")
+    @PutMapping("/delete")
     public ResultUtil<String> deleteKnowledgePoint(@RequestBody List<Long> ids) throws AuthenticationException {
         
 
@@ -112,7 +122,17 @@ public class KnowledgePointAdminController {
         dto.setRecommendedAnswer(knowledgePoint.getRecommendedAnswer());
         dto.setLevel(levelEnum != null ? levelEnum.getDesc() : null);
         dto.setIsDelete(knowledgePoint.getIsDelete());
-
+        String relatedQuestions = knowledgePoint.getRelatedQuestions();
+        if(Strings.isNotBlank(relatedQuestions)){
+            try {
+                List<InterviewQuestionsDTO> interviewQuestionsDTOS =
+                        mapper.readValue(relatedQuestions, new TypeReference<List<InterviewQuestionsDTO>>() {});
+                dto.setRelatedQuestions(interviewQuestionsDTOS);
+            } catch (JsonProcessingException e) {
+                log.error(  "相关问题json异常 {} 原因"+e.getMessage(),relatedQuestions,e);
+                dto.setRelatedQuestions(List.of());
+            }
+        }
         return ResultUtil.success(dto);
     }
 
@@ -122,7 +142,7 @@ public class KnowledgePointAdminController {
     @RequestRole(role = {RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN})
     @GetMapping("/list")
     public ResultUtil<Page<KnowledgePointDTO>> listKnowledgePoints(
-            @RequestParam(value = "page", defaultValue = "1") Integer page,
+            @RequestParam(value = "currentPage", defaultValue = "1") Integer currentPage,
             @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize,
             @RequestParam(value = "baseId", required = false) Long baseId,
             @RequestParam(value = "level", required = false) String level,
@@ -130,7 +150,7 @@ public class KnowledgePointAdminController {
             @RequestParam(value = "search", required = false) String search) throws AuthenticationException {
 
 
-        return knowledgePointService.listAllKnowledgePoint(page, pageSize, baseId, level, tags, search);
+        return knowledgePointService.listAllKnowledgePoint(currentPage, pageSize, baseId, level, tags, search);
     }
 
     /**
@@ -138,21 +158,32 @@ public class KnowledgePointAdminController {
      */
     @RequestRole(role = {RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN})
     @GetMapping("/comments")
-    public ResultUtil<KnowledgeCommentVO> getKnowledgePointComments(
-            @RequestParam("knowledgePointId") Long knowledgePointId,
-            @RequestParam(value = "lastCommentId", required = false) Long lastCommentId) throws AuthenticationException {
-        
+    public ResultUtil<Page<KnowledgePointCommentDTO>> getKnowledgePointComments(
+            @RequestParam(value = "knowledgePointId") Long knowledgePointId,
+            @RequestParam(value = "userName",required = false) String userName ,
+            @RequestParam(value = "replyCommentId",required = false)Long replyCommentId,
+            @RequestParam("currentPage") Integer currentPage,
+            @RequestParam("pageSize") Integer pageSize) throws AuthenticationException {
 
         KnowledgePoint knowledgePoint = knowledgePointService.getById(knowledgePointId);
         if (knowledgePoint == null) {
             return ResultUtil.fail("知识点不存在");
         }
 
-        LoginUser loginUser = new LoginUser();
-        loginUser.setUserId(-1L);
-        loginUser.setIsUserLogin(0);
+        return knowledgePointCommentService.getCommentForAdmin(knowledgePointId, userName,replyCommentId,currentPage,pageSize);
+    }
 
-        return knowledgePointCommentService.getComment(knowledgePointId, lastCommentId, loginUser);
+
+    @RequestRole(role = {RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN})
+    @PutMapping("/comments/visible")
+    public ResultUtil<String> commentVisible(@RequestParam("commentId") String commentId){
+        return knowledgePointCommentService.setCommentVisible(commentId);
+    }
+
+    @RequestRole(role = {RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN})
+    @PutMapping("/comments/unVisible")
+    public ResultUtil<String> commentUnVisible(@RequestParam("commentId") String commentId){
+        return knowledgePointCommentService.setCommentUnVisible(commentId);
     }
 
     /**
@@ -222,7 +253,7 @@ public class KnowledgePointAdminController {
      * 取消试题与知识点的关联
      */
     @RequestRole(role = {RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN})
-    @DeleteMapping("/unrelateQuestion")
+    @PutMapping("/unrelateQuestion")
     public ResultUtil<String> unrelateQuestionFromKnowledgePoint(
             @RequestParam("questionId") Long questionId) throws AuthenticationException {
         
@@ -232,9 +263,11 @@ public class KnowledgePointAdminController {
             return ResultUtil.fail("试题不存在");
         }
 
-        question.setKnowledgePointId(null);
-        boolean update = questionService.updateById(question);
-
+//        question.setKnowledgePointId(null); mybatisplus 的updateById 一般不处理null
+        boolean update = questionService.update(Wrappers.<Question>lambdaUpdate()
+                .eq(Question::getId, questionId)
+                .set(Question::getKnowledgePointId, null)
+        );
         if (update) {
             return ResultUtil.success("取消关联成功");
         } else {
@@ -249,7 +282,7 @@ public class KnowledgePointAdminController {
     @GetMapping("/questions")
     public ResultUtil<Page<QuestionDTO>> getKnowledgePointQuestions(
             @RequestParam("knowledgePointId") Long knowledgePointId,
-            @RequestParam(value = "page", defaultValue = "1") Integer page,
+            @RequestParam(value = "currentPage", defaultValue = "1") Integer currentPage,
             @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize) throws AuthenticationException {
         
 
@@ -258,8 +291,25 @@ public class KnowledgePointAdminController {
             return ResultUtil.fail("知识点不存在");
         }
 
-        Page<QuestionDTO> questionPage = questionService.getQuestionPage(page, pageSize, null, null, knowledgePointId);
+        Page<QuestionDTO> questionPage = questionService.getQuestionPage(currentPage, pageSize, null, null, knowledgePointId);
         return ResultUtil.success(questionPage);
     }
+
+
+
+    /**
+     * 获取某个知识库下面所有知识点(仅有 id 和 title)
+     * @param id
+     * @return
+     */
+    @RequestRole(role = {RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN})
+    @GetMapping("/getPointToSelect")
+    public ResultUtil<Page<KnowledgePointDTO>> getPointToSelect(@RequestParam("id") String id,
+                                                                @RequestParam(value = "keywords",required = false) String keywords,
+                                                                @RequestParam("currentPage") Integer currentPage,
+                                                                @RequestParam("pageSize") Integer pageSize){
+        return knowledgePointService.getPointToSelect(id,keywords,currentPage,pageSize);
+    }
+
 
 }

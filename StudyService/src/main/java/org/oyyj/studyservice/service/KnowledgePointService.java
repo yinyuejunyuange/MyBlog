@@ -24,4 +24,25 @@ public interface KnowledgePointService extends IService<KnowledgePoint> {
                                                               String search);
 
     ResultUtil<List<KnowledgePointDTO>> listAllKnowledgePoint(Long baseId);
+
+    /**
+     * 查询知识库关联的知识点
+     * @param baseId
+     * @param keywords
+     * @param currentPage
+     * @param pageSize
+     * @return
+     */
+    ResultUtil<Page<KnowledgePointDTO>>  listAllKnowledgePoint(Long baseId, String keywords, Integer currentPage, Integer pageSize);
+
+
+    /**
+     *
+     * @param baseId
+     * @param currentPage
+     * @param pageSize
+     * @return
+     */
+    ResultUtil<Page<KnowledgePointDTO>> getPointToSelect(String baseId, String keywords, Integer currentPage, Integer pageSize);
+
 }

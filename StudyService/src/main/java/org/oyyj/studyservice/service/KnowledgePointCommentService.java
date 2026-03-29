@@ -1,8 +1,11 @@
 package org.oyyj.studyservice.service;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.mycommonbase.utils.ResultUtil;
+import org.oyyj.studyservice.dto.knowledgePoint.KnowledgePointDTO;
+import org.oyyj.studyservice.dto.knowledgePointComment.KnowledgePointCommentDTO;
 import org.oyyj.studyservice.pojo.KnowledgePointComment;
 import org.oyyj.studyservice.vo.knowledgeComment.KnowledgeCommentVO;
 import org.oyyj.studyservice.vo.knowledgeComment.KnowledgeReplyVO;
@@ -56,6 +59,40 @@ public interface KnowledgePointCommentService extends IService<KnowledgePointCom
      * @return
      */
     ResultUtil<KnowledgeCommentVO> getComment(Long knowledgePointId ,Long lastCommentId,LoginUser loginUser);
+
+    /**
+     * 分页获取 知识点 comment
+     *
+     * @param knowledgeBaseId
+     * @param userName
+     * @param replyCommentId
+     * @param currentPage
+     * @param pageSize
+     * @return
+     */
+    ResultUtil<Page<KnowledgePointCommentDTO>> getCommentForAdmin(Long knowledgeBaseId ,
+                                                                  String userName ,
+                                                                  Long replyCommentId,
+                                                                  Integer currentPage,
+                                                                  Integer pageSize
+    );
+
+    /**
+     * 设置评论可见
+     *
+     * @param commentId
+     * @return
+     */
+    ResultUtil<String> setCommentVisible(String commentId);
+
+    /**
+     * 设置评论不可见
+     *
+     * @param commentId
+     * @return
+     */
+    ResultUtil<String> setCommentUnVisible(String commentId);
+
 
     /**
      * 获取对应知识点回复的评论信息

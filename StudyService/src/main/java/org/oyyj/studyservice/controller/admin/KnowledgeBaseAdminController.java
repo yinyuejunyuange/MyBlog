@@ -30,10 +30,10 @@ public class KnowledgeBaseAdminController {
     @RequestRole(role = {RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN})
     @GetMapping("/list")
     public ResultUtil<IPage<KnowledgeBaseDTO>> listKnowledgeBases(
-            @RequestParam(value = "page", defaultValue = "1") Integer page,
+            @RequestParam(value = "currentPage", defaultValue = "1") Integer currentPage,
             @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize,
             @RequestParam(value = "name", required = false) String name) throws AuthenticationException {
-        IPage<KnowledgeBase> result = knowledgeBaseService.pageQuery(page, pageSize, name).getData();
+        IPage<KnowledgeBase> result = knowledgeBaseService.pageQuery(currentPage, pageSize, name).getData();
         IPage<KnowledgeBaseDTO> dtoPage = new Page<>(
                 result.getCurrent(), result.getSize(), result.getTotal());
         List<KnowledgeBaseDTO> dtoList = result.getRecords().stream()
@@ -115,7 +115,7 @@ public class KnowledgeBaseAdminController {
      * 取消关联知识点
      */
     @RequestRole(role = {RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN})
-    @DeleteMapping("/removeKnowledgePoints")
+    @PostMapping("/removeKnowledgePoints")
     public ResultUtil<String> removeKnowledgePoints(
             @RequestParam("knowledgeBaseId") Long knowledgeBaseId,
             @RequestBody List<String> knowledgeIds) throws AuthenticationException {

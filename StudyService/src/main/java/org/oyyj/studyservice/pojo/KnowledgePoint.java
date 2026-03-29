@@ -95,7 +95,7 @@ public class KnowledgePoint {
 
         public static LevelEnum getByDesc(String desc){
             for (LevelEnum levelEnum : LevelEnum.values()) {
-                if (levelEnum.desc == desc){
+                if (levelEnum.desc.equals(desc)){
                     return levelEnum;
                 }
             }

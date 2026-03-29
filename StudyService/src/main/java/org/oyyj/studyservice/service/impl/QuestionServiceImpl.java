@@ -10,6 +10,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.util.Strings;
 import org.oyyj.studyservice.dto.UserExamRecord.UserAnswerDetailDTO;
 import org.oyyj.studyservice.dto.knowledgePoint.KnowledgeBaseRelationDTO;
 import org.oyyj.studyservice.dto.question.QuestionDTO;
@@ -69,7 +70,9 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
                         entity.setAnswer("["+false+"]");
                     }
                 }else{
+                    dto.setAnswer(dto.getAnswer().stream().filter(Strings::isNotBlank).toList());
                     entity.setAnswer(objectMapper.writeValueAsString(dto.getAnswer()));
+                    entity.setOptions(objectMapper.writeValueAsString(dto.getOptions()));
                 }
             } catch (JsonProcessingException e) {
                 log.error("答案 JSON 序列化失败", e);
@@ -140,6 +143,32 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         }
         if (knowledgePointId != null) {
             wrapper.eq(Question::getKnowledgePointId, knowledgePointId);
+        }
+        if (StringUtils.hasText(keyword)) {
+            wrapper.and(w -> w.like(Question::getQuestionText, keyword)
+                    .or().like(Question::getExplanation, keyword));
+        }
+        wrapper.orderByDesc(Question::getCreateTime);
+        // 执行分页查询
+        Page<Question> entityPage = this.page(page, wrapper);
+        // 转换为 DTO 分页
+        Page<QuestionDTO> dtoPage = new Page<>(entityPage.getCurrent(), entityPage.getSize(), entityPage.getTotal());
+        List<QuestionDTO> dtoList = entityPage.getRecords().stream()
+                .map(this::entityToDto)
+                .collect(Collectors.toList());
+        dtoPage.setRecords(dtoList);
+        return dtoPage;
+    }
+
+    @Override
+    public Page<QuestionDTO> getQuestionPageForSelect(Integer current, Integer size, String questionType, String keyword) {
+        // 构建分页对象
+        Page<Question> page = new Page<>(current, size);
+        // 构建查询条件
+        LambdaQueryWrapper<Question> wrapper = new LambdaQueryWrapper<>();
+        wrapper.isNull(Question::getKnowledgePointId);
+        if (StringUtils.hasText(questionType)) {
+            wrapper.eq(Question::getQuestionType, questionType);
         }
         if (StringUtils.hasText(keyword)) {
             wrapper.and(w -> w.like(Question::getQuestionText, keyword)
@@ -322,7 +351,9 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
                     }
                 }else{
                     List<String> answerList = objectMapper.readValue(entity.getAnswer(), new TypeReference<List<String>>() {});
+                    List<String> options = objectMapper.readValue(entity.getOptions(), new TypeReference<List<String>>() {});
                     dto.setAnswer(answerList);
+                    dto.setOptions(options);
                 }
             } catch (JsonProcessingException e) {
                 log.error("答案解析失败", e);

@@ -121,7 +121,7 @@ public class AdminController {
      * @return
      */
     @RequestRole(role = {RoleEnum.SUPER_ADMIN,RoleEnum.ADMIN})
-    @DeleteMapping("freezeUser")
+    @PutMapping("freezeUser")
     public ResultUtil<String> freezeUser(@RequestParam("userId")String userId){
 
         // 检查是否是管理员
@@ -142,7 +142,7 @@ public class AdminController {
      * @return
      */
     @RequestRole(role = {RoleEnum.SUPER_ADMIN,RoleEnum.ADMIN})
-    @DeleteMapping("unFreezeUser")
+    @PutMapping("unFreezeUser")
     public ResultUtil<String> unFreezeUser(@RequestParam("userId")String userId){
 
         // 检查是否是管理员
@@ -164,7 +164,7 @@ public class AdminController {
      * @return
      */
     @RequestRole(role = {RoleEnum.SUPER_ADMIN})
-    @DeleteMapping("freezeAdmin")
+    @PutMapping("freezeAdmin")
     public ResultUtil<String> freezeAdmin(@RequestParam("userId")String userId){
         // 检查是否是管理员
         List<String> userRoleInfo = userService.getUserRoleInfo(Long.parseLong(userId));
@@ -185,7 +185,7 @@ public class AdminController {
      * @return
      */
     @RequestRole(role = {RoleEnum.SUPER_ADMIN})
-    @DeleteMapping("unFreezeAdmin")
+    @PutMapping("unFreezeAdmin")
     public ResultUtil<String> unFreezeAdmin(@RequestParam("userId")String userId){
 
         List<String> userRoleInfo = userService.getUserRoleInfo(Long.parseLong(userId));
@@ -232,15 +232,15 @@ public class AdminController {
      * @param pageSize
      * @return
      */
-    @RequestRole(role = {RoleEnum.ADMIN})
+    @RequestRole(role = {RoleEnum.SUPER_ADMIN})
     @GetMapping("/adminPage")
-    public ResultUtil<Page<User>> adminListInfo(@RequestParam(value = "userName",required = false) String userName,
+    public ResultUtil<Page<UserInfoForAdminVO>> adminListInfo(@RequestParam(value = "userName",required = false) String userName,
                                                              @RequestParam(value = "startTime",required = false) Date startTime,
                                                              @RequestParam(value = "endTime",required = false) Date endTime,
                                                              @RequestParam(value = "isUserFreeze",required = false) Integer isUserFreeze,
-                                                             @RequestParam("pageNum") Integer pageNum,
+                                                             @RequestParam("currentPage") Integer currentPage,
                                                              @RequestParam("pageSize") Integer pageSize){
-        return ResultUtil.success(userService.getAdminPage(userName,startTime,endTime,isUserFreeze,pageNum,pageSize));
+        return ResultUtil.success(userService.getAdminPage(userName,startTime,endTime,isUserFreeze,currentPage,pageSize));
     }
 
     /**

@@ -73,6 +73,11 @@ public class KnowledgePointComment {
     @TableLogic
     private Integer isDelete;
 
+    /**
+     * 是否可见
+     */
+    private Integer isVisible;
+
 
     public KnowledgePointCommentDTO toDTO() {
 
@@ -108,6 +113,8 @@ public class KnowledgePointComment {
 
         // createTime → publishTime
         dto.setPublishTime(this.createTime);
+
+        dto.setIsVisible(this.isVisible);
 
         return dto;
     }
@@ -146,6 +153,7 @@ public class KnowledgePointComment {
 
         // createTime → publishTime
         dto.setPublishTime(this.createTime);
+        dto.setIsVisible(this.isVisible);
 
         return dto;
     }

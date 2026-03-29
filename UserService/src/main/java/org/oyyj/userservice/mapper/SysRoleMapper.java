@@ -21,4 +21,6 @@ public interface SysRoleMapper extends BaseMapper<SysRole> {
 
     List<String> roleNameByUserId(@Param("userId") Long userId);
 
+    List<Long> selectAllAdmin();
+
 }

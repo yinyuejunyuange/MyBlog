@@ -11,35 +11,27 @@ import java.util.Date;
  */
 @Data
 public class KnowledgePointCommentDTO {
-
-    
     private String id;
-
     /**
      * 关联知识点ID
      */
     private String knowledgeId;
-
     /**
      * 祖评论ID（一级评论ID）
      */
     private String rootId;
-
     /**
      * 直接父ID（评论或回复）
      */
     private String parentId;
-
     /**
      * 评论内容
      */
     private String content;
-
     /**
      * 被回复的用户ID
      */
     private String replyUserId;
-
 
     private String userId;
 
@@ -57,5 +49,7 @@ public class KnowledgePointCommentDTO {
     private Boolean isBelongUser;
 
     private Integer replyNum;
+
+    private Integer isVisible;
 
 }

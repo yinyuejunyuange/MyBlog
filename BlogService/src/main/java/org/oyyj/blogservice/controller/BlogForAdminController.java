@@ -27,6 +27,8 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.security.sasl.AuthenticationException;
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/myBlog/blog/admin")
@@ -198,19 +200,58 @@ public class BlogForAdminController {
             lqw.eq(Comment::getIsVisible,isVisible);
         }
 
-        List<CommentAdminVO> list = commentService.list(page, lqw).stream().map(i -> CommentAdminVO.builder()
-                .id(String.valueOf(i.getId()))
-                .blogName(blogService.getOne(Wrappers.<Blog>lambdaQuery().eq(Blog::getId, i.getBlogId())).getTitle())
-                .userName(userFeign.getNameInIds(Collections.singletonList(String.valueOf(i.getUserId()))).get(i.getUserId()))
-                .context(i.getContext())
-                .createTime(i.getCreateTime())
-                .updateTime(i.getUpdateTime())
-                .isVisible(i.getIsVisible())
-                .isToxic(i.getIsToxic())
-                .mulType(i.getMulType())
-                .build()).toList();
+        // 1. 获取comment分页结果
+        IPage<Comment> pageResult = commentService.page(page, lqw);
+        List<Comment> comments = pageResult.getRecords();
 
-        PageDTO<CommentAdminVO> pageDTO=new PageDTO<>();
+// 2. 批量查询blog
+        List<Long> blogIds = comments.stream()
+                .map(Comment::getBlogId)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, Blog> blogMap = blogService.listByIds(blogIds)
+                .stream()
+                .collect(Collectors.toMap(Blog::getId, Function.identity()));
+
+// 3. 批量查询用户名（注意userFeign可能返回Map<Long,String>或Map<String,String>，这里根据原代码推测key是Long或String）
+        List<Long> userIds = comments.stream()
+                .map(Comment::getUserId)
+                .distinct()
+                .collect(Collectors.toList());
+// 假设userFeign.getNameInIds接受List<String>，返回Map<String, String>，但原代码是.get(i.getUserId())，userId可能是Long，所以需要转换
+        Map<Long, String> userNameMap = userFeign.getNameInIds(
+                userIds.stream().map(String::valueOf).collect(Collectors.toList())
+        );
+
+// 4. 组装VO
+        List<CommentAdminVO> list = comments.stream()
+                .map(comment -> {
+                    Blog blog = blogMap.get(comment.getBlogId());
+                    if (blog == null) {
+                        // 处理blog不存在的情况，原代码直接调用getTitle可能报错，这里可跳过或设置默认值，根据业务决定
+                        return null; // 或设置blogName为默认值
+                    }
+                    String userNameOne = userNameMap.get(comment.getUserId());
+                    if (userNameOne == null) {
+                        userNameOne = "未知用户"; // 或者跳过
+                    }
+                    return CommentAdminVO.builder()
+                            .id(String.valueOf(comment.getId()))
+                            .blogName(blog.getTitle())
+                            .userName(userNameOne)
+                            .context(comment.getContext())
+                            .createTime(comment.getCreateTime())
+                            .updateTime(comment.getUpdateTime())
+                            .isVisible(comment.getIsVisible())
+                            .isToxic(comment.getIsToxic())
+                            .mulType(comment.getMulType())
+                            .build();
+                })
+                .filter(Objects::nonNull) // 如果跳过不存在的blog，则过滤掉；如果设置了默认值，可能不需要filter
+                .collect(Collectors.toList());
+
+// 5. 构建分页结果
+        PageDTO<CommentAdminVO> pageDTO = new PageDTO<>();
         pageDTO.setPageSize((int) page.getSize());
         pageDTO.setPageNow(currentPage);
         pageDTO.setTotal((int) page.getTotal());
@@ -243,16 +284,16 @@ public class BlogForAdminController {
     @GetMapping("/getReplyForAdmin")
     public ResultUtil<PageDTO<ReplyAdminVO>> getReplyForAdmin(@RequestParam(value = "blogName",required = false) String blogName, //
                                                   @RequestParam(value = "userName",required = false)String userName,
-                                                  @RequestParam(value = "comment",required = false)String comment, // 被回复的内容
+                                                  @RequestParam(value = "commentId",required = false)String commentId, // 被回复的内容
                                                   @RequestParam(value = "startTime",required = false)  Date startTime,
                                                   @RequestParam(value = "endTime",required = false)  Date endTime,
                                                   @RequestParam(value = "isVisible",required = false)Integer isVisible,
                                                   @RequestParam("currentPage") Integer currentPage,
-                                                  HttpServletRequest request ){
+                                                  @RequestParam("pageSize")  Integer pageSize) {
 
 
         try {
-            IPage<Reply> page=new Page<>(currentPage,20);
+            IPage<Reply> page=new Page<>(currentPage,pageSize);
 
             LambdaQueryWrapper<Reply> lqw=new LambdaQueryWrapper<>();
             if(Objects.nonNull(blogName)&&!blogName.isEmpty()){
@@ -292,20 +333,21 @@ public class BlogForAdminController {
                 }
             }
 
-            if(Objects.nonNull(comment)&&!comment.isEmpty()){
-                List<Long> list = commentService.list(Wrappers.<Comment>lambdaQuery().like(Comment::getContext, comment))
-                        .stream().map(Comment::getId).toList();
-                if(list.isEmpty()){
-                    PageDTO<ReplyAdminVO> pageDTO=new PageDTO<>();
-                    pageDTO.setPageSize((int) page.getSize());
-                    pageDTO.setPageNow(currentPage);
-                    pageDTO.setTotal((int) page.getTotal());
-                    pageDTO.setPageList(new ArrayList<>());
-
-                    return ResultUtil.success(pageDTO); // 返回一个空集合
-                }else{
-                    lqw.in(Reply::getCommentId,list);
-                }
+            if(Objects.nonNull(commentId)&&!commentId.isEmpty()){
+//                List<Long> list = commentService.list(Wrappers.<Comment>lambdaQuery().like(Comment::getContext, comment))
+//                        .stream().map(Comment::getId).toList();
+//                if(list.isEmpty()){
+//                    PageDTO<ReplyAdminVO> pageDTO=new PageDTO<>();
+//                    pageDTO.setPageSize((int) page.getSize());
+//                    pageDTO.setPageNow(currentPage);
+//                    pageDTO.setTotal((int) page.getTotal());
+//                    pageDTO.setPageList(new ArrayList<>());
+//
+//                    return ResultUtil.success(pageDTO); // 返回一个空集合
+//                }else{
+//                    lqw.in(Reply::getCommentId,list);
+//                }
+                lqw.eq(Reply::getCommentId,Long.valueOf(commentId));
             }
 
             if(Objects.nonNull(startTime)){
@@ -325,35 +367,58 @@ public class BlogForAdminController {
 
             Map<Long, String> nameInIds = userFeign.getNameInIds(userIds);
 
-            List<ReplyAdminVO> list = replies.stream().map(i -> {
-                                Long commentId = i.getCommentId();
-                                Comment one = commentService.getOne(Wrappers.<Comment>lambdaQuery().eq(Comment::getId, commentId));
-                                if(Objects.isNull(one)){
+            // 1. 提取所有 commentId（去重）
+            List<Long> commentIds = replies.stream()
+                    .map(Reply::getCommentId)
+                    .distinct()
+                    .collect(Collectors.toList());
 
-                                    return null;  // 评论和博客存在被删除的情况 只要是这样 相关的评论就是不可见的 所以 直接返回null
-                                }
-                                Blog blog = blogService.getOne(Wrappers.<Blog>lambdaQuery().eq(Blog::getId, one.getBlogId()));
-                                if(Objects.isNull(blog)){
-                                    return null; // 理由同上
-                                }
-                                return ReplyAdminVO.builder()
-                                        .id(String.valueOf(i.getId()))
-                                        .userName(nameInIds.get(i.getUserId()))
-                                        .blogName(blog.getTitle())
-                                        .comment(one.getContext())
-                                        .context(i.getContext())
-                                        .createTime(i.getCreateTime())
-                                        .updateTime(i.getUpdateTime())
-                                        .isVisible(i.getIsVisible())
-                                        .isToxic(i.getIsToxic())
-                                        .mulType(i.getMulType())
-                                        .build();
-                            }
-                    ).filter(Objects::nonNull)  // 跳过 为null的值
-                    .toList();
+            // 2. 批量查询所有 Comment
+            Map<Long, Comment> commentMap = commentService.listByIds(commentIds)
+                    .stream()
+                    .collect(Collectors.toMap(Comment::getId, Function.identity()));
 
+            // 3. 提取所有 blogId（去重）
+            List<Long> blogIds = commentMap.values().stream()
+                    .map(Comment::getBlogId)
+                    .distinct()
+                    .collect(Collectors.toList());
 
-            PageDTO<ReplyAdminVO> pageDTO=new PageDTO<>();
+            // 4. 批量查询所有 Blog
+            Map<Long, Blog> blogMap = blogService.listByIds(blogIds)
+                    .stream()
+                    .collect(Collectors.toMap(Blog::getId, Function.identity()));
+
+            // 5. 遍历 replies 组装 VO，跳过缺失关联的数据
+            List<ReplyAdminVO> list = replies.stream()
+                    .map(reply -> {
+                        Long commentIdOne = reply.getCommentId();
+                        Comment comment = commentMap.get(commentIdOne);
+                        if (comment == null) {
+                            return null; // 评论不存在，跳过
+                        }
+                        Blog blog = blogMap.get(comment.getBlogId());
+                        if (blog == null) {
+                            return null; // 博客不存在，跳过
+                        }
+                        return ReplyAdminVO.builder()
+                                .id(String.valueOf(reply.getId()))
+                                .userName(nameInIds.get(reply.getUserId()))
+                                .blogName(blog.getTitle())
+                                .comment(comment.getContext())
+                                .context(reply.getContext())
+                                .createTime(reply.getCreateTime())
+                                .updateTime(reply.getUpdateTime())
+                                .isVisible(reply.getIsVisible())
+                                .isToxic(reply.getIsToxic())
+                                .mulType(reply.getMulType())
+                                .build();
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+
+            // 6. 构建分页结果
+            PageDTO<ReplyAdminVO> pageDTO = new PageDTO<>();
             pageDTO.setPageSize((int) page.getSize());
             pageDTO.setPageNow(currentPage);
             pageDTO.setTotal((int) page.getTotal());
