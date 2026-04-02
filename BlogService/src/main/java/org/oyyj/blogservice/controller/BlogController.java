@@ -174,22 +174,6 @@ public class BlogController {
      */
     @GetMapping("/file/download/{fileName}")
     public void downloadFile(@PathVariable("fileName")String fileName, HttpServletResponse response) throws IOException {
-        // 获取真实的文件路径
-        //String filePath= ResourceUtils.getURL("classpath:").getPath()+"static/image/"+fileName;
-        String filePath= "H:/10516/Test/BlogImage/"+fileName;
-        System.out.println("filePath:"+filePath);
-
-        File file=new File(filePath); //获取文件数据
-        if(!file.exists()){
-            response.sendError(HttpServletResponse.SC_NOT_FOUND);
-            return;
-        }
-        // 设置响应头
-        response.setContentType(MediaType.APPLICATION_OCTET_STREAM_VALUE);
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\""+filePath+"\"");
-
-        Files.copy(file.toPath(), response.getOutputStream());
-        response.getOutputStream().flush();
 
     }
     // 博客文章
@@ -284,6 +268,34 @@ public class BlogController {
         }
     }
 
+    /**
+     * 获取首页热门图片
+     * @return
+     */
+    @GetMapping("/getHotImageBlogs")
+    public ResultUtil<List<BlogDTO>> getHotImageBlogs(){
+        try {
+            return blogService.blogListHotImage();
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return ResultUtil.fail("查询失败");
+        }
+    }
+
+    /**
+     * 获取首页热门项目
+     * @return
+     */
+    @GetMapping("/getHotProjectBlogs")
+    public ResultUtil<List<BlogDTO>> getHotProjectBlogs(){
+        try {
+            return blogService.blogListHotProject();
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            return ResultUtil.fail("查询失败");
+        }
+    }
+
     // todo 测试文件上传 待会删除
     @PostMapping("/testUploadFile")
     public Map<String,Object> testUploadFile(@RequestPart("file")MultipartFile file,
@@ -319,6 +331,11 @@ public class BlogController {
             log.error(e.getMessage());
             return ResultUtil.failMap("查询失败");
         }
+    }
+
+    @GetMapping("/downFile")
+    public void downFile( @RequestParam("fileName")String fileName ,HttpServletResponse response ) throws IOException {
+        blogService.downFile(fileName,response);
     }
 
     /**

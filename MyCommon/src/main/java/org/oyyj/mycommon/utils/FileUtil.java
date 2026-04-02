@@ -472,4 +472,42 @@ public class FileUtil {
         return true;
     }
 
+
+    /**
+     * 下载文件（通用）
+     * @param objectName 文件名（存储在minio里的名称）
+     * @param response 响应
+     */
+    public void downloadFile(String objectName, HttpServletResponse response) {
+        GetObjectResponse object = null;
+        try {
+            object = minioClient.getObject(
+                    GetObjectArgs.builder()
+                            .bucket(documentBucketName)
+                            .object(objectName)
+                            .build()
+            );
+
+            // 设置响应头（关键！）
+            response.setContentType("application/octet-stream");
+            response.setHeader("Content-Disposition",
+                    "attachment;filename=" + java.net.URLEncoder.encode(objectName, "UTF-8"));
+
+            // 流式输出
+            IOUtils.copy(object, response.getOutputStream());
+
+        } catch (Exception e) {
+            log.error("文件下载失败: {}", objectName, e);
+            throw new RuntimeException("文件下载失败");
+        } finally {
+            if (object != null) {
+                try {
+                    object.close();
+                } catch (IOException e) {
+                    log.error("关闭流失败", e);
+                }
+            }
+        }
+    }
+
 }

@@ -29,6 +29,8 @@ public class ReadDTO {
     private String kudos;
     private String watch;
     private String commentNum;
+    private String image;
+    private String project;
     private Boolean isUserKudos=false;
     private Boolean isUserStar=false;
 }

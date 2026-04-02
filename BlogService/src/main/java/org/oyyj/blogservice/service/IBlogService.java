@@ -3,6 +3,7 @@ package org.oyyj.blogservice.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import jakarta.servlet.http.HttpServletResponse;
 import org.oyyj.blogservice.dto.*;
 import org.oyyj.blogservice.pojo.Blog;
 import org.oyyj.blogservice.util.ResultUtil;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -120,6 +122,8 @@ public interface IBlogService extends IService<Blog> {
 
     // todo 测试使用待会删除
     Map<String,Object> mergeFileChunk(String fileNo,Long totalFileChunks, String orgFileName,Long userId);
+
+    void downFile(String fileName, HttpServletResponse response) throws IOException;
 
     /**
      * 获取用户有关博客的信息

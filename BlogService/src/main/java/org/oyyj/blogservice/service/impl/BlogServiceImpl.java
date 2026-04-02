@@ -10,6 +10,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.rholder.retry.*;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
 import org.oyyj.blogservice.common.BlogEnum.PublishEnum;
@@ -520,6 +521,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .createTime(one.getCreateTime())
                 .updateTime(one.getUpdateTime())
                 .star(String.valueOf(one.getStar()))
+                .image(one.getBlogImage())
+                .project(one.getBlogProject())
                 .commentNum(String.valueOf(one.getCommentNum()))
                 .kudos(String.valueOf(one.getKudos()))
                 .watch(String.valueOf(one.getWatch()))
@@ -1588,6 +1591,11 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     }
 
     @Override
+    public void downFile(String fileName, HttpServletResponse response) throws IOException {
+        fileUtil.downloadFile( fileName,response);
+    }
+
+    @Override
     public UserBlogInfoDTO getUserBlogInfo(Long userId) {
         List<Blog> list = list(Wrappers.<Blog>lambdaQuery()
                 .eq(Blog::getUserId, userId)
@@ -1952,7 +1960,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         }
 
         List<Blog> hotBlog = list(Wrappers.<Blog>lambdaQuery()
-                .in(Blog::getUserId, longs)
+                .in(Blog::getId, longs)
         );
 
         List<String> list = hotBlog.stream().map(Blog::getUserId).map(String::valueOf).toList();
@@ -1962,7 +1970,6 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         List<BlogDTO> result = hotBlog.stream().map(i -> BlogDTO.builder()
                 .id(String.valueOf(i.getId()))
                 .title(i.getTitle())
-                .context(i.getContext())
                 .userId(String.valueOf(i.getUserId()))
                 .userName(nameInIds.get(i.getUserId()))
                 .introduce(i.getIntroduce())
@@ -1973,6 +1980,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .star(String.valueOf(i.getStar()))
                 .view(String.valueOf(i.getWatch()))
                 .commentNum(String.valueOf(i.getCommentNum()))
+                .blogImage(String.valueOf(i.getBlogImage()))
+                .publishMode(i.getBlogProject())
                 .typeList(blogTypeService.list(Wrappers.<BlogType>lambdaQuery().eq(BlogType::getBlogId, i.getId()))
                         .stream().map(j -> {
                             TypeTable typeTables = typeTableMapper.selectOne(Wrappers.<TypeTable>lambdaQuery().eq(TypeTable::getId, j.getTypeId()));
@@ -1982,8 +1991,43 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         return ResultUtil.success(result);
     }
 
+    /**
+     * 获取热门项目
+     * @return
+     */
     @Override
     public ResultUtil<List<BlogDTO>> blogListHotProject() {
-        return null;
+
+        List<Long> longs = baseMapper.selectHotProjectBlog();
+        if(longs==null || longs.isEmpty()){
+            return ResultUtil.success(List.of());
+        }
+        List<Blog> hotBlog = list(Wrappers.<Blog>lambdaQuery()
+                .in(Blog::getId, longs)
+        );
+        List<String> list = hotBlog.stream().map(Blog::getUserId).map(String::valueOf).toList();
+        Map<Long, String> nameInIds = userFeign.getNameInIds(list);
+        List<BlogDTO> result = hotBlog.stream().map(i -> BlogDTO.builder()
+                .id(String.valueOf(i.getId()))
+                .title(i.getTitle())
+                .userId(String.valueOf(i.getUserId()))
+                .userName(nameInIds.get(i.getUserId()))
+                .introduce(i.getIntroduce())
+                .createTime(i.getCreateTime())
+                .updateTime(i.getUpdateTime())
+                .status(i.getStatus())
+                .like(String.valueOf(i.getKudos()))
+                .star(String.valueOf(i.getStar()))
+                .view(String.valueOf(i.getWatch()))
+                .blogImage(String.valueOf(i.getBlogImage()))
+                .publishMode(i.getBlogProject())
+                .commentNum(String.valueOf(i.getCommentNum()))
+                .typeList(blogTypeService.list(Wrappers.<BlogType>lambdaQuery().eq(BlogType::getBlogId, i.getId()))
+                        .stream().map(j -> {
+                            TypeTable typeTables = typeTableMapper.selectOne(Wrappers.<TypeTable>lambdaQuery().eq(TypeTable::getId, j.getTypeId()));
+                            return typeTables.getName();
+                        }).toList())
+                .build()).toList();
+        return ResultUtil.success(result);
     }
 }
