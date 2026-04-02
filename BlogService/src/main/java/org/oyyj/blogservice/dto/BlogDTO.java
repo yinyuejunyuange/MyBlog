@@ -24,6 +24,7 @@ public class BlogDTO {
     private Date updateTime;
     private Integer status;
     private List<String> typeList;
+    private List<Integer> typeIdList;
     private String like;
     private String star;
     private String view;

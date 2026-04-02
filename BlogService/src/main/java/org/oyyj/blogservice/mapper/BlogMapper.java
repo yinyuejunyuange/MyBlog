@@ -61,4 +61,16 @@ public interface BlogMapper extends BaseMapper<Blog> {
      */
     Integer updateBlogBatch(@Param("items") List<BlogReadDTO> readDTOS);
 
+    /**
+     * 获取当前热度最高的几个信息
+     * @return
+     */
+    List<Long> selectHotImageBlog();
+
+    /**
+     * 获取当前热度最高的几个项目
+     * @return
+     */
+    List<Long> selectHotProjectBlog();
+
 }

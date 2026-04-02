@@ -47,6 +47,26 @@ spring:
               args:
                 handlerType: REGISTER_ADMIN
 
+        # 当前服务处理 超管创建管理员
+        - id: LoginAdmin
+          uri: no://op # 特殊URI 不需要转发
+          predicates:
+            - Path=/myBlog/auth/adminLogin
+          filters:
+            - name: LocalRequestFilter # 指定处理登录/注册逻辑的过滤器
+              args:
+                handlerType: LOGIN_ADMIN
+
+        # 用户修改密码
+        - id: updatePassword
+          uri: no://op # 特殊URI 不需要转发
+          predicates:
+            - Path=/myBlog/auth/updatePassword
+          filters:
+            - name: LocalRequestFilter # 指定处理登录/注册逻辑的过滤器
+              args:
+                handlerType: UPDATE_PASSWORD
+
         # 当前服务处理 注册
         - id: AuthRegister
           uri: no://op

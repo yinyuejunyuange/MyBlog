@@ -8,6 +8,7 @@ import org.oyyj.blogservice.config.pojo.BlogActivityLevel;
 import org.oyyj.blogservice.config.pojo.UserActivityLevel;
 import org.oyyj.blogservice.pojo.UserBehavior;
 import org.oyyj.mycommon.common.BehaviorEnum;
+import org.springframework.scheduling.annotation.Async;
 
 import java.util.List;
 

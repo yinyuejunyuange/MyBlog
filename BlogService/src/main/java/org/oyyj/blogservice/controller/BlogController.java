@@ -3,6 +3,7 @@ package org.oyyj.blogservice.controller;
 import ch.qos.logback.core.util.FileUtil;
 import com.alibaba.nacos.api.model.v2.Result;
 import com.alibaba.nacos.api.naming.pojo.healthcheck.impl.Http;
+import com.alibaba.nacos.common.utils.StringUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -86,6 +87,13 @@ public class BlogController {
     @PostMapping("/write")
     public ResultUtil<String> writeBlog(@RequestBody BlogDTO blogDTO ,@RequestUser LoginUser loginUser ) {
 
+        Blog one = blogService.getOne(Wrappers.<Blog>lambdaQuery()
+                .eq(Blog::getTitle, blogDTO.getTitle())
+        );
+        if(Objects.nonNull(one) && StringUtils.isBlank(one.getTitle())){
+            return ResultUtil.fail("重复标题");
+        }
+
         boolean success = blogService.saveBlog(blogDTO,loginUser);
         if(!success){
             log.error("用户添加博客失败 userId:{}",loginUser.getUserId());
@@ -127,7 +135,10 @@ public class BlogController {
      * @return
      */
     @GetMapping("/valid/read")
-    public Map<String,Object> validBlogRead(@RequestParam("blogId") String blogId,@RequestUser() LoginUser loginUser) throws Exception {
+    public Map<String,Object> validBlogRead(@RequestParam("blogId") String blogId,@RequestUser(required = false) LoginUser loginUser) throws Exception {
+        if(loginUser == null){
+            return ResultUtil.successMap(null,"当前用户未登录");
+        }
         blogService.readBlogValid(Long.valueOf(blogId),loginUser);
         return ResultUtil.successMap(null,"阅读成功");
     }

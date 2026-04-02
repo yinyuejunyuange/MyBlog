@@ -547,6 +547,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         userInfoVO.setBeAttention(funS);
         Integer att = baseMapper.userAttention(userId);
         userInfoVO.setAttention(att);
+        userInfoVO.setUserId(String.valueOf(userId));
 
         if(Objects.equals(YesOrNoEnum.YES.getCode(), loginUser.getIsUserLogin())){
             if(loginUser.getUserId().equals(userId)){
@@ -771,6 +772,31 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 如果你坚持 VO 里的类型是 List<Integer>，这里需要转一下
         vo.setUserCountList(counts);
         return ResultUtil.success(vo);
+    }
+
+    /**
+     * 修改用户信息
+     * @param userItemInfoDTO
+     * @param loginUser
+     * @return
+     */
+    @Override
+    public ResultUtil<Boolean> updateUserInfo(UserItemInfoDTO userItemInfoDTO, LoginUser loginUser) {
+
+        User one = getOne(Wrappers.<User>lambdaQuery()
+                .eq(User::getName, userItemInfoDTO.getUserName())
+                .ne(User::getId, loginUser.getUserId())
+        );
+        if(Objects.nonNull(one)){
+            return ResultUtil.fail("命名重复");
+        }
+
+        return ResultUtil.success(update(Wrappers.<User>lambdaUpdate()
+                .eq(User::getId, loginUser.getUserId())
+                .set(User::getName, userItemInfoDTO.getUserName())
+                .set(User::getImageUrl, userItemInfoDTO.getImageHead())
+                .set(User::getIntroduce, userItemInfoDTO.getIntroduction())
+        ));
     }
 
 

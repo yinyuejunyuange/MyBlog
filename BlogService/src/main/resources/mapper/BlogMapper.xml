@@ -93,4 +93,30 @@
             </otherwise>
         </choose>
     </select>
+    <select id="selectHotImageBlog" resultType="java.lang.Long">
+        SELECT id
+        FROM blog
+        WHERE is_delete = 0
+        AND status = 2
+        AND publish_time >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+        AND blog_image IS NOT NULL
+        AND blog_image &lt; &gt; ''
+        ORDER BY
+            (kudos *3 +star *2 + comment_num*2 +share_count*2+watch) DESC
+        limit 10
+    </select>
+    <select id="selectHotProjectBlog" resultType="java.lang.Long">
+
+        SELECT id
+        FROM blog
+        WHERE is_delete = 0
+        AND status = 2
+        AND publish_time >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+        AND blog_project IS NOT NULL
+        AND blog_project &lt; &gt; ''
+        ORDER BY
+        (kudos * 3 + star * 2 + comment_num * 2 + share_count * 2 + watch) DESC
+        LIMIT 10;
+
+    </select>
 </mapper>

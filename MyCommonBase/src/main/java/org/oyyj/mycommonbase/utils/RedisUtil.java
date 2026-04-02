@@ -252,7 +252,7 @@ public class RedisUtil {
                         "end\n" +
                         // 未阅读：设置用户标记（带过期）+ 递增阅读数 + 续期阅读数key
                         "redis.call('SET', KEYS[2], 1, 'EX', ARGV[1])\n" +
-                        "local current = redis.call('HINCRBY',KEYS[1],'watch') \n"+
+                        "local current = redis.call('INCRBY',KEYS[1],1) \n"+
                         "redis.call('EXPIRE', KEYS[1], ARGV[2])\n" +
                         "return current"
         );

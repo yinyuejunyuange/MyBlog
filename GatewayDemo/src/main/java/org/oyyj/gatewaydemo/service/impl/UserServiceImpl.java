@@ -10,6 +10,7 @@ import org.oyyj.gatewaydemo.mapper.SysRoleMapper;
 import org.oyyj.gatewaydemo.mapper.UserMapper;
 import org.oyyj.gatewaydemo.pojo.auth.AuthUser;
 import org.oyyj.gatewaydemo.pojo.dto.LoginDTO;
+import org.oyyj.gatewaydemo.pojo.dto.PasswordDTO;
 import org.oyyj.mycommonbase.common.RoleEnum;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.gatewaydemo.pojo.User;
@@ -56,6 +57,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     // 用户默认头像
     private static final String USER_HEAD = "userhead.png";
+    @Autowired
+    private SysRoleMapper sysRoleMapper;
 
     @Override // 返回相关结果
     public Mono<JWTUserVO> login(String username, String password){
@@ -69,6 +72,42 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                     // 封装 userdetails信息
                     // 登录成功后 authentication中的Principal 中会存储用户的信息
                     AuthUser authUser = (AuthUser) authentication.getPrincipal();
+
+                    String token = null; // 获取到token
+                    try {
+                        token = JWTUtils.createToken(authUser, "web", "USER");
+                    } catch (JsonProcessingException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    // 将token存储到redis中
+                    redisUtil.set(String.valueOf(authUser.getUserId()), token,24, TimeUnit.HOURS); // 存储并设置时间24小时
+                    return Mono.just(JWTUserVO.builder()
+                            .id(String.valueOf(authUser.getUserId()))
+                            .username(authUser.getUsername())
+                            .image(authUser.getImageUrl())
+                            .token(token)
+                            .isValid(true)
+                            .build());
+                }); // 统一外层处理异常
+    }
+
+    @Override
+    public Mono<JWTUserVO> loginAdmin(String username, String password) throws JsonProcessingException {
+        UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(username, password);
+        return authenticationManager.authenticate(authenticationToken)
+                .flatMap(authentication -> {
+                    if(Objects.isNull(authentication)){
+                        // 认证失败
+                        throw new RuntimeException("登录失败 用户名或密码错误");
+                    }
+                    // 封装 userdetails信息
+                    // 登录成功后 authentication中的Principal 中会存储用户的信息
+                    AuthUser authUser = (AuthUser) authentication.getPrincipal();
+                    List<String> strings = sysRoleMapper.selectUserRole(authUser.getUserId());
+                    if(strings == null || strings.isEmpty() || (!strings.contains(RoleEnum.SUPER_ADMIN) &&!strings.contains(RoleEnum.ADMIN) )){
+                        throw new RuntimeException("登录失败 用户名角色不足");
+                    }
 
                     String token = null; // 获取到token
                     try {
@@ -159,6 +198,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                                 .id(String.valueOf(build.getId()))
                                 .isValid(true)
                                 .token(token)
+                                .image(USER_HEAD)
                                 .username(build.getName())
                                 .build());
                     });
@@ -224,6 +264,50 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
 
         return Mono.just(ResultUtil.success("管理员创建成功"));
+    }
+
+    @Override
+    public Mono<ResultUtil<String>> updatePassword(PasswordDTO passwordDTO, ServerHttpRequest request) {
+        String userId = request.getHeaders().getFirst("X-User-Id");
+        if(userId==null){
+            throw  new RuntimeException("当前用户未登录");
+        }
+        User byId = getById(Long.valueOf(userId));
+        String username = byId.getName();
+        if(Objects.equals(passwordDTO.getNewPassword(),passwordDTO.getOldPassword())){
+            throw  new RuntimeException("新旧密码不可一致");
+        }
+        // 验证旧密码是否正确
+        UsernamePasswordAuthenticationToken authenticationToken =
+                new UsernamePasswordAuthenticationToken(username, passwordDTO.getOldPassword());
+
+        return authenticationManager.authenticate(authenticationToken)
+                .flatMap(authentication -> {
+                    if(Objects.isNull(authentication)){
+                        return Mono.error(new RuntimeException("用于原本密码不正确。"));
+                    }
+                    Date date = new Date();
+                    User build = User.builder()
+                            .id(Long.valueOf(userId))
+                            .name(username)
+                            .createTime(date)
+                            .updateTime(date)
+                            .isDelete(0)
+                            .isFreeze(0)
+                            .build();
+                    String encode = passwordEncoder.encode(passwordDTO.getNewPassword());
+                    build.setPassword(encode);
+
+                    boolean save = update(Wrappers.<User>lambdaUpdate()
+                            .eq(User::getId,Long.parseLong(userId))
+                            .set(User::getPassword,encode)
+                    );
+                    if(save){
+                        return Mono.just(ResultUtil.success("用户密码修改成功"));
+                    }else{
+                        return Mono.just( ResultUtil.fail("密码修改失败"));
+                    }
+                });
     }
 
 }

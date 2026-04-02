@@ -195,8 +195,6 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .context(blogDTO.getContext())
                 .userId(loginUser.getUserId())
                 .author(loginUser.getUserName())
-                .createTime(date)
-                .updateTime(date)
                 .typeList(blogDTO.getTypeList())
                 .introduce(blogDTO.getIntroduce())
                 .blogImage(blogDTO.getBlogImage())
@@ -215,17 +213,23 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             boolean save =false;
             if(blogDTO.getId()!=null&& StringUtils.isNotBlank(blogDTO.getId())){
                 Blog one = getOne(Wrappers.<Blog>lambdaQuery().eq(Blog::getId, Long.valueOf(blogDTO.getId()))
-                        .select(Blog::getId)
+                        .select(Blog::getId,Blog::getUserId)
                 );
+                blog.setUserId(one.getUserId());
                 blog.setId(one.getId());
+                blog.setUpdateTime(date);
                 save = updateById(blog);
             }else{
+                blog.setCreateTime(date);
                 save= save(blog);
             }
             if(save){
                 Long id = blog.getId();
                 if (blog.getTypeList() != null && !blog.getTypeList().isEmpty()) {
                     // 相关联的类型
+                    blogTypeService.remove(Wrappers.<BlogType>lambdaQuery()
+                            .eq(BlogType::getBlogId, blog.getId())
+                    );
                     List<Long> listIds = blog.getTypeList().stream().map(Long::valueOf).toList();
                     List<TypeTable> typeTables = typeTableMapper.selectList(Wrappers.<TypeTable>lambdaQuery().in(TypeTable::getId, listIds));
 
@@ -387,7 +391,10 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 // 增加延期
                 redisUtil.resetExpire(countKey,1800L); // 信息延期30分钟
                 redisUtil.resetExpire(RedisPrefix.BLOG_READ_COUNT+id,1800L); // 同时初始时or修改后的记录数 也延期
-                return ObjectMapUtil.toBean(ReadDTO.class, hashWithString);
+                ReadDTO bean = ObjectMapUtil.toBean(ReadDTO.class, hashWithString);
+                Integer integer = redisUtil.getInteger(RedisPrefix.BLOG_READ_COUNT + id);
+                bean.setWatch(bean.getWatch()+integer);
+                return bean;
             } catch (Exception e) {
                 log.warn("反序列化博客缓存失败，blogId: {}", id + ":" + e);
                 // 缓存失效 直接删除
@@ -427,13 +434,16 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         ReadDTO result;
         try {
             // 启动看门狗  最大等待1秒 1秒内获取锁 就true 反之false  使用看门狗
-            boolean isLocked = lock.tryLock(1,-1, TimeUnit.SECONDS);
+            boolean isLocked = lock.tryLock(1,30, TimeUnit.SECONDS);
             if(isLocked){
                 try {
                     // 再次检查避免 再处理锁的时候获取到数据了
                     Map<String, String> hashWithString = redisUtil.getHashWithString(countKey);
                     if(Objects.nonNull(hashWithString) && !hashWithString.isEmpty()){
-                        return ObjectMapUtil.toBean(ReadDTO.class, hashWithString);
+                        ReadDTO bean = ObjectMapUtil.toBean(ReadDTO.class, hashWithString);
+                        Integer integer = redisUtil.getInteger(RedisPrefix.BLOG_READ_COUNT + id);
+                        bean.setWatch(bean.getWatch()+integer);
+                        return bean;
                     }
                     // 查询数据库
                     result = getReadDTO( id, loginUser);
@@ -442,7 +452,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                         Map<String, String> map = ObjectMapUtil.toMap(ReadDTO.class, result);
                         redisUtil.setHashWithString(countKey, map,30, TimeUnit.MINUTES);
                         // 同时增加当前的阅读量记录 便于后续同步到数据库时进行检查
-                        redisUtil.set(RedisPrefix.BLOG_READ_COUNT + id, result.getWatch(),30,TimeUnit.MINUTES);
+                        redisUtil.set(RedisPrefix.BLOG_READ_COUNT + id, 0,30,TimeUnit.MINUTES);
                     }else{
                         redisUtil.setHashWithString(countKey, Map.of(),30, TimeUnit.MINUTES);
                     }
@@ -460,7 +470,10 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 for (int i = 0; i < 3; i++) {
                     Map<String, String> hashWithString = redisUtil.getHashWithString(countKey);
                     if(Objects.nonNull(hashWithString) && !hashWithString.isEmpty()){
-                        return ObjectMapUtil.toBean(ReadDTO.class, hashWithString);
+                        ReadDTO bean = ObjectMapUtil.toBean(ReadDTO.class, hashWithString);
+                        Integer integer = redisUtil.getInteger(RedisPrefix.BLOG_READ_COUNT + id);
+                        bean.setWatch(bean.getWatch()+integer);
+                        return bean;
                     }
                 }
                 // 降级策略 直接查询数据库
@@ -491,6 +504,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         // 获取与其相关的类型type
         List<BlogType> list = blogTypeService.list(Wrappers.<BlogType>lambdaQuery().eq(BlogType::getBlogId, id));
 
+        List<Long> typeIds = list.stream().map(BlogType::getTypeId).toList();
         // 封装
         // todo 测试
         // Map<Long, String> userNameMap = userFeign.getUserNameMap();
@@ -577,9 +591,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                         continue;
                     }
                     // 计算偏差
-                    int offset = Math.toIntExact(readCount - recordCount);
+                    int offset = Math.toIntExact(readCount - Integer.parseInt(watch));
                     offset = Math.max(offset, 0);
-                    int newCount = Integer.parseInt(watch) + offset;
+                    int newCount = Math.toIntExact(Integer.parseInt(watch) + offset + recordCount);
                     readDTOList.add(new BlogReadDTO(blogId, newCount));
                     // 更新记录
                     redisUtil.set(RedisPrefix.BLOG_READ_COUNT+blogId,newCount);
@@ -599,7 +613,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 redisUtil.set(RedisPrefix.BLOG_READ_UPDATE,1,2,TimeUnit.MINUTES);
 
             }else{
-                // todo 使用演示队列 重试
+                log.warn("获取锁失败");
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
@@ -729,7 +743,11 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     private List<String> addNewRecommendBlogs(Long userId){
 
         List<Recommendation> recommendationsByItem = itemCF.recommendForUser(userId, 100);
-        List<Recommendation> recommendationsByUser = userCF.recommendForUser(userId, 100);
+        List<Recommendation> recommendationsByUser = new  ArrayList<>();
+        if(Objects.nonNull(userId)){
+            recommendationsByUser = userCF.recommendForUser(userId, 100);
+        }
+
 
         List<Long> resultList = new ArrayList<>(recommendationsByItem.stream().map(Recommendation::getBlogId).toList());
         resultList.addAll(recommendationsByUser.stream().map(Recommendation::getBlogId).toList());
@@ -1380,6 +1398,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         boolean success = blogIncr(blogId, RedisPrefix.BLOG_START_LOCK, loginUser.getUserId());
         if(success){
             Blog byId = getById(blogId);
+            CompletableFuture.runAsync(() -> {
+                userBehaviorMapper.addUserBehavior(loginUser.getUserId(),blogId,BehaviorEnum.COLLECT);
+            });
             chatFeign.addLikeStar(String.valueOf(loginUser.getUserId()),String.valueOf(byId.getUserId()),String.valueOf(blogId),1,2);
         }
         return success;
@@ -1400,6 +1421,10 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     public boolean blogKudos(Long blogId , LoginUser loginUser) {
         boolean success = blogIncr(blogId, RedisPrefix.BLOG_KUDOS_LOCK, loginUser.getUserId());
         if(success){
+            // 异步执行
+            CompletableFuture.runAsync(() -> {
+                userBehaviorMapper.addUserBehavior(loginUser.getUserId(),blogId,BehaviorEnum.LIKE);
+            });
             Blog byId = getById(blogId);
             chatFeign.addLikeStar( String.valueOf(loginUser.getUserId()),String.valueOf(byId.getUserId())
                     ,String.valueOf(blogId),1,1);
@@ -1488,6 +1513,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         Page<Blog> page = new Page<>(currentPage, pageSize);
         List<Blog> list = list(page, Wrappers.<Blog>lambdaQuery()
                 .eq(Blog::getUserId, userId)
+                .orderByDesc(Blog::getCreateTime)
         );
         Map<Long, String> imageInIds = userFeign.getImageInIds(Collections.singletonList(String.valueOf(userId)));
         List<Long> blogIds = list.stream().map(Blog::getId).toList();
@@ -1916,5 +1942,48 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         }
 
         return  ResultUtil.success(result);
+    }
+
+    @Override
+    public ResultUtil<List<BlogDTO>> blogListHotImage() {
+        List<Long> longs = baseMapper.selectHotImageBlog();
+        if(longs==null || longs.isEmpty()){
+            return ResultUtil.success(List.of());
+        }
+
+        List<Blog> hotBlog = list(Wrappers.<Blog>lambdaQuery()
+                .in(Blog::getUserId, longs)
+        );
+
+        List<String> list = hotBlog.stream().map(Blog::getUserId).map(String::valueOf).toList();
+
+        Map<Long, String> nameInIds = userFeign.getNameInIds(list);
+
+        List<BlogDTO> result = hotBlog.stream().map(i -> BlogDTO.builder()
+                .id(String.valueOf(i.getId()))
+                .title(i.getTitle())
+                .context(i.getContext())
+                .userId(String.valueOf(i.getUserId()))
+                .userName(nameInIds.get(i.getUserId()))
+                .introduce(i.getIntroduce())
+                .createTime(i.getCreateTime())
+                .updateTime(i.getUpdateTime())
+                .status(i.getStatus())
+                .like(String.valueOf(i.getKudos()))
+                .star(String.valueOf(i.getStar()))
+                .view(String.valueOf(i.getWatch()))
+                .commentNum(String.valueOf(i.getCommentNum()))
+                .typeList(blogTypeService.list(Wrappers.<BlogType>lambdaQuery().eq(BlogType::getBlogId, i.getId()))
+                        .stream().map(j -> {
+                            TypeTable typeTables = typeTableMapper.selectOne(Wrappers.<TypeTable>lambdaQuery().eq(TypeTable::getId, j.getTypeId()));
+                            return typeTables.getName();
+                        }).toList())
+                .build()).toList();
+        return ResultUtil.success(result);
+    }
+
+    @Override
+    public ResultUtil<List<BlogDTO>> blogListHotProject() {
+        return null;
     }
 }

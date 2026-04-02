@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.oyyj.gatewaydemo.pojo.User;
 import org.oyyj.gatewaydemo.pojo.dto.LoginDTO;
+import org.oyyj.gatewaydemo.pojo.dto.PasswordDTO;
 import org.oyyj.gatewaydemo.pojo.dto.RegisterDTO;
 import org.oyyj.gatewaydemo.pojo.vo.JWTUserVO;
 import org.oyyj.gatewaydemo.service.IUserService;
@@ -70,6 +71,8 @@ public class LocalRequestFilter extends AbstractGatewayFilterFactory<LocalReques
             case REGISTER -> handleRegister(request, response);
             case LOGOUT -> handleLogout(request, response);
             case REGISTER_ADMIN -> handleRegAdmin(request, response);
+            case LOGIN_ADMIN -> handleAdminLogin(request, response);
+            case UPDATE_PASSWORD -> updatePassword(request, response);
             default -> Mono.empty();
         };
     }
@@ -85,6 +88,36 @@ public class LocalRequestFilter extends AbstractGatewayFilterFactory<LocalReques
 
                     try {
                         return userService.login(loginRequest.getUsername(), loginRequest.getPassword())
+                                .flatMap(loginVO->{
+                                    return writeSuccessResponse(response,loginVO);
+                                })
+                                .onErrorResume(e->{
+                                    return writeErrorResponse(response,HttpStatus.UNAUTHORIZED,"用户名或密码错误");
+                                });
+                    } catch (JsonProcessingException e) {
+                        log.error("登录失败：{}",e.getMessage(),e);
+                        return writeErrorResponse(response,HttpStatus.INTERNAL_SERVER_ERROR,"登录失败!");
+                    }
+                });
+
+    }
+
+    /**
+     * 管理员登录 验证权限
+     * @param request
+     * @param response
+     * @return
+     */
+    private Mono<Void> handleAdminLogin(ServerHttpRequest request, ServerHttpResponse response){
+        return parseRequestBody(request, LoginDTO.class)
+                .flatMap(loginRequest->{
+                    if(StringUtils.isEmpty(loginRequest.getPassword())||
+                            StringUtils.isEmpty(loginRequest.getUsername())){
+                        return writeErrorResponse(response,HttpStatus.BAD_REQUEST,"用户名或密码不可为空");
+                    }
+
+                    try {
+                        return userService.loginAdmin(loginRequest.getUsername(), loginRequest.getPassword())
                                 .flatMap(loginVO->{
                                     return writeSuccessResponse(response,loginVO);
                                 })
@@ -160,6 +193,28 @@ public class LocalRequestFilter extends AbstractGatewayFilterFactory<LocalReques
                     }
 
                     return userService.registerAdmin(loginRequest,request)
+                            .flatMap(loginVO->{
+                                return writeSuccessResponse(response,loginVO);
+                            })
+                            .onErrorResume(e->{
+                                return writeErrorResponse(response,HttpStatus.UNAUTHORIZED,"用户名或密码错误");
+                            });
+                });
+    }
+
+    private Mono<Void> updatePassword(ServerHttpRequest request, ServerHttpResponse response){
+        String token = extractToken(request);
+        if(StringUtils.isEmpty(token)){
+            return writeErrorResponse(response,HttpStatus.UNAUTHORIZED,"TOKEN不可为空");
+        }
+        return parseRequestBody(request, PasswordDTO.class)
+                .flatMap(loginRequest->{
+                    if(StringUtils.isEmpty(loginRequest.getNewPassword())||
+                            StringUtils.isEmpty(loginRequest.getOldPassword())){
+                        return writeErrorResponse(response,HttpStatus.BAD_REQUEST,"新旧密码不可为空");
+                    }
+
+                    return userService.updatePassword(loginRequest,request)
                             .flatMap(loginVO->{
                                 return writeSuccessResponse(response,loginVO);
                             })
@@ -261,7 +316,9 @@ public class LocalRequestFilter extends AbstractGatewayFilterFactory<LocalReques
         LOGIN,
         REGISTER,
         LOGOUT,
-        REGISTER_ADMIN
+        REGISTER_ADMIN,
+        LOGIN_ADMIN,
+        UPDATE_PASSWORD
     }
 
 }

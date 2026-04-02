@@ -7,15 +7,13 @@ import org.oyyj.blogservice.dto.ReadReplyDTO;
 import org.oyyj.blogservice.feign.UserFeign;
 import org.oyyj.blogservice.pojo.Comment;
 import org.oyyj.blogservice.pojo.Reply;
-import org.oyyj.blogservice.service.IBlogService;
-import org.oyyj.blogservice.service.ICommentService;
-import org.oyyj.blogservice.service.IReplyReportService;
-import org.oyyj.blogservice.service.IReplyService;
+import org.oyyj.blogservice.service.*;
 import org.oyyj.blogservice.util.PyApiUtil;
 import org.oyyj.blogservice.util.ResultUtil;
 import org.oyyj.blogservice.vo.commet.CommentResultVO;
 import org.oyyj.blogservice.vo.reply.ReplyResultVO;
 import org.oyyj.mycommon.annotation.RequestUser;
+import org.oyyj.mycommon.common.BehaviorEnum;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -23,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/myBlog/blog/comment")
@@ -43,7 +42,8 @@ public class CommentReplyController {
 
     @Autowired
     private PyApiUtil pyApiUtil;
-
+    @Autowired
+    private IUserBehaviorService iUserBehaviorService;
 
 
     /**
@@ -83,6 +83,13 @@ public class CommentReplyController {
             // 增加博客的评论数
             pyApiUtil.getCommentToxicPredict(context,build.getId(),1);
             blogService.blogComment(blogId,loginUser);
+            CompletableFuture.runAsync(() -> {
+                try {
+                    iUserBehaviorService.userBehaviorBlog(loginUser.getUserId(),blogId, BehaviorEnum.COLLECT);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            });
             return ResultUtil.success(blogId);
         }else{
             log.warn("数据库添加评论添加失败");
@@ -143,6 +150,14 @@ public class CommentReplyController {
                 .build();
         boolean save = replyService.save(build);
         if(save){
+            CompletableFuture.runAsync(() -> {
+                try {
+                    Comment byId = commentService.getById(commentId);
+                    iUserBehaviorService.userBehaviorBlog(loginUser.getUserId(),byId.getBlogId(), BehaviorEnum.COLLECT);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            });
             pyApiUtil.getCommentToxicPredict(context,build.getId(),0);
             return ResultUtil.success(build.getId());
         }else{

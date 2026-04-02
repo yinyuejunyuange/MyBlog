@@ -131,5 +131,12 @@ public interface IUserService extends IService<User> {
      */
     ResultUtil<User12MonthVO> user12MonthVOResultUtil();
 
+    /**
+     * 修改用户信息
+     * @param userItemInfoDTO
+     * @param loginUser
+     * @return
+     */
+    ResultUtil<Boolean> updateUserInfo(UserItemInfoDTO userItemInfoDTO,LoginUser loginUser);
 
 }

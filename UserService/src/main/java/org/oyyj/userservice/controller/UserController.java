@@ -557,8 +557,19 @@ public class UserController {
      * @return
      */
     @GetMapping("/getUserInfo")
-    public ResultUtil<org.oyyj.userservice.vo.UserInfoVO> getUserInfo(@RequestParam("userId") Long userId, @RequestUser(required = false) LoginUser loginUser){
-        return userService.getUserInfo(userId,  loginUser);
+    public ResultUtil<org.oyyj.userservice.vo.UserInfoVO> getUserInfo(@RequestParam("userId") String userId, @RequestUser(required = false) LoginUser loginUser){
+        return userService.getUserInfo(Long.parseLong(userId),  loginUser);
+    }
+
+    /**
+     * 修改用户信息
+     * @param userItemInfoDTO
+     * @param loginUser
+     * @return
+     */
+    @PutMapping("/updateUserInfo")
+    public ResultUtil<Boolean> updateUserInfo(@RequestBody UserItemInfoDTO  userItemInfoDTO, @RequestUser(required = false) LoginUser loginUser){
+        return userService.updateUserInfo(userItemInfoDTO,loginUser);
     }
 
 }

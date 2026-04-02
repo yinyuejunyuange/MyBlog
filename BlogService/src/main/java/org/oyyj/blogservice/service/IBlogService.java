@@ -209,4 +209,16 @@ public interface IBlogService extends IService<Blog> {
      */
     ResultUtil<List<BlogTypeVO>> blogTypeList();
 
+    /**
+     * 获取热条图片
+     * @return
+     */
+    ResultUtil<List<BlogDTO>> blogListHotImage();
+
+    /**
+     * 获取热条项目
+     * @return
+     */
+    ResultUtil<List<BlogDTO>> blogListHotProject();
+
 }
