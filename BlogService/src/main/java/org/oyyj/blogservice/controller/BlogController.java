@@ -422,9 +422,10 @@ public class BlogController {
      */
     @GetMapping("/userWork")
     public ResultUtil<List<BlogDTO>>  userWork(@RequestParam("userId")  Long userId  ,
+                                               @RequestParam(value = "title",required = false) String title,
                                                @RequestParam("currentPage") Integer currentPage,
                                                @RequestParam("pageSize") Integer pageSize){
-        return blogService.getBlogWork(userId, currentPage, pageSize);
+        return blogService.getBlogWork(userId, title, currentPage, pageSize);
     }
 
     /**
@@ -434,9 +435,10 @@ public class BlogController {
      */
     @GetMapping("/userLike")
     public ResultUtil<List<BlogDTO>>  userLike(@RequestParam("userId")  Long userId,
+                                               @RequestParam(value = "title",required = false) String title,
                                                @RequestParam("currentPage") Integer currentPage,
                                                @RequestParam("pageSize") Integer pageSize){
-        return blogService.getBlogLike(userId, currentPage, pageSize);
+        return blogService.getBlogLike(userId, title,currentPage, pageSize);
     }
 
     /**
@@ -446,9 +448,10 @@ public class BlogController {
      */
     @GetMapping("/userStar")
     public ResultUtil<List<BlogDTO>>  userStar(@RequestParam("userId")  Long userId,
+                                               @RequestParam(value = "title",required = false ) String title,
                                                @RequestParam("currentPage") Integer currentPage,
                                                @RequestParam("pageSize") Integer pageSize){
-        return blogService.getBlogStar(userId, currentPage, pageSize);
+        return blogService.getBlogStar(userId, title,currentPage, pageSize);
     }
 }
 

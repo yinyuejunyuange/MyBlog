@@ -79,7 +79,7 @@ public class CommentController {
     @DeleteMapping("/delete/{commentId}")
     public ResultUtil<String> deleteComment(
             @PathVariable String commentId,
-            LoginUser loginUser) {
+            @RequestUser LoginUser loginUser) {
 
         return commentService.deleteComment(ParamTypeUtil.toLong(commentId), loginUser);
     }

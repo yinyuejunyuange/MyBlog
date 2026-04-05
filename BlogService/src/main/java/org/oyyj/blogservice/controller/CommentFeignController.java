@@ -63,7 +63,7 @@ public class CommentFeignController {
      * 异步填写攻击性判断
      * @param commentToxicDTO
      */
-    @PostMapping("/toxicJudgement")
+    @PutMapping("/toxicJudgement")
     @Async
     void toxicJudgement(@RequestBody CommentToxicDTO commentToxicDTO){
         if(commentToxicDTO == null){
@@ -71,7 +71,7 @@ public class CommentFeignController {
         }
         String mulType ;
         if(commentToxicDTO.getTopicList() != null && !commentToxicDTO.getTopicList().isEmpty()){
-            mulType = String.join(commentToxicDTO.getTopicList(), ",");
+            mulType = String.join(",", commentToxicDTO.getTopicList());
         }else{
             mulType = "";
         }

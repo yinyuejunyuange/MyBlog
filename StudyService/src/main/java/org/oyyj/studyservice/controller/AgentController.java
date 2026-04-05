@@ -207,6 +207,18 @@ public class AgentController {
         return ResultUtil.success(true);
     }
 
+    /**
+     * 获取AI评价评论是否正确
+     */
+    @PutMapping("/comment/isToxic")
+    public ResultUtil<Boolean> isToxic(
+            @RequestParam("type")Integer type,
+            @RequestParam("id")Long id,
+            @RequestParam("comment")String comment ){
+        Boolean commentToxic = chatMessageService.isCommentToxic(type, id, comment);
+        return  ResultUtil.success(commentToxic);
+    }
+
 
 
 }

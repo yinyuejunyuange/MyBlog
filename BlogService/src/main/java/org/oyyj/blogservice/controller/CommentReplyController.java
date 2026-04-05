@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import lombok.extern.slf4j.Slf4j;
 import org.oyyj.blogservice.dto.ReadCommentDTO;
 import org.oyyj.blogservice.dto.ReadReplyDTO;
+import org.oyyj.blogservice.feign.ChatFeign;
+import org.oyyj.blogservice.feign.StudyFeign;
 import org.oyyj.blogservice.feign.UserFeign;
 import org.oyyj.blogservice.pojo.Comment;
 import org.oyyj.blogservice.pojo.Reply;
@@ -44,6 +46,8 @@ public class CommentReplyController {
     private PyApiUtil pyApiUtil;
     @Autowired
     private IUserBehaviorService iUserBehaviorService;
+    @Autowired
+    private StudyFeign studyFeign;
 
 
     /**
@@ -80,12 +84,13 @@ public class CommentReplyController {
 
         boolean save = commentService.save(build);
         if(save){
-            // 增加博客的评论数
-            pyApiUtil.getCommentToxicPredict(context,build.getId(),1);
+//            // 增加博客的评论数
+//            pyApiUtil.getCommentToxicPredict(context,build.getId(),1);
             blogService.blogComment(blogId,loginUser);
             CompletableFuture.runAsync(() -> {
                 try {
                     iUserBehaviorService.userBehaviorBlog(loginUser.getUserId(),blogId, BehaviorEnum.COLLECT);
+                    studyFeign.commentIsToxic(0,build.getId(),build.getContext());
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -154,6 +159,7 @@ public class CommentReplyController {
                 try {
                     Comment byId = commentService.getById(commentId);
                     iUserBehaviorService.userBehaviorBlog(loginUser.getUserId(),byId.getBlogId(), BehaviorEnum.COLLECT);
+                    studyFeign.commentIsToxic(1,build.getId(),build.getContext());
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }

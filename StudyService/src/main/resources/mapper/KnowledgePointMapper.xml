@@ -17,8 +17,11 @@
     <select id="selectKnowledgeBaseRelationByKnowledgeBaseId" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"/>
         FROM knowledge_base_relation
-        WHERE knowledge_base_id = #{knowledgeBaseId}
-        AND is_delete = 0
+        WHERE
+            is_delete = 0
+        <if test="knowledgeBaseId != null and knowledgeBaseId != '' ">
+            AND knowledge_base_id = #{knowledgeBaseId}
+        </if>
     </select>
     <select id="selectKnowledgeBaseRelationByKnowledgePointId"
             resultType="org.oyyj.studyservice.dto.knowledgePoint.KnowledgeBaseRelationDTO">

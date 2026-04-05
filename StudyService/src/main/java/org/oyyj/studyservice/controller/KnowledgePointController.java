@@ -90,7 +90,7 @@ public class KnowledgePointController {
      * @return
      */
     @GetMapping("/getContent")
-    public ResultUtil<List<KnowledgePointDTO>> listAll(@RequestParam("id") String id){
+    public ResultUtil<List<KnowledgePointDTO>> listAll(@RequestParam(value = "id",required = false) String id){
         return knowledgePointService.listAllKnowledgePoint(ParamTypeUtil.toLong(id));
     }
 

@@ -25,6 +25,7 @@ import org.oyyj.blogservice.dto.*;
 import org.oyyj.blogservice.feign.ChatFeign;
 import org.oyyj.blogservice.feign.UserFeign;
 import org.oyyj.blogservice.mapper.BlogMapper;
+import org.oyyj.blogservice.mapper.CommentMapper;
 import org.oyyj.blogservice.mapper.TypeTableMapper;
 import org.oyyj.blogservice.mapper.UserBehaviorMapper;
 import org.oyyj.blogservice.pojo.*;
@@ -157,6 +158,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     @Autowired
     private ChatFeign chatFeign;
+    @Autowired
+    private CommentMapper commentMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -385,6 +388,10 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     // 从缓存中获取数据 并使用redisson处理缓存击穿
     public ReadDTO getBlogInfo( Long id, LoginUser loginUser) {
         String countKey = RedisPrefix.BLOG_INGO + id;
+        Long commentNum = commentMapper.selectCount(Wrappers.<Comment>lambdaQuery()
+                .eq(Comment::getBlogId, id)
+                .ne(Comment::getIsVisible, YesOrNoEnum.YES.getCode())
+        );
         // 1. 先查缓存
         Map<String, String> hashWithString = redisUtil.getHashWithString(countKey);
         if (!hashWithString.isEmpty()) {
@@ -395,6 +402,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 ReadDTO bean = ObjectMapUtil.toBean(ReadDTO.class, hashWithString);
                 Integer integer = redisUtil.getInteger(RedisPrefix.BLOG_READ_COUNT + id);
                 bean.setWatch(bean.getWatch()+integer);
+                bean.setCommentNum(String.valueOf(commentNum));
                 return bean;
             } catch (Exception e) {
                 log.warn("反序列化博客缓存失败，blogId: {}", id + ":" + e);
@@ -409,6 +417,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         if( viewTimes == null || viewTimes < 1000){
             // 查询数据库
             result = getReadDTO( id, loginUser);
+            result.setCommentNum(String.valueOf(commentNum));
             if(viewTimes == null){
                 redisUtil.set(RedisPrefix.BLOG_VIEW_COUNT + id, 1,30,TimeUnit.MINUTES); // 初始化 --数据量不大允许重复 数据一致要求不高
             }else{
@@ -416,7 +425,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             }
             return result;
         }
-        return loadHotBlog(id,loginUser,countKey);
+        ReadDTO readDTO = loadHotBlog(id, loginUser, countKey);
+        readDTO.setCommentNum(String.valueOf(commentNum));
+        return readDTO;
     }
 
     /**
@@ -1512,10 +1523,11 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     }
 
     @Override
-    public ResultUtil<List<BlogDTO>> getBlogWork(Long userId, Integer currentPage, Integer pageSize) {
+    public ResultUtil<List<BlogDTO>> getBlogWork(Long userId, String blogName,Integer currentPage, Integer pageSize) {
         Page<Blog> page = new Page<>(currentPage, pageSize);
         List<Blog> list = list(page, Wrappers.<Blog>lambdaQuery()
                 .eq(Blog::getUserId, userId)
+                .like(Strings.isNotBlank(blogName),Blog::getTitle,blogName)
                 .orderByDesc(Blog::getCreateTime)
         );
         Map<Long, String> imageInIds = userFeign.getImageInIds(Collections.singletonList(String.valueOf(userId)));
@@ -1529,13 +1541,14 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         return ResultUtil.success(result);
     }
     @Override
-    public ResultUtil<List<BlogDTO>> getBlogLike(Long userId, Integer currentPage, Integer pageSize) {
+    public ResultUtil<List<BlogDTO>> getBlogLike(Long userId,String title, Integer currentPage, Integer pageSize) {
         List<Long> longs = userFeign.userLike(userId, currentPage, pageSize);
         if(longs == null || longs.isEmpty()){
             return ResultUtil.success(List.of());
         }
         List<Blog> list = list( Wrappers.<Blog>lambdaQuery()
                 .in(Blog::getId, longs)
+                .like(Strings.isNotBlank(title), Blog::getTitle,title)
         );
         Map<Long, String> imageInIds = userFeign.getImageInIds(Collections.singletonList(String.valueOf(userId)));
         List<Long> blogIds = list.stream().map(Blog::getId).toList();
@@ -1549,13 +1562,14 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     }
 
     @Override
-    public ResultUtil<List<BlogDTO>> getBlogStar(Long userId, Integer currentPage, Integer pageSize) {
+    public ResultUtil<List<BlogDTO>> getBlogStar(Long userId, String title, Integer currentPage, Integer pageSize) {
         List<Long> longs = userFeign.userStar(userId, currentPage, pageSize);
         if(longs == null || longs.isEmpty()){
             return ResultUtil.success(List.of());
         }
         List<Blog> list = list( Wrappers.<Blog>lambdaQuery()
                 .in(Blog::getId, longs)
+                .like(Strings.isNotBlank(title),Blog::getTitle,title)
         );
         Map<Long, String> imageInIds = userFeign.getImageInIds(Collections.singletonList(String.valueOf(userId)));
         List<Long> blogIds = list.stream().map(Blog::getId).toList();
@@ -1916,7 +1930,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             }
             comRepForUserDTO.setToxicRate(new BigDecimal(toxicCount).divide(
                     new BigDecimal(totalComRep), 2, RoundingMode.HALF_UP
-            ));
+            ).multiply(BigDecimal.valueOf(100)));
             return comRepForUserDTO;
         }).toList();
     }

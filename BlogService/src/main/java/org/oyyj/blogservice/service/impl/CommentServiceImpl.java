@@ -56,7 +56,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     @Autowired
     private TransactionTemplate transactionTemplate;
 
-    private final Integer pageSize = 20; // 每次查询的数量
+    private final Integer pageSize = 10; // 每次查询的数量
     @Autowired
     private ChatFeign chatFeign;
 
@@ -65,7 +65,9 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     public CommentResultVO getBlogComment(String blogId, LoginUser loginUser , Date lastTime, String lastId) {
         CommentResultVO resultVO = new CommentResultVO();
         LambdaQueryWrapper<Comment> last = Wrappers.<Comment>lambdaQuery()
-                .eq(Comment::getBlogId, Long.valueOf(blogId));
+                .eq(Comment::getBlogId, Long.valueOf(blogId))
+                .ne(Comment::getIsVisible, YesOrNoEnum.YES.getCode());
+                ;
         if(Strings.isNotBlank(lastId) && lastTime!= null){
             last.lt(Comment::getUpdateTime, lastTime)
                     .or(o->o
@@ -73,6 +75,9 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
                             .lt(Comment::getId, Long.valueOf(lastId))
                     )
                     .orderByDesc(Comment::getUpdateTime)
+                    .orderByDesc(Comment::getId);
+        }else{
+            last.orderByDesc(Comment::getUpdateTime)
                     .orderByDesc(Comment::getId);
         }
         last.last("limit " + pageSize);
@@ -92,12 +97,13 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         }
         Map<Long, List<Reply>> commentIdMaps = replyMapper.selectList(Wrappers.<Reply>lambdaQuery()
                 .in(Reply::getCommentId, commentIds)
+                .ne(Reply::getIsVisible, YesOrNoEnum.YES.getCode())
         ).stream().collect(Collectors.groupingBy(Reply::getCommentId));
         List<Comment> sortList = list.stream()
                 .sorted(Comparator.comparing(Comment::getUpdateTime).reversed())
                 .toList(); // 按 updateTime 倒序
-        resultVO.setLastTime(list.getLast().getUpdateTime());
-        resultVO.setLastId(String.valueOf(list.getLast().getId()));
+        resultVO.setLastTime(sortList.getLast().getUpdateTime());
+        resultVO.setLastId(String.valueOf(sortList.getLast().getId()));
         List<ReadCommentDTO> readCommentDTOS;
         if (YesOrNoEnum.YES.getCode().equals(loginUser.getIsUserLogin())) {
             readCommentDTOS =  sortList.stream()

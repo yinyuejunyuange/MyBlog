@@ -75,6 +75,8 @@ public class KnowledgePointCommentServiceImpl
         comment.setKnowledgeId(knowledgeId);
         comment.setContent(content);
         comment.setCreateBy(loginUser.getUserName());
+        comment.setCreateTime(new Date());
+        comment.setUpdateTime(new Date());
         comment.setUserName(loginUser.getUserName());
         comment.setUserId(loginUser.getUserId());
 
@@ -98,6 +100,8 @@ public class KnowledgePointCommentServiceImpl
         reply.setReplyUserId(replyUserId);
         reply.setContent(content);
         reply.setCreateBy(loginUser.getUserName());
+        reply.setCreateTime(new Date());
+        reply.setUpdateTime(new Date());
         reply.setUserName(loginUser.getUserName());
         reply.setUserId(loginUser.getUserId());
         reply.setReplyUserName(replyUserName);
@@ -113,6 +117,7 @@ public class KnowledgePointCommentServiceImpl
                 .isNull(KnowledgePointComment::getParentId)
                 .lt( lastCommentId!=null, KnowledgePointComment::getId, lastCommentId)
                 .orderByDesc(KnowledgePointComment::getCreateTime)
+                .orderByDesc(KnowledgePointComment::getId)
         );
 
         if(list.isEmpty()){

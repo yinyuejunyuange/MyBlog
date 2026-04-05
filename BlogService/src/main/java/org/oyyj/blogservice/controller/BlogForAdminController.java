@@ -373,22 +373,30 @@ public class BlogForAdminController {
                     .distinct()
                     .collect(Collectors.toList());
 
-            // 2. 批量查询所有 Comment
-            Map<Long, Comment> commentMap = commentService.listByIds(commentIds)
-                    .stream()
-                    .collect(Collectors.toMap(Comment::getId, Function.identity()));
-
+            Map<Long, Comment> commentMap;
+            if(!commentIds.isEmpty()){
+                // 2. 批量查询所有 Comment
+             commentMap = commentService.listByIds(commentIds)
+                        .stream()
+                        .collect(Collectors.toMap(Comment::getId, Function.identity()));
+            }else{
+                commentMap = Map.of();
+            }
             // 3. 提取所有 blogId（去重）
             List<Long> blogIds = commentMap.values().stream()
                     .map(Comment::getBlogId)
                     .distinct()
                     .collect(Collectors.toList());
 
-            // 4. 批量查询所有 Blog
-            Map<Long, Blog> blogMap = blogService.listByIds(blogIds)
-                    .stream()
-                    .collect(Collectors.toMap(Blog::getId, Function.identity()));
-
+            Map<Long, Blog> blogMap;
+            if(!blogIds.isEmpty()){
+                // 4. 批量查询所有 Blog
+             blogMap = blogService.listByIds(blogIds)
+                        .stream()
+                        .collect(Collectors.toMap(Blog::getId, Function.identity()));
+            } else {
+                blogMap = Map.of();
+            }
             // 5. 遍历 replies 组装 VO，跳过缺失关联的数据
             List<ReplyAdminVO> list = replies.stream()
                     .map(reply -> {

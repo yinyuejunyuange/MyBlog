@@ -136,18 +136,19 @@ public class ReplyServiceImpl extends ServiceImpl<ReplyMapper, Reply> implements
     @Override
     public ReplyResultVO getReply(Long commentId, LoginUser loginUser, String lastId, Date lastTime) {
         LambdaQueryWrapper<Reply> wrapper = Wrappers.<Reply>lambdaQuery()
-                .eq(Reply::getCommentId, commentId);
+                .eq(Reply::getCommentId, commentId)
+                .ne(Reply::getIsVisible, YesOrNoEnum.YES.getCode());
         if (lastTime != null && lastId != null) {
             wrapper.and(w -> w
-                    .lt(Reply::getCreateTime, lastTime)
+                    .gt(Reply::getCreateTime, lastTime)
                     .or(o -> o
                             .eq(Reply::getCreateTime, lastTime)
-                            .lt(Reply::getId, lastId)
+                            .gt(Reply::getId, lastId)
                     )
             );
         }
-        wrapper.orderByDesc(Reply::getCreateTime)
-                .orderByDesc(Reply::getId)
+        wrapper.orderByAsc(Reply::getCreateTime)
+                .orderByAsc(Reply::getId)
                 .last("limit " + pageSize);
 
         List<Reply> list = list(wrapper);
@@ -159,7 +160,7 @@ public class ReplyServiceImpl extends ServiceImpl<ReplyMapper, Reply> implements
         // 通过list 获取回复的集合
         List<Long> replyIds = list.stream().map(Reply::getId).toList();
         List<Long> userLikeComments ;
-        List<Reply> sortList = list.stream().sorted(Comparator.comparing(Reply::getUpdateTime).reversed()).toList();
+        List<Reply> sortList = list.stream().sorted(Comparator.comparing(Reply::getUpdateTime)).toList();
         List<ReadReplyDTO> readReplyDTOList = new ArrayList<>();
         replyResultVO.setLastId(String.valueOf(sortList.getLast().getId()));
         replyResultVO.setLastTime(sortList.getLast().getUpdateTime());
