@@ -62,6 +62,11 @@ public class CommentReplyController {
     public ResultUtil<Long> writeComment(@RequestParam("blogId")Long blogId,
                              @RequestParam("context")String context,
                              @RequestUser() LoginUser loginUser){
+        Boolean userFreeze = userFeign.isUserFreeze(loginUser.getUserId());
+
+        if(userFreeze){
+            return ResultUtil.fail("用户已冻结");
+        }
         Date date = new Date();
         Map<Long, String> imageInIds = userFeign.getImageInIds(Collections.singletonList(String.valueOf(loginUser.getUserId())));
         String userImage = null;
@@ -89,7 +94,7 @@ public class CommentReplyController {
             blogService.blogComment(blogId,loginUser);
             CompletableFuture.runAsync(() -> {
                 try {
-                    iUserBehaviorService.userBehaviorBlog(loginUser.getUserId(),blogId, BehaviorEnum.COLLECT);
+                    iUserBehaviorService.userBehaviorBlog(blogId, loginUser.getUserId(),BehaviorEnum.COMMENT);
                     studyFeign.commentIsToxic(0,build.getId(),build.getContext());
                 } catch (Exception e) {
                     throw new RuntimeException(e);
@@ -122,8 +127,12 @@ public class CommentReplyController {
                              @RequestParam(value = "repliedUserId", required = false) Long repliedUserId,
                              @RequestParam("commentId")Long commentId,
                              @RequestParam("context")String context){
+        Boolean userFreeze = userFeign.isUserFreeze(loginUser.getUserId());
+
+        if(userFreeze){
+            return ResultUtil.fail("用户已冻结");
+        }
         Date date=new Date();
-        // todo 修改成从一个用户处获取ID
         List<String> userIds = new ArrayList<>();
         userIds.add(String.valueOf(loginUser.getUserId()));
         if(repliedUserId != null){
@@ -158,7 +167,7 @@ public class CommentReplyController {
             CompletableFuture.runAsync(() -> {
                 try {
                     Comment byId = commentService.getById(commentId);
-                    iUserBehaviorService.userBehaviorBlog(loginUser.getUserId(),byId.getBlogId(), BehaviorEnum.COLLECT);
+                    iUserBehaviorService.userBehaviorBlog(byId.getBlogId(),loginUser.getUserId(), BehaviorEnum.COMMENT);
                     studyFeign.commentIsToxic(1,build.getId(),build.getContext());
                 } catch (Exception e) {
                     throw new RuntimeException(e);

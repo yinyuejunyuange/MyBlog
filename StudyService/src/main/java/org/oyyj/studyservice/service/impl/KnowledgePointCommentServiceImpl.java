@@ -31,7 +31,7 @@ public class KnowledgePointCommentServiceImpl
         extends ServiceImpl<KnowledgePointCommentMapper, KnowledgePointComment>
         implements KnowledgePointCommentService {
 
-    private final Integer pageSize = 20;
+    private final Integer pageSize = 10;
 
     private final Integer replyPageSize = 10;
 
@@ -115,9 +115,11 @@ public class KnowledgePointCommentServiceImpl
         List<KnowledgePointComment> list = list(Wrappers.<KnowledgePointComment>lambdaQuery()
                 .eq(KnowledgePointComment::getKnowledgeId, knowledgePointId)
                 .isNull(KnowledgePointComment::getParentId)
+                .eq(KnowledgePointComment::getIsVisible,0)
                 .lt( lastCommentId!=null, KnowledgePointComment::getId, lastCommentId)
                 .orderByDesc(KnowledgePointComment::getCreateTime)
                 .orderByDesc(KnowledgePointComment::getId)
+                .last("limit " + pageSize)
         );
 
         if(list.isEmpty()){

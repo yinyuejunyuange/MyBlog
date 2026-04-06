@@ -825,7 +825,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     @Override
     public List<BlogDTO> getHomeBlogs(LoginUser loginUser) {
         List<String> blogIds = recommendUserBlogs(loginUser.getUserId());
-        List<Long> ids = blogIds.stream().map(Long::valueOf).toList();
+        List<Long> allowIds = list(Wrappers.<Blog>lambdaQuery()
+                .eq(Blog::getStatus, 2)
+                .select(Blog::getId)
+        ).stream().map(Blog::getId).toList();
+        List<Long> ids = new ArrayList<>(blogIds.stream().map(Long::valueOf).toList());
+        ids.retainAll(allowIds); // 获取两者相同的数据 //排除错误的数据
         if(ids.isEmpty()){
             return Collections.emptyList();
         }
@@ -1330,16 +1335,16 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         }
         if(Objects.nonNull(status)&&!status.isEmpty()){
             switch(status){
-                case "保存中":
+                case "1":
                     lqw.eq(Blog::getStatus,1);
                     break;
-                case "发布":
+                case "2":
                     lqw.eq(Blog::getStatus,2);
                     break;
-                case "审核中":
+                case "3":
                     lqw.eq(Blog::getStatus,3);
                     break;
-                case "禁止查看":
+                case "4":
                     lqw.eq(Blog::getStatus,4);
                     break;
                 default:
@@ -1478,9 +1483,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         }
         List<Long> blogIds = blogSearchVOS.parallelStream().map(BlogSearchVO::getId).toList();
         Map<Long, BlogSearchVO> blogSearchVOMap = blogSearchVOS.stream().collect(Collectors.toMap(BlogSearchVO::getId, Function.identity()));
-
         List<Blog> list = list(Wrappers.<Blog>lambdaQuery()
                 .in(Blog::getId, blogIds)
+                .eq(Blog::getStatus, 2)
         );
 
         List<String> userIds = list.stream().map(Blog::getUserId)
@@ -1548,6 +1553,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         }
         List<Blog> list = list( Wrappers.<Blog>lambdaQuery()
                 .in(Blog::getId, longs)
+                .eq(Blog::getStatus,2) // 只查询再发布中状态的数据
                 .like(Strings.isNotBlank(title), Blog::getTitle,title)
         );
         Map<Long, String> imageInIds = userFeign.getImageInIds(Collections.singletonList(String.valueOf(userId)));
@@ -1569,6 +1575,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         }
         List<Blog> list = list( Wrappers.<Blog>lambdaQuery()
                 .in(Blog::getId, longs)
+                .eq(Blog::getStatus,2) // 只能获取再发布中的博客信息
                 .like(Strings.isNotBlank(title),Blog::getTitle,title)
         );
         Map<Long, String> imageInIds = userFeign.getImageInIds(Collections.singletonList(String.valueOf(userId)));
@@ -1913,14 +1920,14 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 List<Comment> commentsByUser = commentMap.get(item);
                 totalComRep += commentsByUser.size();
                 comRepForUserDTO.setCommentCount(commentsByUser.size());
-                List<Comment> toxicList = commentsByUser.stream().filter(info -> YesOrNoEnum.YES.getCode().equals(info.getIsToxic())).toList();
+                List<Comment> toxicList = commentsByUser.stream().filter(info -> (YesOrNoEnum.YES.getCode().equals(info.getIsToxic())) || (Objects.equals(2,info.getIsToxic()))).toList();
                 toxicCount += toxicList.size();
             }
             if (replyMap.containsKey(item)) {
                 List<Reply> replyByUser = replyMap.get(item);
                 totalComRep += replyByUser.size();
                 comRepForUserDTO.setReplyCount(replyByUser.size());
-                List<Reply> toxicList = replyByUser.stream().filter(info -> YesOrNoEnum.YES.getCode().equals(info.getIsToxic())).toList();
+                List<Reply> toxicList = replyByUser.stream().filter(info -> (YesOrNoEnum.YES.getCode().equals(info.getIsToxic())) || (Objects.equals(2,info.getIsToxic()))).toList();
                 toxicCount += toxicList.size();
             }
             comRepForUserDTO.setToxicCount(toxicCount);

@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.FileUtils;
 import org.oyyj.mycommon.annotation.RequestUser;
 import org.oyyj.mycommonbase.common.auth.LoginUser;
+import org.oyyj.mycommonbase.common.commonEnum.YesOrNoEnum;
 import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.userservice.dto.*;
 import org.oyyj.userservice.Feign.AnnouncementFeign;
@@ -85,6 +86,13 @@ public class UserController {
 
         return ResultUtil.failMap("存储失败");
 
+    }
+
+    @GetMapping("/isUserFreeze")
+    public Boolean isUserFreeze(@RequestParam("userId") Long userId){
+        User one = userService.getOne(Wrappers.<User>lambdaQuery()
+                .eq(User::getId, userId));
+        return YesOrNoEnum.YES.getCode().equals(one.getIsFreeze());
     }
 
 
@@ -474,8 +482,8 @@ public class UserController {
 
     // 获取用户关注的博客作者
     @GetMapping("/getUserStarAuthor")
-    public Map<String,Object> getUserStarAuthor(@RequestParam("currentPage")Integer currentPage , @RequestParam("userId") Long userId, @RequestUser LoginUser user){
-        PageDTO<BlogUserInfoDTO> userStarBlogAuthor = userService.getUserStarBlogAuthor(String.valueOf(userId), currentPage);
+    public Map<String,Object> getUserStarAuthor(@RequestParam("currentPage")Integer currentPage , @RequestParam("title")String title, @RequestParam("userId") Long userId, @RequestUser LoginUser user){
+        PageDTO<BlogUserInfoDTO> userStarBlogAuthor = userService.getUserStarBlogAuthor(String.valueOf(userId), title ,currentPage);
         if(Objects.isNull(userStarBlogAuthor)){
             return ResultUtil.successMap(null,"此用户没有关注的对象");
         }
@@ -570,6 +578,14 @@ public class UserController {
     @PutMapping("/updateUserInfo")
     public ResultUtil<Boolean> updateUserInfo(@RequestBody UserItemInfoDTO  userItemInfoDTO, @RequestUser(required = false) LoginUser loginUser){
         return userService.updateUserInfo(userItemInfoDTO,loginUser);
+    }
+
+    /**
+     * 获取热门作者
+     */
+    @GetMapping("/hotAuthorList")
+    public ResultUtil<List<UserInfoVO>> hotAuthorList(@RequestUser(required = false) LoginUser loginUser){
+        return userService.hotAuthorList(loginUser);
     }
 
 }

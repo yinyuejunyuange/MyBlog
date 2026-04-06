@@ -2,6 +2,7 @@ package org.oyyj.blogservice.controller;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import org.oyyj.blogservice.dto.BlogDTO;
+import org.oyyj.blogservice.mapper.BlogMapper;
 import org.oyyj.blogservice.pojo.Blog;
 import org.oyyj.blogservice.pojo.Comment;
 import org.oyyj.blogservice.pojo.Reply;
@@ -29,11 +30,13 @@ public class BlogFeignController {
     private final IBlogService iBlogService;
     private final ICommentService iCommentService;
     private final IReplyService iReplyService;
+    private final BlogMapper blogMapper;
 
-    public BlogFeignController(IBlogService iBlogService, ICommentService iCommentService, IReplyService iReplyService) {
+    public BlogFeignController(IBlogService iBlogService, ICommentService iCommentService, IReplyService iReplyService, BlogMapper blogMapper) {
         this.iBlogService = iBlogService;
         this.iCommentService = iCommentService;
         this.iReplyService = iReplyService;
+        this.blogMapper = blogMapper;
     }
 
     /**
@@ -150,5 +153,8 @@ public class BlogFeignController {
         }).toList());
         return result;
     }
-
+    @GetMapping("/getHotAuthor")
+    public List<Long> getHotAuthor(Long userId){
+        return blogMapper.selectHotAuthor(userId);
+    }
 }

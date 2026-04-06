@@ -386,10 +386,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     }
 
     @Override
-    public PageDTO<BlogUserInfoDTO> getUserStarBlogAuthor(String userId, int current) {
+    public PageDTO<BlogUserInfoDTO> getUserStarBlogAuthor(String userId, String title, int current) {
 
         IPage<UserAttention> userAttentionIPage=new Page<>(current,PAGE_SIZE);
 
+        List<User> idList = list(Wrappers.<User>lambdaQuery()
+                .like(User::getName, title)
+                .select(User::getId)
+        );
+
+        if(idList.isEmpty()){
+            PageDTO<BlogUserInfoDTO> blogUserInfoDTOPageDTO=new PageDTO<>();
+            blogUserInfoDTOPageDTO.setPageList(List.of());
+            blogUserInfoDTOPageDTO.setTotal(0);
+            blogUserInfoDTOPageDTO.setPageNow(current);
+            blogUserInfoDTOPageDTO.setPageSize(PAGE_SIZE);
+        }
         // 查询用户关注的博客作者
         List<UserAttention> userAttentions = userAttentionService.list(userAttentionIPage, Wrappers.<UserAttention>lambdaQuery()
                 .eq(UserAttention::getUserId, Long.valueOf(userId))
@@ -797,6 +809,36 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                 .set(User::getImageUrl, userItemInfoDTO.getImageHead())
                 .set(User::getIntroduce, userItemInfoDTO.getIntroduction())
         ));
+    }
+
+    @Override
+    public ResultUtil<List<UserInfoVO>> hotAuthorList(LoginUser loginUser) {
+        Long userId = null;
+        if(YesOrNoEnum.YES.getCode().equals( loginUser.getIsUserLogin())){
+            userId = loginUser.getUserId();
+        }
+        List<Long> hotAuthor = blogFeign.getHotAuthor(userId);
+        if(hotAuthor == null || hotAuthor.isEmpty()){
+            return ResultUtil.fail("查询失败");
+        }
+
+        List<User> list = list(Wrappers.<User>lambdaQuery()
+                .in(User::getId, hotAuthor)
+        );
+        List<UserInfoVO> result = list.stream().map(one -> {
+            UserInfoVO userInfoVO = new UserInfoVO();
+            userInfoVO.setUserName(one.getName());
+            userInfoVO.setUserId(String.valueOf(one.getId()));
+            userInfoVO.setHead(one.getImageUrl());
+            userInfoVO.setIntroduce(Strings.isNotBlank(one.getIntroduce()) ? one.getIntroduce() : "这个人很神秘 什么都没留下...");
+            UserBlogInfoDTO userBlogInfo = blogFeign.getUserBlogInfo(one.getId());
+            userInfoVO.setLikes(String.valueOf(userBlogInfo.getLikes()));
+            userInfoVO.setBlogs(String.valueOf(userBlogInfo.getBlogs()));
+            userInfoVO.setStar(String.valueOf(userBlogInfo.getStar()));
+            return userInfoVO;
+        }).toList();
+
+        return  ResultUtil.success(result);
     }
 
 

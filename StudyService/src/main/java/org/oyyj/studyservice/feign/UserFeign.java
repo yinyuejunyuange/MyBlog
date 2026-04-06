@@ -11,6 +11,9 @@ import java.util.Map;
 @FeignClient(value = "UserService")
 public interface UserFeign {
 
+    @GetMapping("/myBlog/user/isUserFreeze")
+    Boolean isUserFreeze(@RequestParam("userId")Long userId);
+
     @GetMapping("/myBlog/user/getUserName")
     Map<Long,String> getUserNameMap();
 

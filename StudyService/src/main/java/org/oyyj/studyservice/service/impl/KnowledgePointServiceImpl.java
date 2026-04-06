@@ -17,8 +17,10 @@ import org.oyyj.studyservice.dto.knowledgePoint.KnowledgeBaseRelationDTO;
 import org.oyyj.studyservice.dto.knowledgePoint.KnowledgePointDTO;
 import org.oyyj.studyservice.mapper.KnowledgeBaseMapper;
 import org.oyyj.studyservice.mapper.KnowledgePointMapper;
+import org.oyyj.studyservice.mapper.QuestionMapper;
 import org.oyyj.studyservice.pojo.KnowledgeBase;
 import org.oyyj.studyservice.pojo.KnowledgePoint;
+import org.oyyj.studyservice.pojo.Question;
 import org.oyyj.studyservice.service.KnowledgePointService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -38,6 +41,8 @@ public class KnowledgePointServiceImpl extends ServiceImpl<KnowledgePointMapper,
     private KnowledgeBaseMapper knowledgeBaseMapper;
 
     private final static ObjectMapper mapper = new ObjectMapper();
+    @Autowired
+    private QuestionMapper questionMapper;
 
     private KnowledgePointDTO entityToDTO(KnowledgePoint entity) {
         KnowledgePointDTO knowledgePointDTO = new KnowledgePointDTO();
@@ -159,10 +164,14 @@ public class KnowledgePointServiceImpl extends ServiceImpl<KnowledgePointMapper,
                 KnowledgePoint::getTitle,
                 KnowledgePoint::getLevel,
                 KnowledgePoint::getRecommendedAnswer,
+                KnowledgePoint::getRelatedQuestions,
                 KnowledgePoint::getType);
 
         Page<KnowledgePoint> pageInfo = new Page<>(page, pageSize);
-        List<KnowledgePointDTO> list = list(pageInfo, wrapper).stream().map(this::entityToDTO).toList();
+        List<KnowledgePoint> selectList = list(pageInfo, wrapper);
+        List<KnowledgePointDTO> list = selectList.stream().map(this::entityToDTO).toList();
+        List<Long> pointIds = selectList.stream().map(KnowledgePoint::getId).toList();
+
         Page<KnowledgePointDTO> result = new Page<>();
         result.setTotal(pageInfo.getTotal());
         result.setRecords(list);

@@ -1,5 +1,6 @@
 package org.oyyj.userservice.service;
 
+import cn.hutool.system.UserInfo;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -43,7 +44,7 @@ public interface IUserService extends IService<User> {
 
     Map<String,Object> getUserStarBlog(String userId,int current);
 
-    PageDTO<BlogUserInfoDTO> getUserStarBlogAuthor(String userId, int current);
+    PageDTO<BlogUserInfoDTO> getUserStarBlogAuthor(String userId, String title, int current);
 
     Map<String,Object> getUsersBlog(Long userId,int current);
 
@@ -138,5 +139,13 @@ public interface IUserService extends IService<User> {
      * @return
      */
     ResultUtil<Boolean> updateUserInfo(UserItemInfoDTO userItemInfoDTO,LoginUser loginUser);
+
+    /**
+     * 热门作者
+     *
+     * @param loginUser
+     * @return
+     */
+    ResultUtil<List<UserInfoVO>> hotAuthorList(LoginUser loginUser);
 
 }

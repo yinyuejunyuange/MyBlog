@@ -119,4 +119,20 @@
         LIMIT 12;
 
     </select>
+    <select id="selectHotAuthor" resultType="java.lang.Long">
+
+        SELECT
+        user_id
+        FROM blog
+        <where>
+            <if test="userId != null and userId != ''">
+                AND user_id != #{userId}
+            </if>
+        </where>
+        GROUP BY user_id
+        ORDER BY COUNT(id) DESC
+        LIMIT 10
+
+
+    </select>
 </mapper>

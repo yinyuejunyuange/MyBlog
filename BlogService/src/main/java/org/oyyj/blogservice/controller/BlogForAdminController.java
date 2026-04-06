@@ -147,8 +147,8 @@ public class BlogForAdminController {
     @GetMapping("/getCommentForAdmin")
     public ResultUtil<PageDTO<CommentAdminVO>> getCommentForAdmin(@RequestParam(value = "blogName",required = false) String blogName,
                                                       @RequestParam(value = "userName",required = false)String userName,
-                                                      @RequestParam(value = "startTime",required = false)  Date startTime,
-                                                      @RequestParam(value = "endTime",required = false)  Date endTime,
+                                                      @RequestParam(value = "startTime",required = false)@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)Date startTime,
+                                                      @RequestParam(value = "endTime",required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Date endTime,
                                                       @RequestParam(value = "isVisible",required = false)Integer isVisible,
                                                       @RequestParam(value = "currentPage",defaultValue = "1") Integer currentPage,
                                                       @RequestParam(value = "pageSize",defaultValue = "10")Integer pageSize) {

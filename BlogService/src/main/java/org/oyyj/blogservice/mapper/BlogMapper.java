@@ -73,4 +73,11 @@ public interface BlogMapper extends BaseMapper<Blog> {
      */
     List<Long> selectHotProjectBlog();
 
+
+    /**
+     * 获取热门作者
+     * @return
+     */
+    List<Long> selectHotAuthor(@Param("userId")Long userId);
+
 }

@@ -117,7 +117,7 @@ public class SearchHistoryServiceImpl extends ServiceImpl<SearchHistoryMapper, S
         // 3. 在这些用户的历史中，找出他们搜过的其他词（排除用户自己搜过的词），按出现次数排序
         List<SearchHistory> topByUserIdsOrderByCreatedAtDesc = baseMapper.findTopByUserIdsOrderByCreatedAtDesc(new ArrayList<>(candidateUserIds));
 
-        return topByUserIdsOrderByCreatedAtDesc.stream().map(SearchHistory::getQueryRaw).toList();
+        return topByUserIdsOrderByCreatedAtDesc.stream().map(SearchHistory::getQueryRaw).distinct().collect(Collectors.toList());
     }
 
     public List<String> recommendForHot(){
@@ -128,7 +128,7 @@ public class SearchHistoryServiceImpl extends ServiceImpl<SearchHistoryMapper, S
                 .in(!norms.isEmpty(), SearchHistory::getQueryNorm, norms)
                 .last("limit " + recommendLimit)
         );
-        return  list.stream().map(SearchHistory::getQueryRaw).toList();
+        return  list.stream().map(SearchHistory::getQueryRaw).distinct().toList();
     }
 
 

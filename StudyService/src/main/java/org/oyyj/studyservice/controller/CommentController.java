@@ -5,6 +5,7 @@ import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.studyservice.dto.knowledgePointComment.CommentAddDTO;
 import org.oyyj.studyservice.dto.knowledgePointComment.ReplyAddDTO;
+import org.oyyj.studyservice.feign.UserFeign;
 import org.oyyj.studyservice.pojo.KnowledgePointComment;
 import org.oyyj.studyservice.service.KnowledgePointCommentService;
 import org.oyyj.studyservice.utils.ParamTypeUtil;
@@ -20,9 +21,17 @@ public class CommentController {
     @Autowired
     private KnowledgePointCommentService commentService;
 
+    @Autowired
+    private UserFeign userFeign;
 
     @PostMapping("/add")
     public ResultUtil<String> addComment(@RequestBody CommentAddDTO comment, @RequestUser LoginUser loginUser) {
+
+        Boolean userFreeze = userFeign.isUserFreeze(loginUser.getUserId());
+
+        if(userFreeze){
+            return ResultUtil.fail("用户已冻结");
+        }
 
         boolean success = commentService.addComment(ParamTypeUtil.toLong(comment.getKnowledgeId()),
                 comment.getContent(), loginUser);
@@ -37,6 +46,12 @@ public class CommentController {
     public ResultUtil<String> addReply(
             @RequestBody ReplyAddDTO comment,
             @RequestUser LoginUser loginUser) {
+
+        Boolean userFreeze = userFeign.isUserFreeze(loginUser.getUserId());
+
+        if(userFreeze){
+            return ResultUtil.fail("用户已冻结");
+        }
 
         boolean success = commentService.addReply(ParamTypeUtil.toLong(comment.getKnowledgeId()),
                 ParamTypeUtil.toLong(comment.getRootId()),

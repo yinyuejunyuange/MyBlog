@@ -83,10 +83,17 @@ public class BlogController {
 
     @Autowired
     private ISearchHistoryService searchService;
+    @Autowired
+    private UserFeign userFeign;
 
     @PostMapping("/write")
     public ResultUtil<String> writeBlog(@RequestBody BlogDTO blogDTO ,@RequestUser LoginUser loginUser ) {
 
+        Boolean userFreeze = userFeign.isUserFreeze(loginUser.getUserId());
+
+        if(userFreeze){
+            return ResultUtil.fail("用户已冻结");
+        }
         Blog one = blogService.getOne(Wrappers.<Blog>lambdaQuery()
                 .eq(Blog::getTitle, blogDTO.getTitle())
         );

@@ -140,4 +140,12 @@ public interface BlogFeign {
     @GetMapping("/myBlog/blogFeign/toxicComRepResult")
     List<UserComRepVO> toxicComRepResult(@RequestParam("userId") Long userId);
 
+    /**
+     * 获取热门作者
+     * @param userId
+     * @return
+     */
+    @GetMapping("/myBlog/blogFeign/getHotAuthor")
+    List<Long> getHotAuthor(@RequestParam("userId") Long userId);
+
 }
