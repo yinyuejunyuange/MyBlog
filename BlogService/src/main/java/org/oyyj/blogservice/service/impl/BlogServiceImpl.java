@@ -1521,12 +1521,13 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     }
 
     @Override
-    public ResultUtil<List<BlogDTO>> getBlogWork(Long userId, String blogName,Integer currentPage, Integer pageSize) {
+    public ResultUtil<List<BlogDTO>> getBlogWork(Long userId, String blogName,Integer currentPage, Integer pageSize,LoginUser loginUser) {
         Page<Blog> page = new Page<>(currentPage, pageSize);
         List<Blog> list = list(page, Wrappers.<Blog>lambdaQuery()
                 .eq(Blog::getUserId, userId)
                 .like(Strings.isNotBlank(blogName),Blog::getTitle,blogName)
                 .orderByDesc(Blog::getCreateTime)
+                .eq(Objects.equals(loginUser.getIsUserLogin(),0) || !Objects.equals(loginUser.getUserId(),userId) ,Blog::getStatus,2)
         );
         Map<Long, String> imageInIds = userFeign.getImageInIds(Collections.singletonList(String.valueOf(userId)));
         List<Long> blogIds = list.stream().map(Blog::getId).toList();

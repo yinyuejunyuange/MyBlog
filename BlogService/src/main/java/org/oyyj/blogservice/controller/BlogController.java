@@ -440,8 +440,9 @@ public class BlogController {
     public ResultUtil<List<BlogDTO>>  userWork(@RequestParam("userId")  Long userId  ,
                                                @RequestParam(value = "title",required = false) String title,
                                                @RequestParam("currentPage") Integer currentPage,
-                                               @RequestParam("pageSize") Integer pageSize){
-        return blogService.getBlogWork(userId, title, currentPage, pageSize);
+                                               @RequestParam("pageSize") Integer pageSize,
+                                               @RequestUser(required = false ) LoginUser loginUser){
+        return blogService.getBlogWork(userId, title, currentPage, pageSize, loginUser);
     }
 
     /**

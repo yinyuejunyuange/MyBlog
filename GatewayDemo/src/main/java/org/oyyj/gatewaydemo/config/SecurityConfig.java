@@ -71,8 +71,14 @@ public class SecurityConfig {
                 // 允许匿名访问的url
                .authorizeExchange(exchanges -> exchanges
                        .pathMatchers(HttpMethod.OPTIONS).permitAll()  // 放行所有预检查的请求
-                       .pathMatchers( "/myBlog/blog/searchShow","/myBlog/blog/getHotImageBlogs","/myBlog/user/hotAuthorList","/myBlog/blog/getHotProjectBlogs","/myBlog/auth/login","/myBlog/blog/downFile**","/myBlog/auth/adminLogin","/myBlog/auth/register","/myBlog/blog/commendBlogByAuthor**","/myBlog/blog/getByKeyWord**","/myBlog/blog/read","/myBlog/user/getHead/**",
-                               "/myBlog/user/blog/file/download/**","/myBlog/blog/comment/getComment**","/myBlog/blog/testUploadFile","/myBlog/blog/testMergeFile","/myBlog/blog/testExistFile",
+                       .pathMatchers( "/myBlog/user/getUserInfo","/myBlog/knowledgeBase","/myBlog/point","/myBlog/knowledgeBase",
+                               "/myBlog/knowledgeBase/type","/myBlog/knowledgeBase/byId","/myBlog/knowledge/comment/list","myBlog/blog/userWork","myBlog/blog/userLike","myBlog/blog/userStar",
+                               "/myBlog/blog/searchShow","/myBlog/blog/getHotImageBlogs","/myBlog/user/hotAuthorList",
+                               "/myBlog/blog/getHotProjectBlogs","/myBlog/auth/login","/myBlog/blog/downFile**","/myBlog/point/getContent",
+                               "/myBlog/auth/adminLogin","/myBlog/auth/register","/myBlog/blog/commendBlogByAuthor**","/myBlog/blog/searchRelate",
+                               "/myBlog/blog/getByKeyWord**","/myBlog/blog/read","/myBlog/user/getHead/**","/myBlog/point/detail",
+                               "/myBlog/user/blog/file/download/**","/myBlog/blog/comment/getComment**","/myBlog/blog/testUploadFile",
+                               "/myBlog/blog/testMergeFile","/myBlog/blog/testExistFile","/myBlog/question/random","myBlog/knowledge/comment/list",
                                "/myBlog/user/verify/getCode","/myBlog/user/verify/checkCode","/myBlog/user/getHead/**","/myBlog/user/getUserName",
                                "/myBlog/blog/homeBlogs","/myBlog/user/blog/isUserStar**","/myBlog/user/blog/isUserKudos**",
                                "/myBlog/user/getImageInIds**","/myBlog/user/getNameInIds**","/myBlog/user/blog/getUserKudosReply**",

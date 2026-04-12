@@ -169,7 +169,7 @@ public interface IBlogService extends IService<Blog> {
      * @param userId
      * @return
      */
-    ResultUtil<List<BlogDTO>> getBlogWork(Long userId, String title, Integer currentPage, Integer pageSize);
+    ResultUtil<List<BlogDTO>> getBlogWork(Long userId, String title, Integer currentPage, Integer pageSize,LoginUser loginUser);
 
     /**
      * 用户所有点赞

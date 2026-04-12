@@ -96,7 +96,7 @@ public class QuestionController {
             @RequestParam(required = false, value = "knowledgeBaseId") String knowledgeBaseId,
             @RequestParam(required = false, value = "knowledgePointIds") List<String> knowledgePointIds,
             @RequestParam(defaultValue = "10") Integer count,
-            @RequestUser LoginUser loginUser) {
+            @RequestUser(required = false) LoginUser loginUser) {
         List<Long> pointIdStrIds = null;
         if(knowledgePointIds != null && !knowledgePointIds.isEmpty()) {
             pointIdStrIds = knowledgePointIds.stream().map(Long::valueOf).toList();
