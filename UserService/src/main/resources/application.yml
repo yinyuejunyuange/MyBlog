@@ -30,6 +30,11 @@ spring:
     password: OYyj0715
   application:
     name: UserService
+  rabbitmq:
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
 
 mybatis-plus:
   global-config:

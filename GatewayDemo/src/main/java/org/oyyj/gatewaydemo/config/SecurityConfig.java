@@ -5,7 +5,11 @@ import org.oyyj.gatewaydemo.filter.JWTAuthenticationTokenFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.authentication.UserDetailsRepositoryReactiveAuthenticationManager;
@@ -23,6 +27,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.context.NoOpServerSecurityContextRepository;
+import reactor.core.publisher.Mono;
+
+import java.nio.charset.StandardCharsets;
 
 /**
  * 密码加密的配置类
@@ -64,7 +71,7 @@ public class SecurityConfig {
                 // 允许匿名访问的url
                .authorizeExchange(exchanges -> exchanges
                        .pathMatchers(HttpMethod.OPTIONS).permitAll()  // 放行所有预检查的请求
-                       .pathMatchers("/myBlog/auth/login","/myBlog/blog/downFile**","/myBlog/auth/adminLogin","/myBlog/auth/register","/myBlog/blog/commendBlogByAuthor**","/myBlog/blog/getByKeyWord**","/myBlog/blog/read","/myBlog/user/getHead/**",
+                       .pathMatchers( "/myBlog/blog/searchShow","/myBlog/blog/getHotImageBlogs","/myBlog/user/hotAuthorList","/myBlog/blog/getHotProjectBlogs","/myBlog/auth/login","/myBlog/blog/downFile**","/myBlog/auth/adminLogin","/myBlog/auth/register","/myBlog/blog/commendBlogByAuthor**","/myBlog/blog/getByKeyWord**","/myBlog/blog/read","/myBlog/user/getHead/**",
                                "/myBlog/user/blog/file/download/**","/myBlog/blog/comment/getComment**","/myBlog/blog/testUploadFile","/myBlog/blog/testMergeFile","/myBlog/blog/testExistFile",
                                "/myBlog/user/verify/getCode","/myBlog/user/verify/checkCode","/myBlog/user/getHead/**","/myBlog/user/getUserName",
                                "/myBlog/blog/homeBlogs","/myBlog/user/blog/isUserStar**","/myBlog/user/blog/isUserKudos**",
@@ -77,12 +84,22 @@ public class SecurityConfig {
                        ).permitAll()
                        .anyExchange().authenticated()
                )
+               .exceptionHandling(exceptionHandling -> exceptionHandling
+                       .authenticationEntryPoint((exchange, ex) -> writeJsonResponse(exchange.getResponse(), 401, "请先登录"))
+                       .accessDeniedHandler((exchange, ex) -> writeJsonResponse(exchange.getResponse(), 400, "请求处理失败"))
+               )
                .addFilterAt(jwtAuthenticationTokenFilter, SecurityWebFiltersOrder.AUTHENTICATION)
                .build();
     }
 
-    // 过滤器链配置
 
+    private Mono<Void> writeJsonResponse(ServerHttpResponse response, int code, String message) {
+        response.setStatusCode(HttpStatus.OK);
+        response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        String body = "{\"code\":" + code + ",\"message\":\"" + message + "\",\"data\":null}";
+        DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
+        return response.writeWith(Mono.just(buffer));
+    }
 
 
 

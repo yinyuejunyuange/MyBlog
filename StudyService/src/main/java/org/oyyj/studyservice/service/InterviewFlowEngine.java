@@ -86,7 +86,7 @@ public class InterviewFlowEngine {
                 当前知识点：第 %d / %d 题，第 %d / %d 轮
                 知识点标题：%s
                 候选人回答：%s
-                下一给知识点：%s
+                下一个知识点：%s
                 """,
                 session.getCurrentQuestionIndex() + 1,
                 session.getQuestions().size(),

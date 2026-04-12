@@ -39,7 +39,7 @@ public class RequestRoleAspect {
                 (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
 
         if(attributes == null){
-            throw new RuntimeException("无法获取请求对象");
+            throw new IllegalArgumentException("无法获取请求对象");
         }
 
         HttpServletRequest request = attributes.getRequest();
@@ -48,7 +48,7 @@ public class RequestRoleAspect {
         String role = request.getHeader("X-User-Role");
 
         if(role == null){
-            throw new RuntimeException("请求头缺少 role");
+            throw new IllegalArgumentException("请先登录");
         }
 
         List<String> strings = List.of();
@@ -56,7 +56,7 @@ public class RequestRoleAspect {
             strings = mapper.readValue(role, new TypeReference<List<String>>() {
             });
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("数据结构不正常");
+            throw new IllegalArgumentException("用户角色信息异常");
         }
 
         // 获取注解允许的角色
@@ -70,8 +70,15 @@ public class RequestRoleAspect {
                 break;
             }
         }
+
+        String isFreeze = request.getHeader("X-IsFreeze");
+
+        if(Integer.parseInt(isFreeze) == 1){
+            throw new IllegalArgumentException("当前用户无权操作");
+        }
+
         if(!hasPermission){
-            throw new RuntimeException("权限不足，当前角色: " + role);
+            throw new IllegalArgumentException("当前用户无权操作");
         }
         log.info("角色校验通过: {}", role);
     }

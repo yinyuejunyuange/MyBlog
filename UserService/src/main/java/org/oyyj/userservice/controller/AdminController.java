@@ -9,6 +9,8 @@ import org.oyyj.mycommonbase.common.RoleEnum;
 import org.oyyj.mycommonbase.common.commonEnum.YesOrNoEnum;
 import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.userservice.Feign.BlogFeign;
+import org.oyyj.userservice.config.mq.sender.RMUnfreezeSender;
+import org.oyyj.userservice.dto.UnFreezeDTO;
 import org.oyyj.userservice.pojo.SysRole;
 import org.oyyj.userservice.pojo.User;
 import org.oyyj.userservice.service.ISysRoleService;
@@ -23,6 +25,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 管理员操作的相关接口
@@ -40,6 +43,9 @@ public class AdminController {
 
     @Autowired
     private BlogFeign blogFeign;
+
+    @Autowired
+    private RMUnfreezeSender rmUnfreezeSender;
 
     /**
      * 添加角色
@@ -122,17 +128,20 @@ public class AdminController {
      */
     @RequestRole(role = {RoleEnum.SUPER_ADMIN,RoleEnum.ADMIN})
     @PutMapping("freezeUser")
-    public ResultUtil<String> freezeUser(@RequestParam("userId")String userId){
+    public ResultUtil<String> freezeUser(@RequestParam("userId")String userId,@RequestParam(value = "type",required = false) Integer type,@RequestParam(value = "reason",required = false ) String reason){
 
-        // 检查是否是管理员
-        List<String> userRoleInfo = userService.getUserRoleInfo(Long.parseLong(userId));
-        if(userRoleInfo.contains(RoleEnum.SUPER_ADMIN)||userRoleInfo.contains(RoleEnum.ADMIN)){
-            return ResultUtil.fail("当前用户无权操作");
-        }
+
         userService.update(Wrappers.<User>lambdaUpdate()
                 .eq(User::getId, Long.parseLong(userId))
                 .set(User::getIsFreeze, YesOrNoEnum.YES.getCode())
+                .set(User::getFreezeReason, reason)
         );
+
+        if(Objects.nonNull(type)){
+            UnFreezeDTO unFreezeDTO = new UnFreezeDTO();
+            unFreezeDTO.setUserId(Long.parseLong(userId));
+            rmUnfreezeSender.sendUnFreezeMessage(unFreezeDTO,type);
+        }
         return ResultUtil.success("用户冻结成功");
     }
 
@@ -145,11 +154,11 @@ public class AdminController {
     @PutMapping("unFreezeUser")
     public ResultUtil<String> unFreezeUser(@RequestParam("userId")String userId){
 
-        // 检查是否是管理员
-        List<String> userRoleInfo = userService.getUserRoleInfo(Long.parseLong(userId));
-        if(userRoleInfo.contains(RoleEnum.SUPER_ADMIN)||userRoleInfo.contains(RoleEnum.ADMIN)){
-            return ResultUtil.fail("当前用户无权操作");
-        }
+//        // 检查是否是管理员
+//        List<String> userRoleInfo = userService.getUserRoleInfo(Long.parseLong(userId));
+//        if(userRoleInfo.contains(RoleEnum.SUPER_ADMIN)||userRoleInfo.contains(RoleEnum.ADMIN)){
+//            return ResultUtil.fail("当前用户无权操作");
+//        }
 
         userService.update(Wrappers.<User>lambdaUpdate()
                 .eq(User::getId, Long.parseLong(userId))
@@ -165,7 +174,7 @@ public class AdminController {
      */
     @RequestRole(role = {RoleEnum.SUPER_ADMIN})
     @PutMapping("freezeAdmin")
-    public ResultUtil<String> freezeAdmin(@RequestParam("userId")String userId){
+    public ResultUtil<String> freezeAdmin(@RequestParam("userId")String userId,@RequestParam(value = "type",required = false) Integer type,@RequestParam(value = "reason",required = false ) String reason){
         // 检查是否是管理员
         List<String> userRoleInfo = userService.getUserRoleInfo(Long.parseLong(userId));
         if(userRoleInfo.contains(RoleEnum.SUPER_ADMIN)){
@@ -175,7 +184,15 @@ public class AdminController {
         userService.update(Wrappers.<User>lambdaUpdate()
                 .eq(User::getId, Long.parseLong(userId))
                 .set(User::getIsFreeze, YesOrNoEnum.YES.getCode())
+                .set(User::getFreezeReason, reason)
         );
+
+        if(Objects.nonNull(type)){
+            UnFreezeDTO unFreezeDTO = new UnFreezeDTO();
+            unFreezeDTO.setUserId(Long.parseLong(userId));
+            rmUnfreezeSender.sendUnFreezeMessage(unFreezeDTO,type);
+        }
+
         return ResultUtil.success("用户冻结成功");
     }
 

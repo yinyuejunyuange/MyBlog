@@ -77,7 +77,7 @@ public class SearchHistoryServiceImpl extends ServiceImpl<SearchHistoryMapper, S
         return list(Wrappers.<SearchHistory>lambdaQuery().eq(SearchHistory::getUserId, userId)
                 .eq(SearchHistory::getIsVisible, YesOrNoEnum.YES.getCode())
                 .last("limit " + recommendLimit)
-        ).stream().map(SearchHistory::getQueryRaw).toList();
+        ).stream().map(SearchHistory::getQueryRaw).distinct().toList();
     }
 
     @Override

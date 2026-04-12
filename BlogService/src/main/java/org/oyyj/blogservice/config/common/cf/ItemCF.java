@@ -8,6 +8,7 @@ import org.oyyj.mycommonbase.common.RedisPrefix;
 import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -31,6 +32,7 @@ public class ItemCF {
 
 
     @PostConstruct
+    @Scheduled(fixedRate =2* 60 * 60 * 1000)
     public void init(){
 
         Map<Long, List<String>> blogTypeMap = getBlogTypeMap();

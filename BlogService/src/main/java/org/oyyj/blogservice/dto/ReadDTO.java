@@ -33,4 +33,6 @@ public class ReadDTO {
     private String project;
     private Boolean isUserKudos=false;
     private Boolean isUserStar=false;
+    private Integer status;
+    private String reason;
 }

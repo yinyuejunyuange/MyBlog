@@ -247,9 +247,10 @@ public class LocalRequestFilter extends AbstractGatewayFilterFactory<LocalReques
                                           HttpStatus status,
                                           String message) {
         try {
-            response.setStatusCode(status);
+            int code = status.is5xxServerError() ? 500 : 400;
+            response.setStatusCode(HttpStatus.OK);
             response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-            org.oyyj.mycommonbase.utils.ResultUtil<Object> errorResponse = ResultUtil.fail(status.value(), message);
+            org.oyyj.mycommonbase.utils.ResultUtil<Object> errorResponse = ResultUtil.fail(code, message);
             String responseBody = objectMapper.writeValueAsString(errorResponse);
             byte[] bytes = responseBody.getBytes(StandardCharsets.UTF_8);
             DataBuffer buffer = BUFFER_FACTORY.wrap(bytes);

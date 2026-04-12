@@ -110,6 +110,7 @@ public class JWTAuthenticationTokenFilter implements WebFilter { // 原来的过
                     .header("X-User-Name", authUser.getUsername())
                     .header("X-User-Permission", objectMapper.writeValueAsString(authUser.getPermissions()))
                     .header("X-User-Role", objectMapper.writeValueAsString(authUser.getRoles()))
+                    .header("X-IsFreeze", String.valueOf(authUser.getIsFreeze()))
                     .header("X-Authenticated", "true")
                     .build();
         } catch (JsonProcessingException e) {

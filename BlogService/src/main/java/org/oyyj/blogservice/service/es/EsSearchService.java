@@ -7,6 +7,8 @@ import org.oyyj.blogservice.vo.blogs.BlogSearchHighLightVO;
 import java.util.List;
 
 public interface EsSearchService {
+    void init();// bean创建需要调用
+
     void bulkSave(List<EsSearch> list);
 
     void save(EsSearch esSearch);

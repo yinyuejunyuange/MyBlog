@@ -101,6 +101,15 @@ public class BlogController {
             return ResultUtil.fail("重复标题");
         }
 
+        // 判断当前博客的状态
+        if(blogDTO.getId() != null){
+            one=blogService.getById(Long.valueOf(blogDTO.getId()));
+            if(Objects.equals(4,one.getStatus()) || Objects.equals(3,one.getStatus())){
+                // 强制只能审核
+                blogDTO.setStatus(3);
+            };
+        }
+
         boolean success = blogService.saveBlog(blogDTO,loginUser);
         if(!success){
             log.error("用户添加博客失败 userId:{}",loginUser.getUserId());
@@ -142,12 +151,12 @@ public class BlogController {
      * @return
      */
     @GetMapping("/valid/read")
-    public Map<String,Object> validBlogRead(@RequestParam("blogId") String blogId,@RequestUser(required = false) LoginUser loginUser) throws Exception {
+    public void validBlogRead(@RequestParam("blogId") String blogId,@RequestUser(required = false) LoginUser loginUser) throws Exception {
         if(loginUser == null){
-            return ResultUtil.successMap(null,"当前用户未登录");
+            return ;
         }
         blogService.readBlogValid(Long.valueOf(blogId),loginUser);
-        return ResultUtil.successMap(null,"阅读成功");
+
     }
 
     /**

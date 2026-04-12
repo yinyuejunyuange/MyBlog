@@ -1,6 +1,5 @@
 package org.oyyj.blogservice.config.common.cf;
 
-import org.oyyj.blogservice.config.pojo.RatingMatrix;
 import org.oyyj.blogservice.config.pojo.UserActivityLevel;
 import org.oyyj.blogservice.dto.Recommendation;
 import org.oyyj.blogservice.mapper.UserBehaviorMapper;

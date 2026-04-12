@@ -1,4 +1,4 @@
-package org.oyyj.blogservice.config.pojo;
+package org.oyyj.blogservice.config.common.cf;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.annotation.PostConstruct;
@@ -48,6 +48,7 @@ public class RatingMatrix {
      *
      */
     @PostConstruct
+    @Scheduled(fixedRate =2* 60 * 60 * 1000)
     public synchronized void init(){
 
         RLock lock = redissonClient.getLock(RedisPrefix.INIT_LOCK);
@@ -55,7 +56,7 @@ public class RatingMatrix {
             boolean isLock = lock.tryLock(3, 30, TimeUnit.SECONDS);
             if(isLock){
                 String isInit = redisUtil.getString(RedisPrefix.INIT_RATING);
-                if(Objects.isNull(isInit)){
+                if(Objects.nonNull(isInit)){
                     log.debug("评分矩阵加载完成,完成时间：+{}",new Date().getTime());
                     return;
                 }
@@ -66,7 +67,7 @@ public class RatingMatrix {
                 int batch = 1000;
                 do {
                     order++;
-                    List<Long> userIdBatch = userIdList.subList((order - 1)*batch, order * batch);
+                    List<Long> userIdBatch = userIdList.subList((order - 1)*batch, Math.min(order * batch, userIdList.size()));
                     if(userIdBatch.isEmpty()){
                         log.warn("批次查询出现数据数量为空！");
                         break;
@@ -88,12 +89,8 @@ public class RatingMatrix {
                 }while (order * batch < userIdList.size());
                 // 计算物品的平均得分
                 calculateBlogAvgScore();
-                redisUtil.set(RedisPrefix.INIT_RATING,RedisPrefix.INIT_FINISH);
-            }else{
-                // 锁获取失败 添加重试机制 todo 重试机制
-
+                redisUtil.set(RedisPrefix.INIT_RATING,RedisPrefix.INIT_FINISH,1,TimeUnit.HOURS);
             }
-
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }finally {

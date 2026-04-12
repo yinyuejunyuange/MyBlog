@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -119,8 +120,13 @@ public class ChatDialogServiceImpl
         Map<Long, List<ChatMessage>> collect = chatMessagesByUserId.stream().collect(Collectors.groupingBy(ChatMessage::getDialogId));
         Map<Long, ChatMessage> dialogInfoMap = chatMessages.stream().collect(Collectors.toMap(ChatMessage::getDialogId, Function.identity()));
         List<String> userIds = userChatInfosList.stream().map(item->String.valueOf(item.getUserId())).toList();
+        Map<Long, String> imageInIds;
+        if(!userIds.isEmpty()){
+            imageInIds = userFeign.getImageInIds(userIds);
+        }else{
+            imageInIds = new HashMap<>();
+        }
 
-        Map<Long, String> imageInIds = userFeign.getImageInIds(userIds);
 
         List<ChatDialogDTO> result = new ArrayList<>();
         for (UserChatInfo userChatInfo : userChatInfosList) {
@@ -134,8 +140,8 @@ public class ChatDialogServiceImpl
                 chatDialogDTO.setLastMessage(chatMessage.getContent());
                 chatDialogDTO.setLastMessageTime(chatMessage.getCreatedAt());
             }
-            if(imageInIds.containsKey(userChatInfo.getDialogId())) {
-                chatDialogDTO.setHeadHead(imageInIds.get(userChatInfo.getDialogId()));
+            if(imageInIds.containsKey(userChatInfo.getUserId())) {
+                chatDialogDTO.setHeadHead(imageInIds.get(userChatInfo.getUserId()));
             }
             if(collect.containsKey(userChatInfo.getDialogId())) {
                 List<ChatMessage> chatMessagesList = collect.get(userChatInfo.getDialogId());

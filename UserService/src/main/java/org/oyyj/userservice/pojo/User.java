@@ -44,4 +44,6 @@ public class User {
     private Long star;
     @TableField("introduce")
     private String introduce;
+    @TableField("freeze_reason")
+    private String freezeReason;
 }

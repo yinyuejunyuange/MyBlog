@@ -12,6 +12,7 @@ import org.oyyj.chatservice.service.BlacklistService;
 import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -67,9 +68,16 @@ public class BlacklistServiceImpl
 
         List<Blacklist> records = pageResult.getRecords();
         List<String> userIds = records.stream().map(item -> String.valueOf(item.getBlackUserId())).toList();
+        Map<Long, String> nameInIdMap;
+        Map<Long, String> imageInIdMap;
+        if(!userIds.isEmpty()){
+            nameInIdMap = userFeign.getNameInIds(userIds);
+            imageInIdMap = userFeign.getImageInIds(userIds);
+        } else {
+            imageInIdMap = new HashMap<>();
+            nameInIdMap = new HashMap<>();
+        }
 
-        Map<Long, String> nameInIdMap = userFeign.getNameInIds(userIds);
-        Map<Long, String> imageInIdMap = userFeign.getImageInIds(userIds);
 
         List<BlackListVO> list = records.stream().map(item -> {
             BlackListVO blackListVO = new BlackListVO();

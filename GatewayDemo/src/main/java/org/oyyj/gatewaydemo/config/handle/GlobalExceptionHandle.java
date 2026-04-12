@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebExceptionHandler;
 import reactor.core.publisher.Mono;
@@ -30,25 +31,29 @@ public class GlobalExceptionHandle implements WebExceptionHandler {
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
         response.getHeaders().set("Access-Control-Allow-Origin", "*");
 
-        String msg ;
-        Integer code;
-        if(ex instanceof AuthenticationException){
-            code = HttpStatus.UNAUTHORIZED.value();
-            msg = "会话过期，请重新登录";
-        }else if(ex instanceof AccessDeniedException){
-            code = HttpStatus.FORBIDDEN.value();
-            msg = "用户无权操作";
+        String msg;
+        int code;
+        if(ex instanceof AuthenticationException || ex instanceof AccessDeniedException){
+            code = 401;
+            msg = "请先登录";
+        }else if(ex instanceof ResponseStatusException responseStatusException) {
+            int status = responseStatusException.getStatusCode().value();
+            code = status >= 500 ? 500 : 400;
+            msg = responseStatusException.getReason();
+            if (msg == null || msg.isEmpty()) {
+                msg = code == 500 ? "服务器内部错误" : "请求处理失败";
+            }
         }else{
             code = HttpStatus.INTERNAL_SERVER_ERROR.value();
             msg = "服务器内部错误";
         }
 
-        // 构建 JSON
-        String body = "{\"code\":" + code + ",\"message\":\"" + msg + "\"}";
+        // 构建 JSON (与 ResultUtil 格式保持一致)
+        String body = "{\"code\":" + code + ",\"message\":\"" + msg + "\",\"data\":null}";
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8); // 指定 UTF-8 编码
         DataBuffer buffer = response.bufferFactory().wrap(bytes);
 
-        // ⚠️ 设置 HTTP 状态码为 OK 也可以，如果你想用 JSON code 控制前端逻辑
+        // 设置 HTTP 状态码为 OK 也可以，如果你想用 JSON code 控制前端逻辑
         response.setStatusCode(HttpStatus.OK);
 
         return response.writeWith(Mono.just(buffer))

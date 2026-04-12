@@ -70,6 +70,32 @@ public class MqPrefix {
     public static final String MESSAGE_ES_ROUTING_KEY="message.es.routing.key";
 
 
+    /**
+     * 用户解封延时 MQ配置  1天
+     */
+    public static final String USER_UNFREEZE_1DAY_EXCHANGE="user.unfreeze.1day.exchange";
+    public static final String USER_UNFREEZE_1DAY_QUEUE="user.unfreeze.1day.queue";
+    public static final String USER_UNFREEZE_1DAY_ROUTING_KEY="user.unfreeze.1day.routing.key";
 
+    /**
+     * 用户解封延时 MQ配置  1周
+     */
+    public static final String USER_UNFREEZE_1WEEK_EXCHANGE="user.unfreeze.1week.exchange";
+    public static final String USER_UNFREEZE_1WEEK_QUEUE="user.unfreeze.1week.queue";
+    public static final String USER_UNFREEZE_1WEEK_ROUTING_KEY="user.unfreeze.1week.routing.key";
+
+    /**
+     * 用户解封延时 MQ配置  1月
+     */
+    public static final String USER_UNFREEZE_1MONTH_EXCHANGE="user.unfreeze.1month.exchange";
+    public static final String USER_UNFREEZE_1MONTH_QUEUE="user.unfreeze.1month.queue";
+    public static final String USER_UNFREEZE_1MONTH_ROUTING_KEY="user.unfreeze.1month.routing.key";
+
+    /**
+     * 用户解封延时 MQ配置  死信队列
+     */
+    public static final String USER_UNFREEZE_DLX_EXCHANGE="user.unfreeze.dlx.exchange";
+    public static final String USER_UNFREEZE_DLX_QUEUE="user.unfreeze.dlx.queue";
+    public static final String USER_UNFREEZE_DLX_ROUTING_KEY="user.unfreeze.dlx.routing.key";
 
 }

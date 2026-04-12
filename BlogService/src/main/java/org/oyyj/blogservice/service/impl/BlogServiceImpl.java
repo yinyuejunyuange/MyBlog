@@ -29,6 +29,7 @@ import org.oyyj.blogservice.mapper.CommentMapper;
 import org.oyyj.blogservice.mapper.TypeTableMapper;
 import org.oyyj.blogservice.mapper.UserBehaviorMapper;
 import org.oyyj.blogservice.pojo.*;
+import org.oyyj.blogservice.pojo.es.EsBlog;
 import org.oyyj.blogservice.service.*;
 import org.oyyj.blogservice.service.es.EsBlogService;
 import org.oyyj.blogservice.util.PyApiUtil;
@@ -176,12 +177,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 boolean saveTypes = blogTypeService.saveBatch(list);
                 if(saveTypes){
                     // 发布MQ消息
-                    RabbitMqEsSender.EsMqDTO esMqDTO = new RabbitMqEsSender.EsMqDTO();
-                    esMqDTO.setBlogId(String.valueOf(blog.getId()));
-                    esMqDTO.setTitle(blog.getTitle());
-                    esMqDTO.setContent(blog.getContext());
-                    esMqDTO.setEsBlogWork(EsBlogWork.SAVE);
-                    rabbitMqEsSender.sendEsMessage(esMqDTO);
+                    EsBlog esBlog = new EsBlog();
+                    esBlog.setId(id);
+                    esBlog.setTitle(blog.getTitle());
+                    esBlog.setContent(blog.getContext());
+                    esBlog.setIntroduce(blog.getIntroduce());
+                    rabbitMqEsSender.sendEsMessage(esBlog);
                 }
 
             }
@@ -209,7 +210,11 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         // 判断是否时延时任务
         if(blogDTO.getPublishMode() == null || !blogDTO.getPublishMode().equals(PublishEnum.TIMED.getValue())){
             if(blogDTO.getPublishMode() == null){
-                blog.setStatus(1);
+                int status =1; // 默认保存
+                if(Objects.nonNull(blogDTO.getStatus())){
+                    status = blogDTO.getStatus();
+                }
+                blog.setStatus(status);
             }else{
                 blog.setStatus(2);
                 blog.setPublishTime(date);
@@ -240,13 +245,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                     List<BlogType> list = typeTables.stream().map(i -> BlogType.builder().blogId(id).typeId(i.getId()).build()).toList(); // 流式处理
                     boolean saveTypes = blogTypeService.saveBatch(list);
                     if(saveTypes && blog.getStatus().equals(2)) {
-                        // 发布MQ消息
-                        RabbitMqEsSender.EsMqDTO esMqDTO = new RabbitMqEsSender.EsMqDTO();
-                        esMqDTO.setBlogId(String.valueOf(blog.getId()));
-                        esMqDTO.setTitle(blog.getTitle());
-                        esMqDTO.setContent(blog.getContext());
-                        esMqDTO.setEsBlogWork(EsBlogWork.SAVE);
-                        rabbitMqEsSender.sendEsMessage(esMqDTO);
+                        EsBlog esBlog = new EsBlog();
+                        esBlog.setId(id);
+                        esBlog.setTitle(blog.getTitle());
+                        esBlog.setContent(blog.getContext());
+                        esBlog.setIntroduce(blog.getIntroduce());
+                        rabbitMqEsSender.sendEsMessage(esBlog);
                     }
 
                 }
@@ -388,21 +392,14 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     // 从缓存中获取数据 并使用redisson处理缓存击穿
     public ReadDTO getBlogInfo( Long id, LoginUser loginUser) {
         String countKey = RedisPrefix.BLOG_INGO + id;
-        Long commentNum = commentMapper.selectCount(Wrappers.<Comment>lambdaQuery()
-                .eq(Comment::getBlogId, id)
-                .ne(Comment::getIsVisible, YesOrNoEnum.YES.getCode())
-        );
+
         // 1. 先查缓存
         Map<String, String> hashWithString = redisUtil.getHashWithString(countKey);
         if (!hashWithString.isEmpty()) {
             try {
                 // 增加延期
                 redisUtil.resetExpire(countKey,1800L); // 信息延期30分钟
-                redisUtil.resetExpire(RedisPrefix.BLOG_READ_COUNT+id,1800L); // 同时初始时or修改后的记录数 也延期
                 ReadDTO bean = ObjectMapUtil.toBean(ReadDTO.class, hashWithString);
-                Integer integer = redisUtil.getInteger(RedisPrefix.BLOG_READ_COUNT + id);
-                bean.setWatch(bean.getWatch()+integer);
-                bean.setCommentNum(String.valueOf(commentNum));
                 return bean;
             } catch (Exception e) {
                 log.warn("反序列化博客缓存失败，blogId: {}", id + ":" + e);
@@ -417,7 +414,6 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         if( viewTimes == null || viewTimes < 1000){
             // 查询数据库
             result = getReadDTO( id, loginUser);
-            result.setCommentNum(String.valueOf(commentNum));
             if(viewTimes == null){
                 redisUtil.set(RedisPrefix.BLOG_VIEW_COUNT + id, 1,30,TimeUnit.MINUTES); // 初始化 --数据量不大允许重复 数据一致要求不高
             }else{
@@ -426,7 +422,6 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             return result;
         }
         ReadDTO readDTO = loadHotBlog(id, loginUser, countKey);
-        readDTO.setCommentNum(String.valueOf(commentNum));
         return readDTO;
     }
 
@@ -446,16 +441,13 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         ReadDTO result;
         try {
             // 启动看门狗  最大等待1秒 1秒内获取锁 就true 反之false  使用看门狗
-            boolean isLocked = lock.tryLock(1,30, TimeUnit.SECONDS);
+            boolean isLocked = lock.tryLock(5,30, TimeUnit.SECONDS);
             if(isLocked){
                 try {
                     // 再次检查避免 再处理锁的时候获取到数据了
                     Map<String, String> hashWithString = redisUtil.getHashWithString(countKey);
                     if(Objects.nonNull(hashWithString) && !hashWithString.isEmpty()){
-                        ReadDTO bean = ObjectMapUtil.toBean(ReadDTO.class, hashWithString);
-                        Integer integer = redisUtil.getInteger(RedisPrefix.BLOG_READ_COUNT + id);
-                        bean.setWatch(bean.getWatch()+integer);
-                        return bean;
+                        return ObjectMapUtil.toBean(ReadDTO.class, hashWithString);
                     }
                     // 查询数据库
                     result = getReadDTO( id, loginUser);
@@ -463,8 +455,6 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                         // 将整体作为一个HASH存储到redis中
                         Map<String, String> map = ObjectMapUtil.toMap(ReadDTO.class, result);
                         redisUtil.setHashWithString(countKey, map,30, TimeUnit.MINUTES);
-                        // 同时增加当前的阅读量记录 便于后续同步到数据库时进行检查
-                        redisUtil.set(RedisPrefix.BLOG_READ_COUNT + id, 0,30,TimeUnit.MINUTES);
                     }else{
                         redisUtil.setHashWithString(countKey, Map.of(),30, TimeUnit.MINUTES);
                     }
@@ -483,8 +473,6 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                     Map<String, String> hashWithString = redisUtil.getHashWithString(countKey);
                     if(Objects.nonNull(hashWithString) && !hashWithString.isEmpty()){
                         ReadDTO bean = ObjectMapUtil.toBean(ReadDTO.class, hashWithString);
-                        Integer integer = redisUtil.getInteger(RedisPrefix.BLOG_READ_COUNT + id);
-                        bean.setWatch(bean.getWatch()+integer);
                         return bean;
                     }
                 }
@@ -517,9 +505,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         List<BlogType> list = blogTypeService.list(Wrappers.<BlogType>lambdaQuery().eq(BlogType::getBlogId, id));
 
         List<Long> typeIds = list.stream().map(BlogType::getTypeId).toList();
-        // 封装
-        // todo 测试
-        // Map<Long, String> userNameMap = userFeign.getUserNameMap();
+
+        Long commentNum = commentMapper.selectCount(Wrappers.<Comment>lambdaQuery()
+                .eq(Comment::getBlogId, id)
+                .ne(Comment::getIsVisible, YesOrNoEnum.YES.getCode())
+        );
+
         ReadDTO readDTO = ReadDTO.builder()
                 .id(String.valueOf(id))
                 .userId(String.valueOf(one.getUserId()))
@@ -534,9 +525,11 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .star(String.valueOf(one.getStar()))
                 .image(one.getBlogImage())
                 .project(one.getBlogProject())
-                .commentNum(String.valueOf(one.getCommentNum()))
+                .commentNum(String.valueOf(commentNum))
                 .kudos(String.valueOf(one.getKudos()))
                 .watch(String.valueOf(one.getWatch()))
+                .status(one.getStatus())
+                .reason(one.getFreezeReason())
                 .build();
 
         if (!Objects.isNull(list)) {
@@ -555,89 +548,89 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
 
 
-    // 定期从redis中得到数据存储到数据库中 保证数据的一致性   同时也避免高并发导致的数据问题
-    /**
-     * 定期同步Redis阅读数到数据库
-     */
-    @Scheduled(fixedRate = 300000) // 每5分钟执行一次
-    public void syncReadCountToDB() {
-
-        RLock lock = redissonClient.getLock(RedisPrefix.BLOG_READ_LOCK);
-
-        try {
-            // 加锁 更新
-            boolean isLocked = lock.tryLock(1, -1, TimeUnit.SECONDS);
-            if(isLocked){
-
-                Integer integer = redisUtil.getInteger(RedisPrefix.BLOG_READ_UPDATE);
-                if(Objects.nonNull(integer)){
-                    // 其他实例已经完成更新了
-                    return;
-                }
-                // 获取所有数据增加时的旧数据
-                Set<String> keys =  scanRedisKeys(RedisPrefix.BLOG_READ_COUNT + "*");
-                List<BlogReadDTO> readDTOList = new ArrayList<>();
-                List<Long> blogIds = keys.stream().map(item -> {
-                    String substring = item.substring(RedisPrefix.BLOG_READ_COUNT.length());
-                    return Long.parseLong(substring);
-                }).toList();
-
-                if(blogIds.isEmpty()){
-                    return;
-                }
-                Map<Long, Long> blogWatchMap = list(Wrappers.<Blog>lambdaQuery()
-                        .in(Blog::getId, blogIds)
-                        .select(Blog::getWatch, Blog::getId)
-                ).stream().collect(Collectors.toMap(Blog::getId, Blog::getWatch));
-
-                for (String key : keys) {
-                    Long blogId = Long.parseLong(key.substring(RedisPrefix.BLOG_READ_COUNT.length())); // 分割时博客的ID
-                    Long readCount = blogWatchMap.get(blogId);
-                    String recordCountStr = redisTemplate.opsForValue().get(key);
-                    if(recordCountStr == null){
-                        continue;
-                    }
-                    Long recordCount = Long.parseLong(recordCountStr);
-                    Map<String, String> hashWithString = redisUtil.getHashWithString(RedisPrefix.BLOG_INGO + blogId);
-                    ReadDTO readDTO = ObjectMapUtil.toBean(ReadDTO.class, hashWithString);
-                    String watch = readDTO.getWatch();
-                    if(Objects.isNull(watch) || watch.isEmpty()){
-                        continue;
-                    }
-                    // 计算偏差
-                    int offset = Math.toIntExact(readCount - Integer.parseInt(watch));
-                    offset = Math.max(offset, 0);
-                    int newCount = Math.toIntExact(Integer.parseInt(watch) + offset + recordCount);
-                    readDTOList.add(new BlogReadDTO(blogId, newCount));
-                    // 更新记录
-                    redisUtil.set(RedisPrefix.BLOG_READ_COUNT+blogId,newCount);
-                }
-
-                int batchSize = 1000;
-                int start = 0;
-                int total = readDTOList.size();
-                do{
-                    List<BlogReadDTO> reads = new ArrayList<>(readDTOList.subList(start, Math.min(total, start + batchSize)));
-                    if(!reads.isEmpty()){
-                        blogMapper.updateBlogBatch(reads);
-                    }
-                    start+=batchSize;
-                }while (start < readDTOList.size());
-                // 更新 记录并设置过期时间
-                redisUtil.set(RedisPrefix.BLOG_READ_UPDATE,1,2,TimeUnit.MINUTES);
-
-            }else{
-                log.warn("获取锁失败");
-            }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        } finally {
-            if(lock.isHeldByCurrentThread()){
-                lock.unlock();
-            }
-        }
-
-    }
+//    // 定期从redis中得到数据存储到数据库中 保证数据的一致性   同时也避免高并发导致的数据问题
+//    /**
+//     * 定期同步Redis阅读数到数据库
+//     */
+//    @Scheduled(fixedRate = 300000) // 每5分钟执行一次
+//    public void syncReadCountToDB() {
+//
+//        RLock lock = redissonClient.getLock(RedisPrefix.BLOG_READ_LOCK);
+//
+//        try {
+//            // 加锁 更新
+//            boolean isLocked = lock.tryLock(1, -1, TimeUnit.SECONDS);
+//            if(isLocked){
+//
+//                Integer integer = redisUtil.getInteger(RedisPrefix.BLOG_READ_UPDATE);
+//                if(Objects.nonNull(integer)){
+//                    // 其他实例已经完成更新了
+//                    return;
+//                }
+//                // 获取所有数据增加时的旧数据
+//                Set<String> keys =  scanRedisKeys(RedisPrefix.BLOG_READ_COUNT + "*");
+//                List<BlogReadDTO> readDTOList = new ArrayList<>();
+//                List<Long> blogIds = keys.stream().map(item -> {
+//                    String substring = item.substring(RedisPrefix.BLOG_READ_COUNT.length());
+//                    return Long.parseLong(substring);
+//                }).toList();
+//
+//                if(blogIds.isEmpty()){
+//                    return;
+//                }
+//                Map<Long, Long> blogWatchMap = list(Wrappers.<Blog>lambdaQuery()
+//                        .in(Blog::getId, blogIds)
+//                        .select(Blog::getWatch, Blog::getId)
+//                ).stream().collect(Collectors.toMap(Blog::getId, Blog::getWatch));
+//
+//                for (String key : keys) {
+//                    Long blogId = Long.parseLong(key.substring(RedisPrefix.BLOG_READ_COUNT.length())); // 分割时博客的ID
+//                    Long readCount = blogWatchMap.get(blogId);
+//                    String recordCountStr = redisTemplate.opsForValue().get(key);
+//                    if(recordCountStr == null){
+//                        continue;
+//                    }
+//                    Long recordCount = Long.parseLong(recordCountStr);
+//                    Map<String, String> hashWithString = redisUtil.getHashWithString(RedisPrefix.BLOG_INGO + blogId);
+//                    ReadDTO readDTO = ObjectMapUtil.toBean(ReadDTO.class, hashWithString);
+//                    String watch = readDTO.getWatch();
+//                    if(Objects.isNull(watch) || watch.isEmpty()){
+//                        continue;
+//                    }
+//                    // 计算偏差
+//                    int offset = Math.toIntExact(readCount - Integer.parseInt(watch));
+//                    offset = Math.max(offset, 0);
+//                    int newCount = Math.toIntExact(Integer.parseInt(watch) + offset + recordCount);
+//                    readDTOList.add(new BlogReadDTO(blogId, newCount));
+//                    // 更新记录
+//                    redisUtil.set(RedisPrefix.BLOG_READ_COUNT+blogId,newCount);
+//                }
+//
+//                int batchSize = 1000;
+//                int start = 0;
+//                int total = readDTOList.size();
+//                do{
+//                    List<BlogReadDTO> reads = new ArrayList<>(readDTOList.subList(start, Math.min(total, start + batchSize)));
+//                    if(!reads.isEmpty()){
+//                        blogMapper.updateBlogBatch(reads);
+//                    }
+//                    start+=batchSize;
+//                }while (start < readDTOList.size());
+//                // 更新 记录并设置过期时间
+//                redisUtil.set(RedisPrefix.BLOG_READ_UPDATE,1,2,TimeUnit.MINUTES);
+//
+//            }else{
+//                log.warn("获取锁失败");
+//            }
+//        } catch (InterruptedException e) {
+//            throw new RuntimeException(e);
+//        } finally {
+//            if(lock.isHeldByCurrentThread()){
+//                lock.unlock();
+//            }
+//        }
+//
+//    }
 
     /**
      * 通过scan 非阻塞时的获取keys

@@ -1,15 +1,11 @@
-package org.oyyj.blogservice.config.mqConfig.sender;
+package org.oyyj.userservice.config.mq.sender;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.rholder.retry.RetryException;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.elasticsearch.common.Strings;
-import org.oyyj.blogservice.pojo.es.EsBlog;
+import org.apache.logging.log4j.util.Strings;
 import org.oyyj.mycommon.common.mq.MqPrefix;
 import org.oyyj.mycommon.common.mq.MqStatusEnum;
 import org.oyyj.mycommon.config.pojo.EnhanceCorrelationData;
@@ -18,19 +14,19 @@ import org.oyyj.mycommon.mapper.MqMessageRecordMapper;
 import org.oyyj.mycommon.pojo.MqMessageRecord;
 import org.oyyj.mycommon.utils.SnowflakeUtil;
 import org.oyyj.mycommonbase.config.RetryConfig;
+import org.oyyj.userservice.dto.UnFreezeDTO;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
-@Async("taskExecutor")
 @Component
 @Slf4j
-public class RabbitMqEsSender {
+public class RMUnfreezeSender {
+
 
     @Autowired
     private RabbitTemplate rabbitTemplate;
@@ -44,24 +40,32 @@ public class RabbitMqEsSender {
     @Autowired
     private ObjectMapper mapper = new ObjectMapper();
 
+    /**
+     * 发1天
+     * @param unFreezeDTO
+     */
+    public void sendUnFreezeMessage(UnFreezeDTO unFreezeDTO , Integer type ) {
 
-    public void sendEsMessage(EsBlog esMqDTO){
+        String queue = getQueue(type);
+        String exchange = getExchange(type);
+        String routingKey = getRoutingKey(type);
+
         String snowflakeId = snowflakeUtil.getSnowflakeId();
         if(Strings.isEmpty(snowflakeId)){
             log.info("雪花算法执行失败");
             return ;
         }
-        if (Objects.isNull(esMqDTO)) {
+        if (Objects.isNull(unFreezeDTO)) {
             log.info("传递的消息不可为空");
             return ;
         }
         try {
-            String esMqStr = mapper.writeValueAsString(esMqDTO);
+            String esMqStr = mapper.writeValueAsString(unFreezeDTO);
             MqMessageRecord mqMessageRecord = new MqMessageRecord();
             mqMessageRecord.setMsgId(snowflakeId);
             mqMessageRecord.setExecStatus(MqStatusEnum.NOT_SEND.getCode());
             mqMessageRecord.setMsgContent(esMqStr);
-            mqMessageRecord.setTargetQueue(MqPrefix.ES_BLOG_QUEUE);
+            mqMessageRecord.setTargetQueue(queue);
             int insert = mqMessageRecordMapper.insert(mqMessageRecord);
             if(insert==0){
                 log.error("插入MQ消息记录失败，msgId:{}", snowflakeId);
@@ -77,8 +81,8 @@ public class RabbitMqEsSender {
             Boolean call = RetryConfig.LOCK_RETRYER.call(() -> {
                 try {
                     rabbitTemplate.convertAndSend(
-                            MqPrefix.ES_BLOG_EXCHANGE,
-                            MqPrefix.ES_BLOG_ROUTING_KEY,
+                            exchange,
+                            routingKey,
                             rabbitMqMessage,
                             enhanceCorrelationData
                     );
@@ -92,7 +96,7 @@ public class RabbitMqEsSender {
                     return false;
                 }
             });
-            if(Objects.isNull(call) || call ){
+            if(Objects.isNull(call) || !call ){
                 updateMqStatus(snowflakeId, MqStatusEnum.FAIL_SEND.getCode());
             }
         } catch (ExecutionException e) {
@@ -114,6 +118,33 @@ public class RabbitMqEsSender {
         }
     }
 
+    private String getQueue(Integer type) {
+        return switch (type) {
+            case 1 -> MqPrefix.USER_UNFREEZE_1DAY_QUEUE;
+            case 2 -> MqPrefix.USER_UNFREEZE_1WEEK_QUEUE;
+            case 3 -> MqPrefix.USER_UNFREEZE_1MONTH_QUEUE;
+            default -> MqPrefix.USER_UNFREEZE_1DAY_QUEUE;
+        };
+    }
+
+    private String getExchange(Integer type) {
+        return switch (type) {
+            case 1 -> MqPrefix.USER_UNFREEZE_1DAY_EXCHANGE;
+            case 2 -> MqPrefix.USER_UNFREEZE_1WEEK_EXCHANGE;
+            case 3 -> MqPrefix.USER_UNFREEZE_1MONTH_EXCHANGE;
+            default -> MqPrefix.USER_UNFREEZE_1DAY_EXCHANGE;
+        };
+    }
+
+    private String getRoutingKey(Integer type) {
+        return switch (type) {
+            case 1 -> MqPrefix.USER_UNFREEZE_1DAY_ROUTING_KEY;
+            case 2 -> MqPrefix.USER_UNFREEZE_1WEEK_ROUTING_KEY;
+            case 3 -> MqPrefix.USER_UNFREEZE_1MONTH_ROUTING_KEY;
+            default -> MqPrefix.USER_UNFREEZE_1DAY_ROUTING_KEY;
+        };
+    }
+
     private void updateMqStatus(String snowflakeId,Integer execStatus){
         int update = mqMessageRecordMapper.update(Wrappers.<MqMessageRecord>lambdaUpdate()
                 .eq(MqMessageRecord::getMsgId, snowflakeId)
@@ -124,6 +155,7 @@ public class RabbitMqEsSender {
             log.warn("消息记录信息修改该失败,msgID:{} , status:{} ",snowflakeId,execStatus);
         }
     }
+
 
 
 }

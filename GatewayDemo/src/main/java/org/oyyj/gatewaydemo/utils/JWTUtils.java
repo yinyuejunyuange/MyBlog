@@ -56,6 +56,8 @@ private static final Key SECRET_KEY = Keys.hmacShaKeyFor(SALT_KEY.getBytes(Stand
                 .setAudience(clientId) // 代表JWT接收对象 设置JWT的接收者为clientId，用于区分不同的客户端。
                 .claim("role",role)
                 .claim("userInfo",s) //使用claim方法添加自定义字段到JWT中，包含用户的角色和用户ID。
+                .claim("isFreeze",loginUser.getIsFreeze())
+                .claim("userId",loginUser.getUserId())
                // .setExpiration(validity)// 签名: 使用HS512算法和SECRET_KEY对JWT进行签名，确保JWT的完整性和真实性。
                 .signWith(SECRET_KEY, SignatureAlgorithm.HS512)//过期时间: 设置JWT的过期时间为之前计算的validity。 --更正 使用redis 方便刷新令牌
                 .compact(); // 完成构建

@@ -38,7 +38,7 @@
 
 
     <select id="getUserIdList" resultType="java.lang.Long">
-        SELECT DISTINCT userId
+        SELECT DISTINCT user_id
         FROM user_behavior
 
     </select>

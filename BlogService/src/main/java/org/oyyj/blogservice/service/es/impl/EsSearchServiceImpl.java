@@ -1,6 +1,7 @@
 package org.oyyj.blogservice.service.es.impl;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.FieldValue;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.search.Highlight;
 import co.elastic.clients.elasticsearch.core.search.HighlightField;
@@ -9,7 +10,9 @@ import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.oyyj.blogservice.mapper.BlogMapper;
 import org.oyyj.blogservice.mapper.SearchHistoryMapper;
+import org.oyyj.blogservice.pojo.Blog;
 import org.oyyj.blogservice.pojo.SearchHistory;
 import org.oyyj.blogservice.pojo.es.EsSearch;
 import org.oyyj.blogservice.pojo.es.HighLightBlog;
@@ -19,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.IndexOperations;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -38,11 +42,14 @@ public class EsSearchServiceImpl implements EsSearchService {
     private static final String END = "</em>";
     @Autowired
     private ElasticsearchOperations elasticsearchOperations;
+    @Autowired
+    private BlogMapper blogMapper;
 
     /**
      * 初始化：将 MySQL 中的搜索词同步到 ES
      */
     @PostConstruct
+    @Scheduled(fixedRate =2* 60 * 60 * 1000)
     public void init() {
         ensureIndexExists();
         log.info("开始同步 MySQL 搜索历史到 ES...");
@@ -217,18 +224,42 @@ public class EsSearchServiceImpl implements EsSearchService {
                     ))
             );
 
+            List<Blog> blogs = blogMapper.selectList(Wrappers.<Blog>lambdaQuery()
+                    .eq(Blog::getStatus, 2)
+                    .select(Blog::getId)
+            );
+
+            List<Long> list = blogs.stream().map(Blog::getId).toList();
+
+            if(list.isEmpty()){
+                return result;
+            }
+
             SearchRequest searchRequest = SearchRequest.of(r -> r
                     .index("searchs")
                     .query(q -> q
-                            .match(m -> m
-                                    .field("search")
-                                    .query(keyword)
-                            )
+                            .bool(b->b
+                                            .must(m->m.match(ma -> ma
+                                                    .field("search")
+                                                    .query(keyword)
+                                            ))
+                                            .must(mn->mn.terms(t -> t
+                                                    .field("id")
+                                                    .terms(v -> v.value(
+                                                            list.stream()
+                                                                    .map(id -> FieldValue.of(id.toString()))
+                                                                    .toList()
+                                                    ))
+                                            ))
+                                    )
+
+
                     )
                     .highlight(highlight)
                     .from(page * size)
                     .size(size)
             );
+
 
             SearchResponse<EsSearch> response = esClient.search(searchRequest, EsSearch.class);
             List<String> alFullTextList = new ArrayList<>();

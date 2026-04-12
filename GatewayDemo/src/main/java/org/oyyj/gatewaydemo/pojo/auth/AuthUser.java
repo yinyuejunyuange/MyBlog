@@ -34,12 +34,14 @@ public class AuthUser implements UserDetails {
 
     private String ip; //  用户的IP
 
+    private Integer isFreeze;
+
     private Integer isUserLogin;
 
     @JsonIgnore
     private List<SimpleGrantedAuthority> authorities;
 
-    public AuthUser(Long userId, String userName, String password, List<String> permissions, List<String> roles,Integer isUserLogin,String imageUrl) {
+    public AuthUser(Long userId, String userName, String password, List<String> permissions, Integer isFreeze, List<String> roles,Integer isUserLogin,String imageUrl) {
         this.userId = userId;
         this.userName = userName;
         this.password = password;
@@ -47,6 +49,7 @@ public class AuthUser implements UserDetails {
         this.permissions = permissions;
         this.roles = roles;
         this.isUserLogin = isUserLogin;
+        this.isFreeze = isFreeze;
 
     }
 

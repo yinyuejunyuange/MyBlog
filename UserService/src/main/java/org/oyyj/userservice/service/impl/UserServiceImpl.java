@@ -546,7 +546,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             log.error("用户信息缺失 id为：{}",userId);
             return ResultUtil.fail("获取用户信息失败");
         }
-        userInfoVO.setUserName(one.getNickName());
+        userInfoVO.setUserName(one.getName());
         userInfoVO.setImageHead(one.getImageUrl());
         userInfoVO.setIntroduction(Strings.isNotBlank(one.getIntroduce())? one.getIntroduce():"这个人很神秘 什么都没留下...");
         UserBlogInfoDTO userBlogInfo = blogFeign.getUserBlogInfo(one.getId());

@@ -482,7 +482,7 @@ public class UserController {
 
     // 获取用户关注的博客作者
     @GetMapping("/getUserStarAuthor")
-    public Map<String,Object> getUserStarAuthor(@RequestParam("currentPage")Integer currentPage , @RequestParam("title")String title, @RequestParam("userId") Long userId, @RequestUser LoginUser user){
+    public Map<String,Object> getUserStarAuthor(@RequestParam("currentPage")Integer currentPage , @RequestParam(value = "title",required = false)String title, @RequestParam("userId") Long userId, @RequestUser LoginUser user){
         PageDTO<BlogUserInfoDTO> userStarBlogAuthor = userService.getUserStarBlogAuthor(String.valueOf(userId), title ,currentPage);
         if(Objects.isNull(userStarBlogAuthor)){
             return ResultUtil.successMap(null,"此用户没有关注的对象");

@@ -135,10 +135,18 @@ public class BlogForAdminController {
      */
     @RequestRole(role = {RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN})
     @PutMapping("/updateBlogStatus")
-    public ResultUtil<Boolean> updateBlogStatus(@RequestParam("blogId")String blogId , @RequestParam("status") Integer status) throws AuthenticationException {
+    // TODO 修改流程  管理员封禁后 用户修改后只能发起请求 管理再审核  如果合适管理会解封修改其为保存 反之继续封禁  增加封禁原因字段
+    // TODO
+    public ResultUtil<Boolean> updateBlogStatus(@RequestParam("blogId")String blogId , @RequestParam("status") Integer status , @RequestParam(value = "reason",required = false) String reason) throws AuthenticationException {
+
+        // 给作者发布作品封禁的消息
+
+
 
         return ResultUtil.success(blogService.update(Wrappers.<Blog>lambdaUpdate().eq(Blog::getId, Long.parseLong(blogId))
-                .set(Blog::getStatus, status)));
+                .set(Blog::getStatus, status)
+                .set(Objects.equals(4,status),Blog::getFreezeReason,reason)
+        ));
 
     }
 

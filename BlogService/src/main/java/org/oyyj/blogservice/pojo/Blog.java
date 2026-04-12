@@ -58,5 +58,7 @@ public class Blog {
     private String blogImage;
     @TableField("blog_project") // 博客图片
     private String blogProject;
+    @TableField("freeze_reason")
+    private String freezeReason; // 封禁原因
 
 }

@@ -14,6 +14,7 @@ public class JWTUserVO {
     private String username;
     private String image;
     private String token;
+    private Integer isFreeze;
 
     private Boolean isValid=false; // 默认都是false
 }

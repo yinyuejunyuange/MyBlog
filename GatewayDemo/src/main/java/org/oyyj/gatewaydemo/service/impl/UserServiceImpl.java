@@ -79,13 +79,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                     } catch (JsonProcessingException e) {
                         throw new RuntimeException(e);
                     }
-
+                    User one = getOne(Wrappers.<User>lambdaQuery()
+                            .eq(User::getId, authUser.getUserId())
+                    );
                     // 将token存储到redis中
                     redisUtil.set(String.valueOf(authUser.getUserId()), token,24, TimeUnit.HOURS); // 存储并设置时间24小时
                     return Mono.just(JWTUserVO.builder()
                             .id(String.valueOf(authUser.getUserId()))
                             .username(authUser.getUsername())
                             .image(authUser.getImageUrl())
+                            .isFreeze(one.getIsFreeze())
                             .token(token)
                             .isValid(true)
                             .build());
@@ -116,12 +119,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                         throw new RuntimeException(e);
                     }
 
+                    User one = getOne(Wrappers.<User>lambdaQuery()
+                            .eq(User::getId, authUser.getUserId())
+                    );
                     // 将token存储到redis中
                     redisUtil.set(String.valueOf(authUser.getUserId()), token,24, TimeUnit.HOURS); // 存储并设置时间24小时
                     return Mono.just(JWTUserVO.builder()
                             .id(String.valueOf(authUser.getUserId()))
                             .username(authUser.getUsername())
                             .image(authUser.getImageUrl())
+                            .isFreeze(one.getIsFreeze())
                             .token(token)
                             .isValid(true)
                             .build());
@@ -198,6 +205,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                                 .id(String.valueOf(build.getId()))
                                 .isValid(true)
                                 .token(token)
+                                .isFreeze(0)
                                 .image(USER_HEAD)
                                 .username(build.getName())
                                 .build());

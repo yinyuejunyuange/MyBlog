@@ -60,13 +60,13 @@ public class HandlerMethodAuthUserResolver implements HandlerMethodArgumentResol
     private LoginUser tryGetAuthUser(NativeWebRequest webRequest , boolean required) {
         HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
         if(request == null){
-            throw new RuntimeException("当前请求上下文不存在HttpServletRequest");
+            throw new IllegalArgumentException("当前请求上下文不存在HttpServletRequest");
         }
         int isUserLogin = 1;
         // 获取需要的信息
         String userId = request.getHeader(RequestHeadItems.X_USER_ID);
         if(userId == null && required ){
-            throw new RuntimeException("用户无权操作");
+            throw new IllegalArgumentException("请先登录");
         }
         if(userId == null){
             isUserLogin = 0;
@@ -93,7 +93,7 @@ public class HandlerMethodAuthUserResolver implements HandlerMethodArgumentResol
                 roles = new ArrayList<>();
             }
         } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            throw new IllegalArgumentException("用户信息解析失败");
         }
         LoginUser authUser = new LoginUser(userId != null ? Long.parseLong(userId) : null,
                 userName,
