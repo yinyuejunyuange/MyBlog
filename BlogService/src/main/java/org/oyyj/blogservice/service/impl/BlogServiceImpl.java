@@ -400,6 +400,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 // 增加延期
                 redisUtil.resetExpire(countKey,1800L); // 信息延期30分钟
                 ReadDTO bean = ObjectMapUtil.toBean(ReadDTO.class, hashWithString);
+                log.info("查看Redis中缓存的博客");
                 return bean;
             } catch (Exception e) {
                 log.warn("反序列化博客缓存失败，blogId: {}", id + ":" + e);
@@ -411,7 +412,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         // redis中没有存储缓存 查询当前博客的查询次数
         Integer viewTimes = redisUtil.getInteger(RedisPrefix.BLOG_VIEW_COUNT + id);
 
-        if( viewTimes == null || viewTimes < 1000){
+        if( viewTimes == null || viewTimes < 50){
             // 查询数据库
             result = getReadDTO( id, loginUser);
             if(viewTimes == null){
@@ -421,8 +422,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             }
             return result;
         }
-        ReadDTO readDTO = loadHotBlog(id, loginUser, countKey);
-        return readDTO;
+        return loadHotBlog(id, loginUser, countKey);
     }
 
     /**
@@ -434,6 +434,13 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
      * @return
      */
     private ReadDTO loadHotBlog(Long id, LoginUser loginUser,String countKey){
+
+        // Step 1: 先检查缓存
+        Map<String, String> cachedData = redisUtil.getHashWithString(countKey);
+        if (cachedData != null && !cachedData.isEmpty()) {
+            // 缓存命中，直接返回
+            return ObjectMapUtil.toBean(ReadDTO.class, cachedData);
+        }
         // 缓存未命中  准备获取分布式锁
         String lockKey = RedisPrefix.LOCK_BLOG_INGO+id; // 同时锁住
         RLock lock = redissonClient.getLock(lockKey);
@@ -441,12 +448,13 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         ReadDTO result;
         try {
             // 启动看门狗  最大等待1秒 1秒内获取锁 就true 反之false  使用看门狗
-            boolean isLocked = lock.tryLock(5,30, TimeUnit.SECONDS);
+            boolean isLocked = lock.tryLock(0,10, TimeUnit.SECONDS);
             if(isLocked){
                 try {
                     // 再次检查避免 再处理锁的时候获取到数据了
                     Map<String, String> hashWithString = redisUtil.getHashWithString(countKey);
                     if(Objects.nonNull(hashWithString) && !hashWithString.isEmpty()){
+                        log.info("查看Redis中缓存的博客");
                         return ObjectMapUtil.toBean(ReadDTO.class, hashWithString);
                     }
                     // 查询数据库
@@ -501,11 +509,6 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             return null;
         }
 
-        // 获取与其相关的类型type
-        List<BlogType> list = blogTypeService.list(Wrappers.<BlogType>lambdaQuery().eq(BlogType::getBlogId, id));
-
-        List<Long> typeIds = list.stream().map(BlogType::getTypeId).toList();
-
         Long commentNum = commentMapper.selectCount(Wrappers.<Comment>lambdaQuery()
                 .eq(Comment::getBlogId, id)
                 .ne(Comment::getIsVisible, YesOrNoEnum.YES.getCode())
@@ -532,10 +535,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .reason(one.getFreezeReason())
                 .build();
 
-        if (!Objects.isNull(list)) {
-            List<TypeTable> typesByBlogId = typeTableMapper.findTypesByBlogId(id);
-            readDTO.setTypeList(typesByBlogId);
-        }
+        List<TypeTable> typesByBlogId = typeTableMapper.findTypesByBlogId(id);
+        readDTO.setTypeList(typesByBlogId);
 
         if(Objects.nonNull(loginUser) && Objects.nonNull(loginUser.getUserId())){
             Boolean userKudos = userFeign.isUserKudos(id, String.valueOf(loginUser.getUserId()));

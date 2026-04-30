@@ -55,13 +55,6 @@ public class VerifyController {
         // 打印验证码
         System.out.println(objs[0]);
 
-        // 设置redis值的序列化方式
-
-        // 在redis中保存一个验证码最多尝试次数
-        // 这里采用的是先预设一个上限次数，再以reidis decrement(递减)的方式来进行验证
-        // 这样有个缺点，就是用户只申请验证码，不验证就走了的话，这里就会白白占用5分钟的空间，造成浪费了
-        // 为了避免以上的缺点，也可以采用redis的increment（自增）方法，只有用户开始在做验证的时候设置值，
-        //    超过多少次错误，就失效；避免空间浪费
 //        redisTemplate.opsForValue().set(("VERIFY_CODE_" + id), "3", 5 * 60, TimeUnit.SECONDS);
         redisUtil.set(token, objs[0],60, TimeUnit.SECONDS); //保存 1分钟
 

@@ -100,11 +100,6 @@ public class WebSocketHandler extends TextWebSocketHandler {
      */
     private void handleChatMessage(String fromUserId, ChatMessage chatMessage, WebSocketSession session ) throws IOException {
 
-
-        // 判断用户是否允许陌生人私信
-        // todo 排除admin 相关信息
-
-
         if(chatMessage == null){
             log.error("消息不可为空");
             ResultInfo result = new ResultInfo("RESULT",null, ResultInfo.ResultInfoEnum.DATA_WRONG.getValue(),null,null);

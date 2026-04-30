@@ -30,17 +30,6 @@ public class QuestionAdminController {
     @Autowired
     private QuestionService questionService;
 
-    // todo
-
-    // 新增问题
-
-    // 修改问题信息
-
-    // 分页查看所有问题(可以通过知识库搜索 通过知识点搜索 )
-
-    // 查看问题详情 (展示关联的知识点 和 知识库)
-
-    // 关联知识点 knowledgePoint
 
     @Autowired
     private KnowledgePointService knowledgePointService;

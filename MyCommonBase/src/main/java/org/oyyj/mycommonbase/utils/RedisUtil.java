@@ -350,4 +350,78 @@ public class RedisUtil {
         return redisTemplate.opsForZSet().rangeWithScores(key, start, end);
     }
 
+    private static final DefaultRedisScript<List> TOKEN_BUCKET_SCRIPT = new DefaultRedisScript<>();
+
+    static {
+        TOKEN_BUCKET_SCRIPT.setResultType(List.class);
+        TOKEN_BUCKET_SCRIPT.setScriptText("""
+                local tokensKey = KEYS[1]
+                local timestampKey = KEYS[2]
+
+                local capacity = tonumber(ARGV[1])
+                local refillPerSecond = tonumber(ARGV[2])
+                local requested = tonumber(ARGV[3])
+                local now = tonumber(ARGV[4])
+                local ttl = tonumber(ARGV[5])
+
+                local lastTokens = tonumber(redis.call('GET', tokensKey))
+                if lastTokens == nil then
+                    lastTokens = capacity
+                end
+
+                local lastRefreshed = tonumber(redis.call('GET', timestampKey))
+                if lastRefreshed == nil then
+                    lastRefreshed = now
+                end
+
+                local delta = math.max(0, now - lastRefreshed)
+                local refill = math.floor(delta * refillPerSecond / 1000)
+                local filledTokens = math.min(capacity, lastTokens + refill)
+
+                local allowed = 0
+                if filledTokens >= requested then
+                    allowed = 1
+                    filledTokens = filledTokens - requested
+                end
+
+                redis.call('SETEX', tokensKey, ttl, filledTokens)
+                redis.call('SETEX', timestampKey, ttl, now)
+
+                return {allowed, filledTokens}
+                """);
+    }
+
+    /**
+     * @param keys                  token键上次剩余令牌  token上次执行时间
+     * @param capacity              总容量
+     * @param requestedScaled       需要的数量
+     * @param refillPerSecondScaled 每秒回复熟读
+     * @param now                   现在的时间
+     * @param ttlSeconds            设置key延时时间 避免 key过多增加 系统压力
+     * @return
+     */
+    public List rateLimit(
+            List<String> keys,
+            String capacity,
+            String refillPerSecondScaled,
+            String requestedScaled,
+            String now,
+            String ttlSeconds) {
+
+        return stringRedisTemplate.execute(
+                TOKEN_BUCKET_SCRIPT,
+                keys,
+                capacity,
+                refillPerSecondScaled,
+                requestedScaled,
+                now,
+                ttlSeconds
+        );
+
+
+    }
+
+
+
+
 }

@@ -168,3 +168,15 @@ logging:
     reactor.netty.http.client: DEBUG
     reactor.netty.http.server: DEBUG
     org.springframework.security: DEBUG
+
+# token令牌桶限流
+gateway-rate-limit:
+  enabled: true
+  order: -50
+  global-capacity: 100000
+  global-refill-per-second: 50000
+  client-capacity: 1200
+  client-refill-per-second: 600
+  requested-tokens: 1
+  ttl-seconds: 30
+  exclude-paths:
