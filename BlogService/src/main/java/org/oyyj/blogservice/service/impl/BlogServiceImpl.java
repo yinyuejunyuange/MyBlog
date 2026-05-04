@@ -852,6 +852,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
      * @return
      */
     private String numberStr(Long num){
+        if(num == null){
+            return "0";
+        }
         BigDecimal bigDecimal = new BigDecimal(num);
         if(bigDecimal.compareTo(new BigDecimal(1000))<0){
             return String.valueOf(num);
@@ -1529,6 +1532,18 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .like(Strings.isNotBlank(blogName),Blog::getTitle,blogName)
                 .orderByDesc(Blog::getCreateTime)
                 .eq(Objects.equals(loginUser.getIsUserLogin(),0) || !Objects.equals(loginUser.getUserId(),userId) ,Blog::getStatus,2)
+                .select(
+                        Blog::getId,
+                        Blog::getTitle,
+                        Blog::getUserId,
+                        Blog::getAuthor,
+                        Blog::getCreateTime,
+                        Blog::getStatus,
+                        Blog::getStar,
+                        Blog::getKudos,
+                        Blog::getWatch,
+                        Blog::getCommentNum
+                )
         );
         Map<Long, String> imageInIds = userFeign.getImageInIds(Collections.singletonList(String.valueOf(userId)));
         List<Long> blogIds = list.stream().map(Blog::getId).toList();

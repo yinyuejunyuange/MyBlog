@@ -16,10 +16,7 @@
     <packaging>pom</packaging>
     <modules>
         <module>UserService</module>
-        <module>AdminService</module>
         <module>BlogService</module>
-        <module>AIChatDemo</module>
-        <module>TaskService</module>
         <module>MyCommon</module>
         <module>MyCommonBase</module>
         <module>GatewayDemo</module>

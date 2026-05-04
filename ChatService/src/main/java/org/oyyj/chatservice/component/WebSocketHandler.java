@@ -18,6 +18,7 @@ import org.oyyj.mycommonbase.common.RedisPrefix;
 import org.oyyj.mycommonbase.common.commonEnum.YesOrNoEnum;
 import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,7 +60,8 @@ public class WebSocketHandler extends TextWebSocketHandler {
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
 
     // 当前实例唯一标识
-    private final String instanceId = UUID.randomUUID().toString();
+    @Value("${msgChat.ID}")
+    private  String instanceId ;
     @Autowired
     private BlacklistService blacklistService;
     @Autowired

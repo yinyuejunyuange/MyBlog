@@ -211,6 +211,9 @@ public class BlogForAdminController {
                 .map(Comment::getBlogId)
                 .distinct()
                 .collect(Collectors.toList());
+        if(blogIds.isEmpty()){
+            return ResultUtil.success(new  PageDTO<>());
+        }
         Map<Long, Blog> blogMap = blogService.listByIds(blogIds)
                 .stream()
                 .collect(Collectors.toMap(Blog::getId, Function.identity()));

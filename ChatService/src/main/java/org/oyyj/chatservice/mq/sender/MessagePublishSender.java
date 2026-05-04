@@ -24,6 +24,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+import java.util.Date;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
@@ -79,6 +80,7 @@ public class MessagePublishSender {
             mqMessageLog.setQueue(MqPrefix.MESSAGE_PUBLISH_QUEUE+instance);
             mqMessageLog.setContent(chatMessage.getContent());
             mqMessageLog.setStatus(MqMessageLog.MqMessageLogStatus.WAITING.getCode());
+            mqMessageLog.setCreatedAt(new Date());
             int insert = messageLogMapper.insert(mqMessageLog);
             if(insert==0){
                 log.error("插入MQ消息记录失败，msgId:{}", snowflakeId);
@@ -133,7 +135,7 @@ public class MessagePublishSender {
     private void updateMqStatus(String snowflakeId,Integer execStatus){
         int update = messageLogMapper.update(Wrappers.<MqMessageLog>lambdaUpdate()
                 .eq(MqMessageLog::getMessageId, snowflakeId)
-                .eq(MqMessageLog::getStatus, execStatus)
+                .set(MqMessageLog::getStatus, execStatus)
         );
         if(update==0){
             log.warn("消息记录信息修改该失败,msgID:{} , status:{} ",snowflakeId,execStatus);

@@ -122,7 +122,7 @@ public class LocalRequestFilter extends AbstractGatewayFilterFactory<LocalReques
                                     return writeSuccessResponse(response,loginVO);
                                 })
                                 .onErrorResume(e->{
-                                    return writeErrorResponse(response,HttpStatus.UNAUTHORIZED,"用户名或密码错误");
+                                    return writeErrorResponse(response,HttpStatus.UNAUTHORIZED,e.getMessage());
                                 });
                     } catch (JsonProcessingException e) {
                         log.error("登录失败：{}",e.getMessage(),e);

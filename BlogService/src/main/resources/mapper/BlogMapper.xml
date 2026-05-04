@@ -98,7 +98,6 @@
         FROM blog
         WHERE is_delete = 0
         AND status = 2
-        AND publish_time >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
         AND blog_image IS NOT NULL
         AND blog_image &lt;&gt; ''
         ORDER BY
@@ -111,7 +110,6 @@
         FROM blog
         WHERE is_delete = 0
         AND status = 2
-        AND publish_time >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
         AND blog_project IS NOT NULL
         AND blog_project &lt;&gt; ''
         ORDER BY

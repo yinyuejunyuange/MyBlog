@@ -350,7 +350,11 @@ public class UserController {
             throw new AuthenticationException("请求 来源错误");
         }
 
-        Long userId = userService.getOne(Wrappers.<User>lambdaQuery().eq(User::getName, userName)).getId();
+        User one = userService.getOne(Wrappers.<User>lambdaQuery().like(User::getName, userName));
+        if(one == null){
+            return "";
+        }
+        Long userId = one.getId();
         return String.valueOf(userId);
     }
 
@@ -482,7 +486,7 @@ public class UserController {
 
     // 获取用户关注的博客作者
     @GetMapping("/getUserStarAuthor")
-    public Map<String,Object> getUserStarAuthor(@RequestParam("currentPage")Integer currentPage , @RequestParam(value = "title",required = false)String title, @RequestParam("userId") Long userId, @RequestUser LoginUser user){
+    public Map<String,Object> getUserStarAuthor(@RequestParam("currentPage")Integer currentPage , @RequestParam(value = "title",required = false)String title, @RequestParam("userId") Long userId){
         PageDTO<BlogUserInfoDTO> userStarBlogAuthor = userService.getUserStarBlogAuthor(String.valueOf(userId), title ,currentPage);
         if(Objects.isNull(userStarBlogAuthor)){
             return ResultUtil.successMap(null,"此用户没有关注的对象");

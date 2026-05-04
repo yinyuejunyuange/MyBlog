@@ -40,10 +40,10 @@ public class MqMessageLog {
     @TableField("error_msg")
     private String errorMsg;              // 错误信息
 
-    @TableField(value = "created_at", fill = FieldFill.INSERT)
+    @TableField(value = "created_at")
     private Date createdAt;       // 创建时间
 
-    @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
+    @TableField(value = "updated_at")
     private Date updatedAt;       // 更新时间
 
     /**

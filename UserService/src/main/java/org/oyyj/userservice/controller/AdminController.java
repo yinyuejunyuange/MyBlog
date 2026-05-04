@@ -6,11 +6,13 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.oyyj.mycommon.annotation.RequestRole;
 import org.oyyj.mycommon.annotation.RequestUser;
 import org.oyyj.mycommonbase.common.RoleEnum;
+import org.oyyj.mycommonbase.common.auth.LoginUser;
 import org.oyyj.mycommonbase.common.commonEnum.YesOrNoEnum;
 import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.oyyj.userservice.Feign.BlogFeign;
 import org.oyyj.userservice.config.mq.sender.RMUnfreezeSender;
 import org.oyyj.userservice.dto.UnFreezeDTO;
+import org.oyyj.userservice.mapper.SysRoleMapper;
 import org.oyyj.userservice.pojo.SysRole;
 import org.oyyj.userservice.pojo.User;
 import org.oyyj.userservice.service.ISysRoleService;
@@ -20,6 +22,7 @@ import org.oyyj.userservice.vo.UserInfoForAdminVO;
 import org.oyyj.userservice.vo.user.User12MonthVO;
 import org.oyyj.userservice.vo.user.UserDetailDTO;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
@@ -46,6 +49,9 @@ public class AdminController {
 
     @Autowired
     private RMUnfreezeSender rmUnfreezeSender;
+
+    @Autowired
+    private SysRoleMapper sysRoleMapper;
 
     /**
      * 添加角色
@@ -90,6 +96,17 @@ public class AdminController {
         sysRole.setIsStop(YesOrNoEnum.YES.getCode());
         roleService.updateById(sysRole);
         return ResultUtil.success("修改成功");
+    }
+
+    /**
+     * 获取用户角色
+     * @param loginUser
+     * @return
+     */
+    @GetMapping("/userRoles")
+    public ResultUtil<List<String>> userRoles(@RequestUser LoginUser loginUser){
+        List<String> strings = sysRoleMapper.roleNameByUserId(loginUser.getUserId());
+        return ResultUtil.success(strings);
     }
 
     /**
@@ -231,8 +248,8 @@ public class AdminController {
     @RequestRole(role = {RoleEnum.SUPER_ADMIN,RoleEnum.ADMIN})
     @GetMapping("/userPage")
     public ResultUtil<Page<UserInfoForAdminVO>> userListInfo(@RequestParam(value = "userName",required = false) String userName,
-                                                             @RequestParam(value = "startTime",required = false) Date startTime,
-                                                             @RequestParam(value = "endTime",required = false) Date endTime,
+                                                             @RequestParam(value = "startTime",required = false)@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Date startTime,
+                                                             @RequestParam(value = "endTime",required = false)@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Date endTime,
                                                              @RequestParam(value = "isUserFreeze",required = false) Integer isUserFreeze,
                                                              @RequestParam("currentPage") Integer currentPage,
                                                              @RequestParam("pageSize") Integer pageSize){

@@ -18,6 +18,7 @@ import org.oyyj.gatewaydemo.pojo.dto.RegisterDTO;
 import org.oyyj.gatewaydemo.pojo.vo.JWTUserVO;
 import org.oyyj.gatewaydemo.service.IUserService;
 import org.oyyj.gatewaydemo.utils.JWTUtils;
+import org.oyyj.mycommonbase.common.commonEnum.YesOrNoEnum;
 import org.oyyj.mycommonbase.utils.RedisUtil;
 import org.oyyj.mycommonbase.utils.ResultUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -122,6 +123,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                     User one = getOne(Wrappers.<User>lambdaQuery()
                             .eq(User::getId, authUser.getUserId())
                     );
+                    if(Objects.equals(one.getIsFreeze(), YesOrNoEnum.YES.getCode())){
+                        throw new RuntimeException("登录失败 当前用户已经冻结");
+                    }
                     // 将token存储到redis中
                     redisUtil.set(String.valueOf(authUser.getUserId()), token,24, TimeUnit.HOURS); // 存储并设置时间24小时
                     return Mono.just(JWTUserVO.builder()
