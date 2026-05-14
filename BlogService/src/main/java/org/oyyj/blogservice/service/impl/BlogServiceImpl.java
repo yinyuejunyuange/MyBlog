@@ -1589,7 +1589,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .eq(Blog::getStatus,2) // 只查询再发布中状态的数据
                 .like(Strings.isNotBlank(title), Blog::getTitle,title)
         );
-        Map<Long, String> imageInIds = userFeign.getImageInIds(Collections.singletonList(String.valueOf(userId)));
+        List<String> authorIds = list.stream().map(Blog::getUserId).map(String::valueOf).toList();
+        Map<Long, String> imageInIds = userFeign.getImageInIds(authorIds);
         List<Long> blogIds = list.stream().map(Blog::getId).toList();
         Map<String,List<String>> blogTypeMap = new ConcurrentHashMap<>();
         blogIds.forEach(infoId->{
@@ -1611,7 +1612,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 .eq(Blog::getStatus,2) // 只能获取再发布中的博客信息
                 .like(Strings.isNotBlank(title),Blog::getTitle,title)
         );
-        Map<Long, String> imageInIds = userFeign.getImageInIds(Collections.singletonList(String.valueOf(userId)));
+        List<String> authorIds = list.stream().map(Blog::getUserId).map(String::valueOf).toList();
+        Map<Long, String> imageInIds = userFeign.getImageInIds(authorIds);
         List<Long> blogIds = list.stream().map(Blog::getId).toList();
         Map<String,List<String>> blogTypeMap = new ConcurrentHashMap<>();
         blogIds.forEach(infoId->{

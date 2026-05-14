@@ -94,12 +94,12 @@ public class QuestionController {
     @GetMapping("/random")
     public ResultUtil<QuestionPageVO> getRandomQuestions(
             @RequestParam(required = false, value = "knowledgeBaseId") String knowledgeBaseId,
-            @RequestParam(required = false, value = "knowledgePointIds") List<String> knowledgePointIds,
+            @RequestParam(required = false, value = "knowledgePointIds") String knowledgePointIds,
             @RequestParam(defaultValue = "10") Integer count,
             @RequestUser(required = false) LoginUser loginUser) {
-        List<Long> pointIdStrIds = null;
+        List<Long> pointIdStrIds = new ArrayList<>();
         if(knowledgePointIds != null && !knowledgePointIds.isEmpty()) {
-            pointIdStrIds = knowledgePointIds.stream().map(Long::valueOf).toList();
+            pointIdStrIds.add(Long.valueOf(knowledgePointIds));
         }
         QuestionPageVO result = questionService.getRandomQuestions(loginUser.getUserId(), ParamTypeUtil.toLong(knowledgeBaseId), pointIdStrIds, count);
         return ResultUtil.success(result);
