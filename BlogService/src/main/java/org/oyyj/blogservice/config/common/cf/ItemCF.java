@@ -98,7 +98,7 @@ public class ItemCF {
                 .forEach(batchIndex -> {
                     // 分批次计算
                     int start = batch * batchIndex;
-                    int end = Math.min(start + batch, allTypes.size());
+                    int end = Math.min(start + batch, blogIds.size());
                     for (int i = start; i < end; i++) {
                         Long blogId_i = blogIds.get(i);
                         int[] vector_i = blogVectors.get(blogId_i);

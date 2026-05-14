@@ -230,6 +230,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 save = updateById(blog);
             }else{
                 blog.setCreateTime(date);
+                blog.setUpdateTime(date);
                 save= save(blog);
             }
             if(save){
@@ -262,7 +263,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 return false;
             }
 
-            blog.setStatus(1);
+            blog.setStatus(5); // 设置为代发布
             if(blogDTO.getTimedType().equals(TimedModeEnum.SCHEDULE.getValue())){
                 Date publishTime = blogDTO.getPublishTime();
                 Date now = new Date();
@@ -284,11 +285,15 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 boolean save =false;
                 if(blogDTO.getId()!=null&& StringUtils.isNotBlank(blogDTO.getId())){
                     Blog one = getOne(Wrappers.<Blog>lambdaQuery().eq(Blog::getId, Long.valueOf(blogDTO.getId()))
-                            .select(Blog::getId)
+                            .select(Blog::getId,Blog::getCreateTime)
                     );
                     blog.setId(one.getId());
+                    blog.setUpdateTime(date);
+                    blog.setCreateTime(one.getCreateTime());
                     save = updateById(blog);
                 }else{
+                    blog.setCreateTime(date);
+                    blog.setUpdateTime(date);
                     save= save(blog);
                 }
                 if(save){
@@ -298,10 +303,18 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                         List<Long> listIds = blog.getTypeList().stream().map(Long::valueOf).toList();
                         List<TypeTable> typeTables = typeTableMapper.selectList(Wrappers.<TypeTable>lambdaQuery().in(TypeTable::getId, listIds));
 
+                        // 先清空所有存在的类别
+                        blogTypeService.remove(Wrappers.<BlogType>lambdaQuery()
+                                .eq(BlogType::getBlogId,id)
+                        );
+
                         List<BlogType> list = typeTables.stream().map(i -> BlogType.builder().blogId(id).typeId(i.getId()).build()).toList(); // 流式处理
                         boolean saveTypes = blogTypeService.saveBatch(list);
                         if(saveTypes){
-                            Boolean b = redisUtil.zAdd(RedisPrefix.BLOG_PUBLISH_ZSET+instanceName, blog.getId(), blogDTO.getPublishTime().getTime());
+                            // 先清空成员
+                            redisUtil.zRem(RedisPrefix.BLOG_PUBLISH_ZSET+instanceName, String.valueOf(blog.getId()));
+                            // 再更新
+                            Boolean b = redisUtil.zAdd(RedisPrefix.BLOG_PUBLISH_ZSET+instanceName, String.valueOf(blog.getId()), blogDTO.getPublishTime().getTime());
                             if (!b) {
                                 log.warn("博客定时发布信息 失败 用户ID ：{}，博客信息：{}",loginUser.getUserId(),blogDTO);
                                 return  false;
@@ -324,16 +337,24 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 boolean save =false;
                 if(blogDTO.getId()!=null&& StringUtils.isNotBlank(blogDTO.getId())){
                     Blog one = getOne(Wrappers.<Blog>lambdaQuery().eq(Blog::getId, Long.valueOf(blogDTO.getId()))
-                            .select(Blog::getId)
+                            .select(Blog::getId,Blog::getCreateTime)
                     );
                     blog.setId(one.getId());
+                    blog.setCreateTime(one.getCreateTime());
+                    blog.setUpdateTime(one.getUpdateTime());
                     save = updateById(blog);
                 }else{
+                    blog.setCreateTime(date);
+                    blog.setUpdateTime(date);
                     save= save(blog);
                 }
                 if(save){
                     Long id = blog.getId();
                     if (blog.getTypeList() != null && !blog.getTypeList().isEmpty()) {
+                        // 先清空所有存在的类别
+                        blogTypeService.remove(Wrappers.<BlogType>lambdaQuery()
+                                .eq(BlogType::getBlogId,id)
+                        );
                         // 相关联的类型
                         List<Long> listIds = blog.getTypeList().stream().map(Long::valueOf).toList();
                         List<TypeTable> typeTables = typeTableMapper.selectList(Wrappers.<TypeTable>lambdaQuery().in(TypeTable::getId, listIds));
@@ -341,8 +362,10 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                         List<BlogType> list = typeTables.stream().map(i -> BlogType.builder().blogId(id).typeId(i.getId()).build()).toList(); // 流式处理
                         boolean saveTypes = blogTypeService.saveBatch(list);
                         if(saveTypes){
-
-                            Boolean b = redisUtil.zAdd(RedisPrefix.BLOG_PUBLISH_ZSET+instanceName, blog.getId(), executeTime);
+                            // 先清空成员
+                            redisUtil.zRem(RedisPrefix.BLOG_PUBLISH_ZSET+instanceName, String.valueOf(blog.getId()));
+                            // 再更新
+                            Boolean b = redisUtil.zAdd(RedisPrefix.BLOG_PUBLISH_ZSET+instanceName,String.valueOf( blog.getId()), executeTime);
                             if (!b) {
                                 log.warn("博客延时发布信息 失败 用户ID ：{}，博客信息：{}",loginUser.getUserId(),blogDTO);
                                 return  false;
@@ -959,19 +982,19 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         }
 
         List<Long> list = objects.stream().map(item -> {
-            if (item instanceof Long) {
-                return (Long) item;
+            if (item instanceof String) {
+                return (String) item;
             } else {
                 return null;
             }
-        }).filter(Objects::nonNull).toList();
+        }).filter(Objects::nonNull).map(Long::parseLong).toList();
         if(list.isEmpty()){
             return;
         }
-        // 获取已经发布成功的数据并删除部分数据
+        // 获取已经发布成功 或者被处理的数据并删除部分数据
         List<Long> alPublishBlogIds = list(Wrappers.<Blog>lambdaQuery()
                 .in(Blog::getId, list)
-                .ne(Blog::getStatus, 1)
+                .ne(Blog::getStatus, 5)
                 .select(Blog::getId)
         ).stream().map(Blog::getId).toList();
         List<String> alPublishBlogIdStr = alPublishBlogIds.stream().map(String::valueOf).toList();

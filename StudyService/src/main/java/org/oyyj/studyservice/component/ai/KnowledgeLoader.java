@@ -13,6 +13,7 @@ import org.oyyj.studyservice.mapper.KnowledgePointMapper;
 import org.oyyj.studyservice.pojo.KnowledgePoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -37,12 +38,15 @@ public class KnowledgeLoader {
     private String indexName;
 
     @PostConstruct
+    @Scheduled(cron = "0 0 3 * * ?")
     public void load() {
         // 检查索引中是否已有数据（可选，避免重复加载）
-        if (isIndexPopulated()) {
-            log.info("Elasticsearch 索引 {} 已存在数据，跳过加载", indexName);
-            return;
-        }
+//        if (isIndexPopulated()) {
+//            log.info("Elasticsearch 索引 {} 已存在数据，跳过加载", indexName);
+//            return;
+//        }
+        // 先清空数据
+        clearIndex();
 
         List<KnowledgePoint> list = mapper.selectList(Wrappers.emptyWrapper());
         log.info("开始加载 {} 个知识点到 Elasticsearch", list.size());
@@ -74,6 +78,11 @@ public class KnowledgeLoader {
             log.warn("检查索引失败，将尝试加载数据", e);
             return false;
         }
+    }
+
+    private void clearIndex() {
+        embeddingStore.removeAll();
+        log.info("已清空 Elasticsearch 索引 {}", indexName);
     }
 
 }

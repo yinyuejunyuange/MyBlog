@@ -1,5 +1,6 @@
 package org.oyyj.blogservice.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -31,6 +32,7 @@ public class BlogDTO {
     private String commentNum;
     private Double score; // 评分
     private String userHead;// 作者头像
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private Date publishTime; // 定时
     private Integer delayMinutes ; // 延时 时长
     private String timedType; // 延时的类别 定时 or 延时
