@@ -386,7 +386,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     }
 
     @Override
-    public PageDTO<BlogUserInfoDTO> getUserStarBlogAuthor(String userId, String title, int current) {
+    public PageDTO<BlogUserInfoDTO> getUserStarBlogAuthor(String userId, String title, int current,LoginUser loginUser) {
 
         IPage<UserAttention> userAttentionIPage=new Page<>(current,PAGE_SIZE);
 
@@ -416,6 +416,20 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         List<User> userList = list(Wrappers.<User>lambdaQuery().in(User::getId, authorIds));
         List<Long> userIds =userList.stream().map(User::getId).toList();
         Map<Long,List<Long>> collect =   blogFeign.getBlogUserInfo(userIds);
+        List<UserAttention> loginUserAttentions = List.of();
+        if(Objects.equals(loginUser.getIsUserLogin(),YesOrNoEnum.YES.getCode())){
+            loginUserAttentions =userAttentionService.list(userAttentionIPage, Wrappers.<UserAttention>lambdaQuery()
+                    .eq(UserAttention::getUserId, loginUser.getUserId())
+            );
+        }
+
+        List<Long> loginUserAttentionsIds;
+        if(loginUserAttentions!=null&& !loginUserAttentions.isEmpty()){
+            loginUserAttentionsIds = loginUserAttentions.stream().map(UserAttention::getAttentionId).toList();
+        } else {
+            loginUserAttentionsIds = List.of();
+        }
+
 
         List<BlogUserInfoDTO> list =userList.stream().map(i -> BlogUserInfoDTO.builder()
                 .userId(String.valueOf(i.getId()))
@@ -427,7 +441,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                 .visitedNum(collect.containsKey(i.getId())? collect.get(i.getId()).get(1): 0)
                 .starNum(i.getStar())
                 .kudosNum(collect.containsKey(i.getId())? collect.get(i.getId()).get(2): 0)
-                .isUserStar(true)
+                .isUserStar(loginUserAttentionsIds.contains(i.getId()))
                 .build()).toList();
 
         PageDTO<BlogUserInfoDTO> blogUserInfoDTOPageDTO=new PageDTO<>();

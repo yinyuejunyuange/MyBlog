@@ -44,7 +44,7 @@ public interface IUserService extends IService<User> {
 
     Map<String,Object> getUserStarBlog(String userId,int current);
 
-    PageDTO<BlogUserInfoDTO> getUserStarBlogAuthor(String userId, String title, int current);
+    PageDTO<BlogUserInfoDTO> getUserStarBlogAuthor(String userId, String title, int current,LoginUser loginUser) throws Exception;
 
     Map<String,Object> getUsersBlog(Long userId,int current);
 

@@ -1565,7 +1565,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                         Blog::getStar,
                         Blog::getKudos,
                         Blog::getWatch,
-                        Blog::getCommentNum
+                        Blog::getCommentNum,
+                        Blog::getIntroduce
                 )
         );
         Map<Long, String> imageInIds = userFeign.getImageInIds(Collections.singletonList(String.valueOf(userId)));
