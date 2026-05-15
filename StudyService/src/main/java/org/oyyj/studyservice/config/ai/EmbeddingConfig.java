@@ -98,7 +98,7 @@ public class EmbeddingConfig {
     }
 
     /**
-     * Elasticsearch Java Client -- 业务处理
+     * Elasticsearch Java Client -- 业务处理---无用
      * es java客户端
      */
     @Bean

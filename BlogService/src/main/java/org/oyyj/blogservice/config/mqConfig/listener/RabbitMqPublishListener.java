@@ -50,7 +50,7 @@ public class RabbitMqPublishListener {
     @RabbitListener(queues = MqPrefix.BLOG_PUBLISH_QUEUE)
     public void handleBlogPublishMessage(RabbitMqMessage rabbitMqMessage,
                                           Channel channel,
-                                          @Header(AmqpHeaders.DELIVERY_TAG) int deliveryTag){
+                                          @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
 
         try {
             Boolean call = RetryConfig.LOCK_RETRYER.call(() -> {
@@ -107,8 +107,18 @@ public class RabbitMqPublishListener {
                     .eq(MqMessageRecord::getMsgId, rabbitMqMessage.getMessageId())
                     .set(MqMessageRecord::getExecStatus, MqStatusEnum.FAIL.getCode())
             );
+            if (channel.isOpen()) {
+                channel.basicAck(deliveryTag, false);
+            }
             throw new RuntimeException(e);
         } catch (IOException e) {
+            mqMessageRecordMapper.update(Wrappers.<MqMessageRecord>lambdaUpdate()
+                    .eq(MqMessageRecord::getMsgId, rabbitMqMessage.getMessageId())
+                    .set(MqMessageRecord::getExecStatus, MqStatusEnum.FAIL.getCode())
+            );
+            if (channel.isOpen()) {
+                channel.basicAck(deliveryTag, false);
+            }
             throw new RuntimeException(e);
         }
     }

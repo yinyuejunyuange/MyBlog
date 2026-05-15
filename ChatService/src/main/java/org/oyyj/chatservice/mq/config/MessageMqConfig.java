@@ -20,7 +20,7 @@ public class MessageMqConfig {
      */
     @Bean
     public Queue messagePublishQueue(){
-        return new Queue(MqPrefix.MESSAGE_PUBLISH_EXCHANGE+ msgId);
+        return new Queue(MqPrefix.MESSAGE_PUBLISH_QUEUE+ msgId);
     }
 
     /**

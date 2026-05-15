@@ -181,7 +181,7 @@ public class AdminController {
                 .eq(User::getId, Long.parseLong(userId))
                 .set(User::getIsFreeze, YesOrNoEnum.NO.getCode())
         );
-        return ResultUtil.success("用户冻结成功");
+        return ResultUtil.success("用户解冻成功");
     }
 
     /**

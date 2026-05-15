@@ -110,7 +110,7 @@ public class MessagePublishSender {
                     return false;
                 }
             });
-            if(Objects.isNull(call) || call ){
+            if (Objects.isNull(call) || !call) {
                 updateMqStatus(snowflakeId, MqMessageLog.MqMessageLogStatus.SEND_FAIL.getCode());
             }
         } catch (ExecutionException e) {
@@ -126,7 +126,7 @@ public class MessagePublishSender {
             updateMqStatus(snowflakeId,MqMessageLog.MqMessageLogStatus.SEND_FAIL.getCode());
             throw new RuntimeException(e);
         } catch (Exception e){
-            log.error("其他异常 mqId:{}",snowflakeId);
+            log.error("其他异常 mqId:{}",snowflakeId, e);
             updateMqStatus(snowflakeId, MqMessageLog.MqMessageLogStatus.SEND_FAIL.getCode());
             throw new RuntimeException(e);
         }

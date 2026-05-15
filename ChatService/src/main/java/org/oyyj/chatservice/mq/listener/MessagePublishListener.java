@@ -41,32 +41,26 @@ public class MessagePublishListener {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // 使用spEL表达式
-    @RabbitListener(queues = "#{messagePublishQueue}")
+    @RabbitListener(queues = "#{messagePublishQueue.name}")
     public void handleEsBlogMessage(RabbitMqMessage rabbitMqMessage,
                                     Channel channel,
-                                    @Header(AmqpHeaders.DELIVERY_TAG) int deliveryTag){
+                                    @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
         try {
             Boolean call = RetryConfig.LOCK_RETRYER.call(() -> {
                 try {
-                    // 判断消息是否处理完毕
                     log.info("接收到消息推送,payload:{},deliveryTag:{}", rabbitMqMessage, deliveryTag);
                     MqMessageLog mqMessageLog = mqMessageLogMapper.selectOne(Wrappers.<MqMessageLog>lambdaQuery()
                             .eq(MqMessageLog::getMessageId, rabbitMqMessage.getMessageId())
                     );
-                    if(mqMessageLog==null){
-                        if(channel.isOpen()){
-                            channel.basicAck(deliveryTag,false);
+                    if (mqMessageLog == null) {
+                        if (channel.isOpen()) {
+                            channel.basicAck(deliveryTag, false);
                         }
-                        log.info("接收到的推送消息不存在：{}",rabbitMqMessage.getMessageId());
-                        mqMessageLogMapper.update(Wrappers.<MqMessageLog>lambdaUpdate()
-                                .eq(MqMessageLog::getMessageId, rabbitMqMessage.getMessageId())
-                                .set(MqMessageLog::getStatus, MqMessageLog.MqMessageLogStatus.FAIL.getCode())
-                                .set(MqMessageLog::getErrorMsg, "消息日志不存在")
-                        );
+                        log.info("接收到的推送消息不存在：{}", rabbitMqMessage.getMessageId());
                         return true;
                     }
 
-                    if(MqMessageLog.MqMessageLogStatus.SEND.getCode().equals(mqMessageLog.getStatus())){
+                    if (MqMessageLog.MqMessageLogStatus.FINISH.getCode().equals(mqMessageLog.getStatus())) {
                         if (channel.isOpen()) {
                             channel.basicAck(deliveryTag, false);
                         }
@@ -76,36 +70,42 @@ public class MessagePublishListener {
 
                     String payLoad = rabbitMqMessage.getPayLoad();
                     ChatMessage chatMessage = objectMapper.readValue(payLoad, ChatMessage.class);
-                    if(chatMessage == null){
+                    if (chatMessage == null) {
                         if (channel.isOpen()) {
                             channel.basicAck(deliveryTag, false);
                         }
-                        log.warn("msgId:{} ES处理消息不存在", rabbitMqMessage.getMessageId());
-                        mqMessageLogMapper.update(Wrappers.<MqMessageLog>lambdaUpdate()
-                                .eq(MqMessageLog::getMessageId, rabbitMqMessage.getMessageId())
-                                .set(MqMessageLog::getStatus, MqMessageLog.MqMessageLogStatus.FAIL.getCode())
-                                .set(MqMessageLog::getErrorMsg, "推送消息不存在")
-                        );
+                        log.warn("msgId:{} 推送消息不存在", rabbitMqMessage.getMessageId());
+                        updateMqStatus(rabbitMqMessage.getMessageId(), MqMessageLog.MqMessageLogStatus.FAIL.getCode(), "推送消息不存在");
                         return true;
                     }
 
-                    webSocketHandler.sendToUser(chatMessage.getToUserId(),  chatMessage);
-
-                    // 增加修改消息记录
-                    updateMqStatus(chatMessage.getMsgId(), MqMessageLog.MqMessageLogStatus.FINISH.getCode(),"");
+                    updateMqStatus(chatMessage.getMsgId(), MqMessageLog.MqMessageLogStatus.READY.getCode(), "");
+                    webSocketHandler.sendToUser(chatMessage.getToUserId(), chatMessage);
+                    updateMqStatus(chatMessage.getMsgId(), MqMessageLog.MqMessageLogStatus.FINISH.getCode(), "");
+                    if (channel.isOpen()) {
+                        channel.basicAck(deliveryTag, false);
+                    }
                     return true;
                 } catch (IOException e) {
                     log.error("数据处理失败 msgId:{} ", rabbitMqMessage.getMessageId(), e);
                     return false;
                 }
             });
-            if(call == null || !call){
+            if (call == null || !call) {
                 log.warn("msgId:{} 重试消息处理失败", rabbitMqMessage.getMessageId());
-                updateMqStatus(rabbitMqMessage.getMessageId(), MqMessageLog.MqMessageLogStatus.FAIL.getCode(),"重试消息处理后失败");
+                updateMqStatus(rabbitMqMessage.getMessageId(), MqMessageLog.MqMessageLogStatus.FAIL.getCode(), "重试消息处理后失败");
+                if (channel.isOpen()) {
+                    channel.basicAck(deliveryTag, false);
+                }
             }
         } catch (ExecutionException | RetryException e) {
             log.error("重试消息处理失败 msgId:{} ", rabbitMqMessage.getMessageId(), e);
-            updateMqStatus(rabbitMqMessage.getMessageId(), MqMessageLog.MqMessageLogStatus.FAIL.getCode(),"重试消息处理失败");
+            updateMqStatus(rabbitMqMessage.getMessageId(), MqMessageLog.MqMessageLogStatus.FAIL.getCode(), "重试消息处理失败");
+            if (channel.isOpen()) {
+                channel.basicAck(deliveryTag, false);
+            }
+            throw new RuntimeException(e);
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }

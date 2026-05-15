@@ -46,7 +46,7 @@ public class RMUnfreezeListener {
     @RabbitListener(queues = MqPrefix.USER_UNFREEZE_DLX_QUEUE)
     public void handleEsBlogMessage(RabbitMqMessage rabbitMqMessage,
                                     Channel channel,
-                                    @Header(AmqpHeaders.DELIVERY_TAG) int deliveryTag) throws IOException {
+                                    @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
         try {
             Boolean call = RetryConfig.LOCK_RETRYER.call(() -> {
                 try {
@@ -101,7 +101,14 @@ public class RMUnfreezeListener {
             });
             if(call == null || !call){
                 log.warn("msgId:{} 重试消息处理失败", rabbitMqMessage.getMessageId());
-            }else{
+                mqMessageRecordMapper.update(Wrappers.<MqMessageRecord>lambdaUpdate()
+                        .eq(MqMessageRecord::getMsgId, rabbitMqMessage.getMessageId())
+                        .set(MqMessageRecord::getExecStatus, MqStatusEnum.FAIL.getCode())
+                );
+                if (channel.isOpen()) {
+                    channel.basicAck(deliveryTag, false);
+                }
+            } else {
                 mqMessageRecordMapper.update(Wrappers.<MqMessageRecord>lambdaUpdate()
                         .eq(MqMessageRecord::getMsgId, rabbitMqMessage.getMessageId())
                         .set(MqMessageRecord::getExecStatus, MqStatusEnum.SUCCESS.getCode())
@@ -113,13 +120,10 @@ public class RMUnfreezeListener {
                     .eq(MqMessageRecord::getMsgId, rabbitMqMessage.getMessageId())
                     .set(MqMessageRecord::getExecStatus, MqStatusEnum.FAIL.getCode())
             );
-            throw new RuntimeException(e);
-        }finally {
-            // 清除队列预防阻塞
             if (channel.isOpen()) {
                 channel.basicAck(deliveryTag, false);
             }
-
+            throw new RuntimeException(e);
         }
     }
 

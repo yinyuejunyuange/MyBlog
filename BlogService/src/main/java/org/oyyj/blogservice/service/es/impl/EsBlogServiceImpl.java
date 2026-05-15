@@ -24,6 +24,7 @@ import org.oyyj.blogservice.service.es.EsBlogService;
 import org.oyyj.blogservice.util.MDUtil;
 import org.oyyj.blogservice.vo.blogs.BlogSearchVO;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -47,6 +48,7 @@ public class EsBlogServiceImpl implements EsBlogService {
     private static final String END = "</em>";
 
     // 初始化 检查es并将所有博客信息存储到Es中
+    @Scheduled(cron = "0 0 2 * * ?")
     @PostConstruct
     public void init(){
         List<Long> dbBlogIds = blogMapper.selectList(Wrappers.<Blog>lambdaQuery()

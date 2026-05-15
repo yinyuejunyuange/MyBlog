@@ -41,7 +41,7 @@ public class RabbitMqEsListener {
     @RabbitListener(queues = MqPrefix.ES_BLOG_QUEUE)
     public void handleEsBlogMessage(RabbitMqMessage rabbitMqMessage,
                                     Channel channel,
-                                    @Header(AmqpHeaders.DELIVERY_TAG) int deliveryTag){
+                                    @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) throws IOException {
         try {
             Boolean call = RetryConfig.LOCK_RETRYER.call(() -> {
                 try {
@@ -75,8 +75,14 @@ public class RabbitMqEsListener {
                         }
                         log.warn("msgId:{} ES处理消息不存在", rabbitMqMessage.getMessageId());
                         return true;
-                    }else{
+                    } else {
                         esBlogRepository.save(esMqDTO);
+                        mqMessageRecordMapper.update(Wrappers.<MqMessageRecord>lambdaUpdate()
+                                .eq(MqMessageRecord::getMsgId, rabbitMqMessage.getMessageId())
+                                .set(MqMessageRecord::getExecStatus, MqStatusEnum.SUCCESS.getCode()));
+                        if (channel.isOpen()) {
+                            channel.basicAck(deliveryTag, false);
+                        }
                     }
                     return true;
                 } catch (IOException e) {
@@ -86,9 +92,23 @@ public class RabbitMqEsListener {
             });
             if(call == null || !call){
                 log.warn("msgId:{} 重试消息处理失败", rabbitMqMessage.getMessageId());
+                mqMessageRecordMapper.update(Wrappers.<MqMessageRecord>lambdaUpdate()
+                        .eq(MqMessageRecord::getMsgId, rabbitMqMessage.getMessageId())
+                        .set(MqMessageRecord::getExecStatus, MqStatusEnum.FAIL.getCode()));
+                if (channel.isOpen()) {
+                    channel.basicAck(deliveryTag, false);
+                }
             }
         } catch (ExecutionException | RetryException e) {
             log.error("重试消息处理失败 msgId:{} ", rabbitMqMessage.getMessageId(), e);
+            mqMessageRecordMapper.update(Wrappers.<MqMessageRecord>lambdaUpdate()
+                    .eq(MqMessageRecord::getMsgId, rabbitMqMessage.getMessageId())
+                    .set(MqMessageRecord::getExecStatus, MqStatusEnum.FAIL.getCode()));
+            if (channel.isOpen()) {
+                channel.basicAck(deliveryTag, false);
+            }
+            throw new RuntimeException(e);
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
